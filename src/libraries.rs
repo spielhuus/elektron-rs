@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::{Error, SearchItem};
 use super::sexp::{Sexp, get, Get, SexpParser};
 use std::fs;
 
@@ -6,6 +6,7 @@ use std::fs;
 pub struct Libraries {
     pathlist: Vec<String>,
 }
+
 impl Libraries {
     pub fn new(pathlist: Vec<String>) -> Self {
         Self {
@@ -13,21 +14,23 @@ impl Libraries {
         }
     }
 
-    pub fn search(&mut self, name: &str) -> Result<String, Error> {
+    pub fn search(&mut self, name: &str) -> Result<Vec<SearchItem>, Error> {
+        let mut result: Vec<SearchItem> = Vec::new();
         let pathlist = self.pathlist.clone();
         for path in pathlist {
             for entry in fs::read_dir(path).unwrap() {
                 let dir = entry.unwrap();
                 if dir.path().is_file() {
-                    let parser = SexpParser::load(dir.path().to_str().unwrap()).unwrap();
+                    let parser = SexpParser::load(dir.path().to_str().unwrap())?;
                     //get the Libraries
                     for node in parser.values() {
                         match node {
                             Sexp::Node(node_name, _) => {
                                 if node_name == "symbol" {
-                                    let lib_id: String = get!(node, 0).unwrap();
+                                    let lib_id: String = get!(node, 0)?;
                                     if lib_id == name.to_string() {
                                         let lib_name = dir.path().file_stem().unwrap().to_str().unwrap().to_string();
+                                        result.push(SearchItem{lib: lib_name.to_string(), key: lib_id.to_string(), description: String::new() });                                 
                                         println!("found: {}:{}", lib_name, lib_id);
                                     }
                                 }
@@ -38,7 +41,7 @@ impl Libraries {
                 }
             }
         }
-        Err(Error::ParseError)
+        Ok(result)
     }
 
     pub fn get(&mut self, name: &str) -> Result<Sexp, Error> {

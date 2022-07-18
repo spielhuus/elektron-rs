@@ -16,6 +16,7 @@ use crate::reports::bom;
 use crate::cairo_plotter::CairoPlotter;
 use crate::themes::Style;
 use crate::plot::plot;
+use crate::libraries::Libraries;
 
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum Error {
@@ -56,6 +57,14 @@ impl std::convert::From<Error> for PyErr {
     }
 }
 
+#[derive(Debug)]
+#[pyclass]
+pub struct SearchItem {
+    lib: String,
+    key: String,
+    description: String,
+}
+
 #[pyfunction]
 fn get_bom(input: &str, output: Option<&str>, group: bool) -> PyResult<()> {
     let parser = SexpParser::load(input)?;
@@ -78,14 +87,10 @@ fn schema_plot(
 }
 
 #[pyfunction]
-fn search(term: &str, path: Vec<String>) -> String {
-    /* let mut libs: Libraries = Libraries::new(path);
-    if let Some(res) = libs.search(term) {
-        res
-    } else {
-        String::from("not found!")
-    } */
-    String::from("not implemented")
+fn search(term: &str, path: Vec<String>) -> PyResult<Vec<SearchItem>> {
+    let mut libs: Libraries = Libraries::new(path);
+    let res = libs.search(term)?;
+    Ok(res)
 }
 
 #[pyfunction]
@@ -114,5 +119,6 @@ fn elektron(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(search, m)?)?;
     m.add_function(wrap_pyfunction!(schema_netlist, m)?)?;
     m.add_class::<draw::Draw>()?;
+    m.add_class::<SearchItem>()?;
     Ok(())
 }
