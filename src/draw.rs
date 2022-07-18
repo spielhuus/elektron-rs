@@ -1,292 +1,67 @@
-use crate::cairo_plotter::CairoPlotter;
+use crate::Error;
 use crate::libraries::Libraries;
-use crate::sexp::transform::{Transform, Bounds};
+use crate::shape::{Shape, Transform, Bounds};
 use crate::sexp::{
-    Error, SexpConsumer, SexpNode, SexpText, SexpType, SexpValue,
+    Sexp, Get, Test, get, get_pin, get_unit, get_pins, get_property
 };
-use crate::sexp::get::{get, SexpGet};
-use crate::sexp::set::{set, Set};
-use crate::sexp::del::Del;
-use crate::sexp_write::SexpWrite;
-use crate::plot::Plot;
-use crate::netlist::Netlist;
 use pyo3::prelude::*;
-use std::fs::File;
-use std::io::Write;
 use std::collections::HashMap;
 
 use ndarray::{arr1, arr2, Array1};
 use uuid::Uuid;
 use crate::sexp::elements::{node, uuid, pos, stroke, effects, pts, property, junction, label, wire, symbol, symbol_instance, sheet};
 
-/* macro_rules! node {
-    ($key:expr, $($value:expr),*) => {
-        SexpType::ChildSexpNode(SexpNode { name: $key.to_string(), values: vec![
-            $(SexpType::ChildSexpValue(SexpValue { value: $value.to_string() }),)*]
-        })
-    }
-}
-
-macro_rules! uuid {
-    () => {
-        SexpType::ChildSexpNode(SexpNode {
-            name: String::from("uuid"),
-            values: vec![SexpType::ChildSexpValue(SexpValue {
-                value: Uuid::new_v4().to_string(),
-            })],
-        })
-    };
-}
-
-macro_rules! pos {
-    ($pos:expr) => {
-        SexpType::ChildSexpNode(SexpNode {
-            name: String::from("at"),
-            values: vec![
-                SexpType::ChildSexpValue(SexpValue {
-                    value: $pos[0].to_string(),
-                }),
-                SexpType::ChildSexpValue(SexpValue {
-                    value: $pos[1].to_string(),
-                }),
-            ],
-        })
-    };
-    ($pos:expr, $angle:expr) => {
-        SexpType::ChildSexpNode(SexpNode {
-            name: String::from("at"),
-            values: vec![
-                SexpType::ChildSexpValue(SexpValue {
-                    value: $pos[0].to_string(),
-                }),
-                SexpType::ChildSexpValue(SexpValue {
-                    value: $pos[1].to_string(),
-                }),
-                SexpType::ChildSexpValue(SexpValue {
-                    value: $angle.to_string(),
-                }),
-            ],
-        })
-    };
-}
-
-macro_rules! stroke {
-    () => {
-        SexpType::ChildSexpNode(SexpNode {
-            name: String::from("stroke"),
-            values: vec![
-                node!("width", 0),
-                node!("type", "default"),
-                node!("color", 0, 0, 0, 0),
-            ],
-        })
-    };
-}
-
-macro_rules! effects {
-    () => {
-        SexpType::ChildSexpNode(SexpNode { name: String::from("effects"), values: vec![
-            SexpType::ChildSexpNode(SexpNode { name: String::from("font"), values: vec![
-                SexpType::ChildSexpNode(SexpNode { name: String::from("size"), values: vec![
-                    SexpType::ChildSexpValue(SexpValue { value: String::from("1.27") }),
-                    SexpType::ChildSexpValue(SexpValue { value: String::from("1.27") })]
-                    })]
-                }),
-            SexpType::ChildSexpNode(SexpNode { name: String::from("justify"), values: vec![
-                SexpType::ChildSexpValue(SexpValue { value: String::from("left") }),
-                SexpType::ChildSexpValue(SexpValue { value: String::from("bottom") })]
-            })]
-        })
-    };
-    ($font_width:expr, $font_height:expr, $($align:expr),+) => {
-        SexpType::ChildSexpNode(SexpNode { name: String::from("effects"), values: vec![
-            SexpType::ChildSexpNode(SexpNode { name: String::from("font"), values: vec![
-                SexpType::ChildSexpNode(SexpNode { name: String::from("size"), values: vec![
-                    SexpType::ChildSexpValue(SexpValue { value: String::from($font_width.to_string()) }),
-                    SexpType::ChildSexpValue(SexpValue { value: String::from($font_width.to_string()) })]
-                    })]
-                }),
-            SexpType::ChildSexpNode(SexpNode { name: String::from("justify"), values: vec![
-                $(SexpType::ChildSexpValue(SexpValue { value: String::from($align.to_string()) }),)* ]
-            })]
-        })
-    }
-}
-
-macro_rules! pts {
-    ($($pt:expr),+) => {
-        SexpType::ChildSexpNode(SexpNode {name: String::from("pts"), values: vec![
-            $(SexpType::ChildSexpNode(SexpNode { name: String::from("xy"), values: vec![
-                SexpType::ChildSexpValue( SexpValue {
-                    value: String::from($pt[0].to_string()),
-                }),
-                SexpType::ChildSexpValue( SexpValue {
-                    value: String::from($pt[1].to_string()),
-                }),
-            ]}),)*
-        ]})
-    }
-}
-
-macro_rules! property {
-    ($pos:expr, $angle:expr, $key:expr, $value:expr, $id:expr) => {
-        SexpType::ChildSexpNode(SexpNode { name: "property".to_string(), values: vec![
-            SexpType::ChildSexpText(SexpText { value: $key.to_string() }),
-            SexpType::ChildSexpText(SexpText { value: $value.to_string() }),
-            node!("id", $id),
-            pos!($pos, $angle),
-            effects!(),
-        ]})
-    }
-}
-
-macro_rules! junction {
-    ($pos:expr) => {
-        SexpNode {
-            name: String::from("junction"),
-            values: vec![
-                pos!($pos),
-                node!("diameter", "0"),
-                node!("color", 0, 0, 0, 0),
-                uuid!(),
-            ],
-        }
-    };
-}
-
-macro_rules! label {
-    ($pos:expr, $angle:expr, $name:expr) => {
-        SexpNode {
-            name: String::from("label"),
-            values: vec![
-                SexpType::ChildSexpText(SexpText { value: $name }),
-                pos!($pos, $angle),
-                effects!(
-                    "1.27",
-                    "1.27",
-                    if vec![0.0, 90.0].contains($angle) {
-                        "left"
-                    } else {
-                        "right"
-                    }
-                ),
-                uuid!(),
-            ],
-        }
-    };
-}
-
-macro_rules! wire {
-    ($pts:expr) => {
-        SexpNode {
-            name: String::from("wire"),
-            values: vec![pts!($pts.row(0), $pts.row(1)), stroke!(), uuid!()],
-        }
-    };
-}
-
-macro_rules! symbol {
-    ($pos:expr, $angle:expr, $reference:expr, $library:expr, $unit:expr, $uuid:expr) => {
-        SexpNode {
-            name: String::from("symbol"),
-            values: vec![
-                node!("lib_id", $library),
-                pos!($pos, $angle),
-                node!("unit", $unit),
-                node!("in_bom", "yes"),
-                node!("on_board", "yes"),
-                node!("uuid", $uuid),
-            ],
-        }
-    };
-}
-
-macro_rules! sheet {
-    ($path:expr, $page:expr) => {
-        SexpNode {
-            name: String::from("path"),
-            values: vec![
-                SexpType::ChildSexpText(SexpText {
-                    value: $path.to_string(),
-                }),
-                SexpType::ChildSexpNode(SexpNode {
-                    name: String::from("page"),
-                    values: vec![SexpType::ChildSexpText(SexpText {
-                        value: $page.to_string(),
-                    })],
-                }),
-            ],
-        }
-    };
-}
-
-macro_rules! symbol_instance {
-    ($uuid:expr, $reference:expr, $value:expr, $unit:expr, $footprint:expr) => {
-        SexpNode {
-            name: String::from("path"),
-            values: vec![
-                SexpType::ChildSexpText(SexpText {
-                    value: $uuid.to_string(),
-                }),
-                node!("reference", $reference),
-                node!("unit", $unit),
-                node!("value", $value),
-                node!("footprint", $footprint.unwrap_or(String::from("~"))),
-            ],
-        }
-    };
-} */
-
 #[pyclass]
-pub struct Schema {
+pub struct Draw {
     version: String,
     generator: String,
-    uuid: SexpNode,
-    paper: SexpNode,
-    title_block: SexpNode,
-    elements: Vec<SexpNode>,
-    libraries: Vec<SexpNode>,
-    sheet_instance: Vec<SexpNode>,
-    symbol_instance: Vec<SexpNode>,
+    uuid: Sexp,
+    paper: Sexp,
+    title_block: Sexp,
+    pub elements: Vec<Sexp>,
+    libraries: Vec<Sexp>,
+    sheet_instance: Vec<Sexp>,
+    symbol_instance: Vec<Sexp>,
     libs: Libraries,
 }
 
 #[pymethods]
-impl Schema {
+impl Draw {
     #[new]
-    pub fn new(library_path: Vec<String>) -> Schema {
-        let p = vec![SexpType::ChildSexpValue(SexpValue::new(String::from("A4")))];
+    pub fn new(library_path: Vec<String>) -> Self {
+        let p = vec![Sexp::Value(String::from("A4"))];
         let uuid = Uuid::new_v4();
-        let u = vec![SexpType::ChildSexpValue(SexpValue::new(uuid.to_string()))];
-        Schema {
+        let u = vec![Sexp::Value(uuid.to_string())];
+        Self {
             version: String::from("20211123"),
             generator: String::from("elektron"),
-            uuid: SexpNode::from(String::from("uuid"), u),
-            paper: SexpNode::from(String::from("paper"), p),
-            title_block: SexpNode::new(String::from("title_block")),
-            elements: Vec::<SexpNode>::new(),
-            libraries: Vec::<SexpNode>::new(),
+            uuid: Sexp::Node(String::from("uuid"), u),
+            paper: Sexp::Node(String::from("paper"), p),
+            title_block: Sexp::Node(String::from("title_block"), vec![Sexp::Value("".to_string())]),
+            elements: Vec::<Sexp>::new(),
+            libraries: Vec::<Sexp>::new(),
             sheet_instance: vec![sheet!("/", "1")],
-            symbol_instance: Vec::<SexpNode>::new(),
+            symbol_instance: Vec::<Sexp>::new(),
             libs: Libraries::new(library_path),
         }
     }
 
-    fn pin_pos(&mut self, reference: &str, pin: i32) -> Vec<f64> {
+    fn pin_pos(&mut self, reference: &str, pin: usize) -> Vec<f64> {
         let symbol = self.get_symbol(reference, 1).unwrap();
         let lib_name: String = get!(&symbol, "lib_id", 0);
         let library = self.get_library(&lib_name).unwrap();
-        for _unit in &library.nodes("symbol").unwrap() {
-            let number: usize = _unit.unit().unwrap(); //get!(_pin, "unit", 0);
-            let sym_pins = _unit.nodes("pin");
-            if let Ok(p) = sym_pins {
+        let libs: Vec<&Sexp> =  library.get("symbol").unwrap();
+        for _unit in libs {
+            let number: usize = get_unit(_unit).unwrap(); //get!(_pin, "unit", 0);
+            let sym_pins: Vec<&Sexp> = _unit.get("pin").unwrap();
+            if let p = sym_pins {
                 for _pin in p {
-                    let number_node: SexpNode = _pin.get("number").unwrap();
-                    let _pin_number: i32 = number_node.get(0).unwrap();
+                    let number_node: Vec<&Sexp> = _pin.get("number").unwrap();
+                    let _pin_number: usize = number_node.get(0).unwrap().get(0).unwrap();
                     if _pin_number == pin {
-                        let pin_pos: Array1<f64> = get!(_pin, "at");
+                        let pin_pos: Array1<f64> = get!(_pin, "at").unwrap();
                         let _lib_instance = self.get_symbol(reference, number).unwrap();
-                        let at = _lib_instance.transform(&pin_pos);
+                        let at: Array1<f64> = Shape::transform(&_lib_instance, &pin_pos);
                         return vec![at[0], at[1]];
                     }
                 }
@@ -294,7 +69,7 @@ impl Schema {
         }
         panic!("pin not found {}:{}", reference, pin); //TODO return error
     }
-    fn wire(&mut self, pts: Vec<f64>, end: Vec<f64>) {
+    pub fn wire(&mut self, pts: Vec<f64>, end: Vec<f64>) {
         self.elements
             .push(wire!(arr2(&[[pts[0], pts[1]], [end[0], end[1]]])));
     }
@@ -327,8 +102,8 @@ impl Schema {
         let lib_symbol = self.get_library(library).unwrap();
         let uuid = Uuid::new_v4();
 
-        let sym_pin = lib_symbol.pin(pin).unwrap();
-        let pin_pos: Array1<f64> = get!(sym_pin, "at");
+        let sym_pin = get_pin(&lib_symbol, pin).unwrap();
+        let pin_pos: Array1<f64> = get!(sym_pin, "at").unwrap();
         // transform pin pos
         let theta = -angle.to_radians();
         let rot = arr2(&[[theta.cos(), -theta.sin()], [theta.sin(), theta.cos()]]);
@@ -340,12 +115,12 @@ impl Schema {
         verts = verts.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
 
         if let Some(end_pos) = end_pos {
-            let pins = lib_symbol.pins(Option::from(unit));
+            let pins = get_pins(&lib_symbol, Option::from(unit)).unwrap();
             if pins.len() == 2 {
                 for p in pins {
                     let pin_number: usize = get!(p, "number", 0);
                     if pin_number != unit {
-                        let other_pos: Array1<f64> = get!(p, "at");
+                        let other_pos: Array1<f64> = get!(p, "at").unwrap();
                         let mut verts2: Array1<f64> = other_pos.dot(&rot);
                         verts2 = verts2.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
                         //TODO verts = verts.dot(sexp::MIRROR.get(mirror.as_str()).unwrap());
@@ -367,52 +142,40 @@ impl Schema {
         let mut symbol = symbol!(verts, angle, reference, library, unit, &uuid);
 
         //copy the properties from the library to the symbol
-        for prop in &mut lib_symbol.nodes("property").unwrap() {
-            if let SexpType::ChildSexpText(p) = prop.values.get(0).unwrap() {
+        let mut footprint: Option<String> = None;
+        let props: Vec<&Sexp> = lib_symbol.get("property").unwrap();
+        if let Sexp::Node(_, ref mut values) = symbol {
+            for prop in props {
+                let name: String = get!(prop, 0).unwrap();
                 //skip properties with ki_
-                if p.value.starts_with("ki_") {
+                if name.starts_with("ki_") {
                     break;
                 //set the reference
-                } else if p.value == "Reference" {
-                    symbol.values.push(property!(verts, 0.0, "Reference", reference.to_string(), "0"));
-                    /* if let SexpType::ChildSexpText(v) = prop.values.get_mut(1).unwrap() {
-                        v.value = reference.to_string();
-                    } */
+                } else if name == "Reference" {
+                    values.push(property!(verts, 0.0, "Reference", reference.to_string(), "0"));
                 //set the value
-                } else if p.value == "Value" {
-                    symbol.values.push(property!(verts, 0.0, "Value", value.to_string(), "1"));
-                    /* if let SexpType::ChildSexpText(v) = prop.values.get_mut(1).unwrap() {
-                        v.value = value.to_string();
-                    } */
+                } else if name == "Value" {
+                    values.push(property!(verts, 0.0, "Value", value.to_string(), "1"));
+                } else if name == "footprint" {
+                    footprint = Option::from(name);
+                    values.push(property!(verts, 0.0, "Value", value.to_string(), "1"));
                 } else {
-                    symbol.values.push(SexpType::ChildSexpNode(prop.clone()));
+                    values.push(prop.clone());
                 }
             }
-        }
-        // add the extra properties
-        for (k, v) in properties.iter() {
-            symbol.values.push(property!(verts, 0.0, k, v, "1"));
+            // add the extra properties
+            for (k, v) in properties.iter() {
+                values.push(property!(verts, 0.0, k, v, "1"));
+            }
         }
 
         self.place_property(&mut symbol).unwrap(); //TODO
         self.elements.push(symbol);
-
-        let mut footprint: Option<String> = None;
-        for prop in lib_symbol.nodes("property").unwrap() {
-            if let SexpType::ChildSexpText(p) = prop.values.get(0).unwrap() {
-                //set the reference
-                if p.value.starts_with("footprint") {
-                    if let SexpType::ChildSexpText(v) = prop.values.get(1).unwrap() {
-                        footprint = Option::from(v.value.clone());
-                    }
-                }
-            }
-        }
         self.symbol_instance
             .push(symbol_instance!(uuid, reference, value, 1, footprint));
     }
 
-    pub fn write(&mut self, filename: Option<&str>, pretty: bool) {
+    /* pub fn write(&mut self, filename: Option<&str>, pretty: bool) {
         let out: Box<dyn Write> = if let Some(filename) = filename {
             Box::new(File::create(filename).unwrap())
         } else {
@@ -425,8 +188,9 @@ impl Schema {
                 println!("{:?}", err);
             }
         }
-    }
-    pub fn plot(&mut self, filename: Option<String>, border: bool, scale: f64) {
+    } */
+
+    /* pub fn plot(&mut self, filename: Option<String>, border: bool, scale: f64) {
         let plotter = Box::new(CairoPlotter::new());
         let plot = Plot::new(plotter, filename, border, scale);
         match self._write(Box::new(plot)) {
@@ -435,8 +199,8 @@ impl Schema {
                 println!("{:?}", err);
             }
         }
-    }
-    pub fn netlist(&mut self, filename: Option<String>) {
+    } */
+    /* pub fn netlist(&mut self, filename: Option<String>) {
         let netlist = Box::new(Netlist::new());
         match self._write(netlist) {
             Ok(_) => {
@@ -446,15 +210,15 @@ impl Schema {
                 println!("{:?}", err);
             }
         }
-    }
+    } */
 }
 
-impl Schema {
+impl Draw {
 
     //check if this schema has a library symbol.
     fn has_library(&mut self, name: &str) -> bool {
         for l in &self.libraries {
-            let lib_name: String = get!(l, 0);
+            let lib_name: String = get!(l, 0).unwrap();
             if name == lib_name {
                 return true;
             }
@@ -463,20 +227,21 @@ impl Schema {
     }
 
     /// return a library symbol when it exists or load it from the libraries.
-    fn get_library(&mut self, name: &str) -> Result<SexpNode, Error> {
-        if !self.has_library(name) {
+    fn get_library(&mut self, name: &str) -> Result<Sexp, Error> {
+        if !self.has_library(name) { //load the library symbol
             let mut lib_symbol = self.libs.get(name).unwrap();
-            let val = lib_symbol.values.get_mut(0).unwrap();
-            if let SexpType::ChildSexpText(v) = val {
-                v.value = name.to_string();
+            /* let val = lib_symbol.values.get_mut(0).unwrap();
+            if let Sexp::Text(v) = val {
+                v = name.to_string();
             } else {
                 println!("other type found for {:?}", val); //TODO this is an error ERROR
-            }
+            } */
             self.libraries.push(lib_symbol.clone());
             return Ok(lib_symbol);
-        } else {
+
+        } else { //get the existing library symbol
             for l in &self.libraries {
-                let lib_name: String = get!(l, 0);
+                let lib_name: String = get!(l, 0).unwrap();
                 if name == lib_name {
                     return Ok(l.clone());
                 }
@@ -486,61 +251,64 @@ impl Schema {
     }
 
     /// get the symbol by reference and unit from this schema.
-    fn get_symbol(&mut self, reference: &str, unit: usize) -> Result<SexpNode, Error> {
+    fn get_symbol(&mut self, reference: &str, unit: usize) -> Result<Sexp, Error> {
         for l in &self.elements {
-            if l.name == "symbol" {
-                if let Some(_ref) = l.property("Reference") {
-                    let _unit = l.unit().unwrap();
+            if let Sexp::Node(name, values) = l {
+            if name == "symbol" {
+                if let _ref = get_property(l, "Reference").unwrap() {
+                    let _unit = get_unit(&l).unwrap();
                     if reference == _ref && unit == _unit {
                         return Ok(l.clone());
                     }
                 }
             }
+            }
         }
         Err(Error::SymbolNotFound(reference.to_string()))
     }
 
-    fn _write(&mut self, mut writer: Box<dyn SexpConsumer>) -> Result<(), Error> {
+    /* fn _write(&mut self, mut writer: Box<dyn SexpConsumer>) -> Result<(), Error> {
         //produce the content
         writer.start(&self.version, &self.generator)?;
-        writer.visit(&self.uuid)?;
-        writer.visit(&self.paper)?;
-        writer.visit(&self.title_block)?;
+        writer.visit(self.uuid.clone())?;
+        writer.visit(self.paper.clone())?;
+        writer.visit(self.title_block.clone())?;
         writer.start_library_symbols()?;
         for lib in &self.libraries {
-            writer.visit(lib)?;
+            writer.visit(lib.clone())?;
         }
         writer.end_library_symbols()?;
         for element in &self.elements {
-            writer.visit(element)?;
+            writer.visit(element.clone())?;
         }
         writer.start_sheet_instances()?;
         for sheet in &self.sheet_instance {
-            writer.visit(sheet)?;
+            writer.visit(sheet.clone())?;
         }
         writer.end_sheet_instances()?;
         writer.start_symbol_instances()?;
         for lib in &self.symbol_instance {
-            writer.visit(lib)?;
+            writer.visit(lib.clone())?;
         }
         writer.end_symbol_instances()?;
         writer.end()?;
         Ok(())
-    }
+    } */
 
-    fn place_property(&mut self, symbol: &mut SexpNode) -> Result<(), Error> {
-        let pos: Array1<f64> = get!(symbol, "at");
-        let vis_field = symbol.nodes("property").unwrap().iter().filter_map(|node| {
-            let effects: SexpNode = get!(node, "effects");
-            if !effects.has("hide") { Option::from(node) } else { None }
+    fn place_property(&mut self, symbol: &mut Sexp) -> Result<(), Error> {
+        let pos: Array1<f64> = get!(symbol, "at")?;
+        let props: Vec<&Sexp> = symbol.get("property").unwrap();
+        let vis_field = props.iter().filter_map(|node| {
+            let effects: Vec<&Sexp> = get!(node, "effects").unwrap();
+            if !effects[0].has("hide") { Option::from(node) } else { None }
         }).count();
         let angle: f64 = get!(symbol, "at", 2);
         let lib_name: String = get!(symbol, "lib_id", 0);
         let lib = self.get_library(&lib_name).unwrap();
-        let _size = symbol.transform(&symbol.bounds(&lib).unwrap());
+        let _size = Shape::transform(symbol, &symbol.bounds(&lib).unwrap());
         let positions = self.pin_position(&symbol, &lib);
         let mut offset = 0.0;
-        let pins = lib.pins(None).len();
+        let pins = get_pins(&lib, None).unwrap().len();
         if pins == 1 { //PINS!
             if positions[0] == 1 { //west
                 todo!();
@@ -568,23 +336,32 @@ impl Schema {
                 } else {
                     _size[[1, 1]] - ((vis_field as f64-1.0) * 2.0) + 0.64
                 };
-                symbol.nodes_mut("property")?.iter_mut().for_each(|node| {
-                    let effects: SexpNode = get!(node, "effects");
+                //symbol.nodes_mut("property")?.iter_mut().for_each(|node| {
+                let props: Vec<&Sexp> = symbol.get("property")?;
+                /* props.iter_mut().for_each(|node| {
+                    let effects: Vec<&Sexp> = get!(node, "effects").unwrap();
                     if !effects.has("hide") { 
                         let mut field_pos: Array1<f64> = get!(node, "at");
                         field_pos[1] = top_pos;
                         node.set("at", field_pos).unwrap();
                         for n in &mut node.values {
-                            if let SexpType::ChildSexpNode(effects) = n {
-                                if effects.name == "effects" {
-                                    effects.delete("justify".to_string()).unwrap();
+                            if let Sexp::Node(name, effects) = n {
+                                if name == "effects" {
+                                    let index: usize = 0;
+                                    for val in effects {
+                                        if let Sexp::Node(name, nodes) = val {
+                                            if name == "justify" {
+                                                effects.remove(index);                                           }
+                                        }
+                                        index += 1;
+                                    }
                                 }
                             }
                         }
-                        set!(node, "at", 2, 360.0 - angle);
+                        //TODO set!(node, "at", 2, 360.0 - angle);
                         offset += 2.0;
                     }
-                });
+                }); */
                 //vis_fields[0].text_effects.justify = [Justify.CENTER]
                 return Ok(());
             } 
@@ -595,30 +372,30 @@ impl Schema {
                 _size[[1, 1]] - ((vis_field as f64-1.0) * 2.0) - 0.64
             };
             if positions[3] == 0 { //north
-                symbol.nodes_mut("property")?.iter_mut().for_each(|node| {
-                    let effects: SexpNode = get!(node, "effects");
+                /* symbol.nodes_mut("property")?.iter_mut().for_each(|node| {
+                    let effects: Sexp = get!(node, "effects");
                     if !effects.has("hide") { 
                         let mut field_pos: Array1<f64> = get!(node, "at");
                         field_pos[1] = top_pos - offset;
                         node.set("at", field_pos).unwrap();
                         for n in &mut node.values {
-                            if let SexpType::ChildSexpNode(effects) = n {
+                            if let Sexp::Node(_, effects) = n {
                                 if effects.name == "effects" {
                                     effects.delete("justify".to_string()).unwrap();
                                 }
                             }
                         }
-                        set!(node, "at", 2, 360.0 - angle);
+                        //TODO set!(node, "at", 2, 360.0 - angle);
                         offset += 2.0;
                     }
-                });
+                }); */
                 return Ok(());
 
             } else if positions[2] == 0 { //east
-                let top_pos = _size[[0, 1]] + ((_size[[1, 1]] - _size[[0, 1]]) / 2.0) - 
+                /* let top_pos = _size[[0, 1]] + ((_size[[1, 1]] - _size[[0, 1]]) / 2.0) - 
                     ((vis_field as f64-1.0) * 2.0) / 2.0;
                 symbol.nodes_mut("property")?.iter_mut().for_each(|node| {
-                    let effects: SexpNode = get!(node, "effects");
+                    let effects: Sexp = get!(node, "effects");
                     if !effects.has("hide") { 
                         let mut field_pos: Array1<f64> = get!(node, "at");
                         field_pos[0] = _size[[0, 1]];
@@ -626,7 +403,7 @@ impl Schema {
                         field_pos = field_pos + &pos;
                         node.set("at", field_pos).unwrap();
                         for n in &mut node.values {
-                            if let SexpType::ChildSexpNode(effects) = n {
+                            if let Sexp::Node(effects) = n {
                                 if effects.name == "effects" {
                                     effects.delete("justify".to_string()).unwrap();
                                 }
@@ -636,7 +413,7 @@ impl Schema {
                         set!(node, "at", 2, 360.0 - angle);
                         offset += 2.0;
                     }
-                });
+                }); */
                 return Ok(());
 
             } else if positions[0] == 0 { //west
@@ -650,7 +427,7 @@ impl Schema {
         Err(Error::ParseError)
     }
 
-    fn pin_position(&self, symbol: &SexpNode, lib: &SexpNode) -> Vec<usize> {
+    fn pin_position(&self, symbol: &Sexp, lib: &Sexp) -> Vec<usize> {
         let mut position: Vec<usize> = vec![0; 4];
         let symbol_angle: f64 = get!(symbol, "at", 2);
         let symbol_shift: usize = (symbol_angle / 90.0).round() as usize;
@@ -658,7 +435,7 @@ impl Schema {
             get!(symbol, "mirror", 0)
         } else { String::new() };
 
-        for pin in lib.pins(Option::from(symbol.unit().unwrap())) {
+        for pin in get_pins(lib, Option::from(get_unit(symbol).unwrap())).unwrap() {
             let pin_angle: f64 = get!(pin, "at", 2);
             let lib_pos: usize = (pin_angle / 90.0).round() as usize;
             let pos: usize =
@@ -690,7 +467,7 @@ impl Schema {
     }
 } 
 
-#[cfg(test)]
+/* #[cfg(test)]
 mod tests {
     use super::*;
     use crate::sexp_write::SexpWriter;
@@ -728,4 +505,4 @@ mod tests {
         //println!("{:#?}", schema.draw_elements);
         //assert_eq!(&node[0].name, &String::from("NAME"));
     }
-}
+} */

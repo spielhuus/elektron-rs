@@ -1,12 +1,10 @@
 import argparse
-import logging
-from os import wait
 import sys
 
 import elektron
 
 def main() -> int:
-    """Echo the input arguments to standard output"""
+
     parser = argparse.ArgumentParser(
         description='Nukleus electronic processing.')
     parser.add_argument('--bom', dest='action', action='append_const', const='bom',
@@ -29,19 +27,14 @@ def main() -> int:
                         help='The output filename.')
     parser.add_argument('--plotter', dest='plotter',
                         help='Select the ploter backend', default='PlotSvgWrite')
-
-    # initialize the logger
-    logging.basicConfig(format='%(levelname)s:%(message)s', encoding='utf-8', level=logging.INFO)
-    logging.getLogger().setLevel(logging.INFO)
+    parser.add_argument("--term", dest='term', nargs="?")
 
     args = parser.parse_args()
 
-    print(f"execute command {args.action}")
-
     if 'search' in args.action:
-        elektron.search(args.input, True)
+        elektron.search(args.term, ['/usr/share/kicad/symbols'])
     if 'bom' in args.action:
-        elektron.bom(args.input, args.output, True)
+        elektron.get_bom(args.input, args.output, True)
     if 'plot' in args.action:
         elektron.schema_plot(args.input, args.output, True, 1)
     if 'netlist' in args.action:

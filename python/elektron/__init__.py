@@ -1,8 +1,8 @@
 from typing import Dict
 import numpy as np
 
-from elektron.elektron import Schema  # , ElementType
-from elektron.elektron import bom, schema_plot, schema_netlist
+from elektron.elektron import Draw  # , ElementType
+from elektron.elektron import get_bom, schema_plot, schema_netlist, search
 
 
 class LogicException(Exception):

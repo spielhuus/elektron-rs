@@ -21,6 +21,7 @@ cairo-rs = { version = "0.15.11", features = ["svg"] }
 ndarray = "0.15.4"
 ngspice-sys = "0.2.1"
 thiserror = "1.0.31"
+memmap2 = "0.5.4"
 
 [package.metadata.maturin]
 python-source = "python"

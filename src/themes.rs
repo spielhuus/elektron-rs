@@ -1,6 +1,5 @@
-use ::std::fmt::{Display, Formatter, Result as FmtResult};
-use super::sexp::{Color, Effects, Justify, LineType, Stroke};
-use crate::sexp::FillType;
+use crate::sexp::{Sexp, Color, get, Get, Effects, Justify, LineType, Stroke, FillType, Test};
+use crate::Error;
 
 pub enum StyleContext {
     SchemaSymbol,
@@ -18,10 +17,88 @@ pub struct Style {
     fill_background: Color,
 }
 
+/// Access the nodes and values.
+pub trait StyleTypes<S, T> {
+    fn style(&self, node: &Sexp, index: S, context: StyleContext) -> Result<T, Error>;
+}
 
-impl Display for Style {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
-        f.write_str(&format!("Style: {:?} {:?} {:?} {:?} {:?} {:?} {:?}", self.property_effects, self.label_effects, self.schema_wire, self.schema_symbol, self.graphic, self.fill_outline, self.fill_background))
+impl StyleTypes<&str, Effects> for Style {
+    fn style(&self, node: &Sexp, key: &str, context: StyleContext) -> Result<Effects, Error> {
+
+        let style_effects = self.effects(&context);
+        if !node.contains(key) {
+            return Ok(style_effects);
+        }
+        let effect: Effects = get!(node, key).unwrap();
+
+        let font = if effect.font != "" {
+            effect.font.clone()
+        } else {
+            style_effects.font.clone()
+        };
+        let size = if effect.size != 0.0 {
+            effect.size.clone()
+        } else {
+            style_effects.size.clone()
+        };
+        let thickness = if effect.thickness != 0.0 {
+            effect.thickness.clone()
+        } else {
+            style_effects.thickness.clone()
+        };
+        let line_spacing = if effect.line_spacing != 0.0 {
+            effect.line_spacing
+        } else {
+            style_effects.line_spacing
+        };
+        Ok(Effects::new(
+            font,
+            effect.color.clone(),
+            size,
+            thickness,
+            effect.bold,
+            effect.italic,
+            line_spacing,
+            effect.justify.clone(),
+            effect.hide,
+        ))
+    }
+}
+
+impl StyleTypes<&str, Stroke> for Style {
+    fn style(
+        &self,
+        node: &Sexp,
+        key: &str,
+        context: StyleContext,
+    ) -> Result<Stroke, Error> {
+
+        let stroke: Result<Stroke, _> = get!(node, key);
+        let style_stroke = self.stroke(&context);
+
+        match stroke {
+            Ok(stroke) => Ok(Stroke {
+                width: if stroke.width != 0.0 {
+                    stroke.width
+                } else {
+                    style_stroke.width
+                },
+                line_type: stroke.line_type,
+                color: if stroke.color
+                    != (Color {
+                        r: 0.0,
+                        g: 0.0,
+                        b: 0.0,
+                        a: 0.0,
+                    }) {
+                    stroke.color.clone()
+                } else {
+                    style_stroke.color
+                },
+                fill: stroke.fill,
+            }),
+            _ => Ok(style_stroke.clone()),
+        }
     }
 }
 

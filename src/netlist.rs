@@ -1,7 +1,8 @@
+use crate::Error;
+use crate::sexp::SexpParser;
 use super::sexp;
-use super::sexp::{Error, SexpConsumer, SexpNode, SexpType};
-use crate::sexp::get::{get, SexpGet};
-use crate::sexp::transform::Transform;
+use super::sexp::{Get, Sexp, Test, get, get_unit, get_property, get_pins};
+use crate::shape::{Shape, Transform};
 
 use ndarray::{Array1, Array2};
 use std::collections::HashMap;
@@ -53,24 +54,39 @@ impl NetlistItem {
     }
 }
 
+fn libraries(sexp_parser: &SexpParser) -> Result<std::collections::HashMap<String, Sexp>, Error> {
+   let mut libraries: std::collections::HashMap<String, Sexp> = std::collections::HashMap::new();
+   for element in sexp_parser.values() {
+       if let Sexp::Node(name, values) = element {
+           if name == "lib_symbols" {
+               for value in values {
+                   let name: String = value.get(0).unwrap();
+                   libraries.insert(String::from(name), value.clone());
+               }
+           }
+       }
+   }
+   Ok(libraries)
+}
+
 /// The Netlist struct
 ///
 /// Create a netlist as a graph.
 ///
 pub struct Netlist {
     index: u8,
-    libraries: std::collections::HashMap<String, SexpNode>,
-    symbols: HashMap<String, Vec<SexpNode>>,
+    libraries: std::collections::HashMap<String, Sexp>,
+    symbols: HashMap<String, Vec<Sexp>>,
     netlists: Vec<NetlistItem>,
     nodes: HashMap<Point, usize>,
 }
 
-impl SexpConsumer for Netlist {
-    fn visit(&mut self, node: &SexpNode) -> Result<(), Error> {
+/* impl SexpConsumer for Netlist {
+    fn visit(&mut self, node: SexpNode) -> Result<(), Error> {
         if self.index == 1 && node.name == "symbol" {
             self.libraries.insert(get!(node, 0), node.clone());
         } else if self.index == 0 && node.name == "symbol" {
-            let lib_id: String = get!(node, "lib_id", 0);
+            let lib_id: String = get!(&node, "lib_id", 0);
             let unit: usize = node.unit().unwrap();
             let library = self.libraries.get(&lib_id).unwrap();
             let identifier: Option<String> = if library.contains("power") {
@@ -218,7 +234,7 @@ impl SexpConsumer for Netlist {
     fn start_symbol_instances(&mut self) -> Result<(), Error> { Ok(()) }
     fn end_symbol_instances(&mut self) -> Result<(), Error> { Ok(()) }
     fn end(&mut self) -> Result<(), Error> { Ok(()) }
-}
+} */
 
 impl Netlist {
     pub fn new() -> Self {
@@ -230,13 +246,168 @@ impl Netlist {
             nodes: std::collections::HashMap::new(),
         }
     }
-    pub fn pins(&self, lib_name: &str) -> Result<HashMap<usize, (SexpNode, usize)>, Error> {
+    pub fn from(doc: &SexpParser) -> Self {
+
+        let libraries = libraries(doc).unwrap();
+        let mut nodes: HashMap<Point, usize> =  std::collections::HashMap::new();
+        let mut netlists: Vec<NetlistItem> = Vec::new();
+        let mut symbols: HashMap<String, Vec<Sexp>> = HashMap::new();
+
+        for node in doc.values() {
+            if let Sexp::Node(name, values) = node {
+                if name == "symbol" {
+                    let lib_id: String = get!(node, "lib_id", 0);
+                    let unit: usize = get_unit(node).unwrap();
+                    let library = libraries.get(&lib_id).unwrap();
+                    let identifier: Option<String> = if library.contains("power") {
+                        Option::from(get_property(node, "Value").unwrap())
+                    } else { None };
+                    let syms: Vec<&Sexp> = library.get("symbol").unwrap();
+                    for _unit in syms {
+                        let unit_number = get_unit(_unit).unwrap();
+                        if unit_number == 0 || unit_number == unit {
+                            if let Sexp::Node(name, values) = _unit {
+                                for el in values {
+                                    if let Sexp::Node(name, values) = el {
+                                        if name == "pin" {
+                                            let pin_pos: Array1<f64> = get!(el, "at").unwrap();
+                                            let pts = Shape::transform(node, &pin_pos);
+                                            let p0 = Point::new(pts[0], pts[1]);
+                                            if nodes.contains_key(&p0) {
+                                                let id = if let Some(_) = &identifier {
+                                                    identifier.clone()
+                                                } else {
+                                                    let nl: usize = *nodes.get_mut(&p0).unwrap();
+                                                    netlists[nl].identifier.clone()
+
+                                                };
+                                                let nl: usize = *nodes.get_mut(&p0).unwrap();
+                                                netlists[nl].netlist_type = get!(el, 0).unwrap();
+                                                netlists[nl].identifier = id;
+                                            } else {
+                                                netlists.push(NetlistItem::new(
+                                                    identifier.clone(),
+                                                    get!(el, 0).unwrap(),
+                                                    p0,
+                                                ));
+                                                nodes.insert(p0, netlists.len() - 1);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    let mut reference: Option<String> = None;
+                    let props: Vec<&Sexp> = node.get("property").unwrap();
+                    for prop in props {
+                        let key: String = get!(prop, 0).unwrap();
+                        if key == "Reference" {
+                            let r: String = get!(prop, 1).unwrap();
+                            reference = Option::from(r);
+                        }
+                    }
+                    match reference {
+                        Some(r) => {
+                            if symbols.contains_key(&r) {
+                                symbols.get_mut(&r).unwrap().push(node.clone());
+                            } else {
+                                symbols.insert(r, Vec::from([node.clone()]));
+                            }
+                        }
+                        __ => {
+                            println!("no reference in {:?}", node)
+                        }
+                    }
+                } else if name == "wire" {
+                    let pts: Array2<f64> = get!(node, "pts").unwrap();
+                    let p0 = Point::new(pts.row(0)[0], pts.row(0)[1]);
+                    let p1 = Point::new(pts.row(1)[0], pts.row(1)[1]);
+                    println!("search points: {:?} {:?} ", p0, p1);
+                    if nodes.contains_key(&p0) && nodes.contains_key(&p1) {
+                        println!("both ends exist");
+                    } else if nodes.contains_key(&p0) {
+                        let nl: usize = *nodes.get_mut(&p0).unwrap();
+                        nodes.insert(p1, nl);
+                    } else if nodes.contains_key(&p1) {
+                        let nl: usize = *nodes.get_mut(&p1).unwrap();
+                        nodes.insert(p0, nl);
+                    } else {
+                        netlists.push(NetlistItem::new(
+                            None,
+                            "".to_string(),
+                            p0,
+                        ));
+                        nodes.insert(p0, netlists.len() - 1);
+                        nodes.insert(p1, netlists.len() - 1);
+                    }
+                } else if name == "label" {
+                    let pts: Array1<f64> = get!(node, "at").unwrap();
+                    let p0 = Point::new(pts[0], pts[1]);
+                    if nodes.contains_key(&p0) {
+                        let nl: usize = *nodes.get_mut(&p0).unwrap();
+                        let id: String = get!(&node, 0).unwrap();
+                        netlists[nl].identifier = Option::from(id);
+                    } else {
+                         let id: String = get!(&node, 0).unwrap();
+                        netlists.push(NetlistItem::new(
+                            Option::from(id),
+                            "".to_string(),
+                            p0,
+                        ));
+                        nodes.insert(p0, netlists.len() - 1);
+                    }
+                } else if name == "global_label" {
+                    let pts: Array1<f64> = get!(node, "at").unwrap();
+                    let p0 = Point::new(pts[0], pts[1]);
+                    if nodes.contains_key(&p0) {
+                        let nl: usize = *nodes.get_mut(&p0).unwrap();
+                        let id: String = get!(&node, 0).unwrap();
+                        netlists[nl].identifier = Option::from(id);
+                    } else {
+                        let id: String = get!(&node, 0).unwrap();
+                        netlists.push(NetlistItem::new(
+                            Option::from(id),
+                            "".to_string(),
+                            p0,
+                        ));
+                        nodes.insert(p0, netlists.len() - 1);
+                    }
+                } else if name == "no_connect" {
+                    let pts: Array1<f64> = get!(node, "at").unwrap();
+                    let p0 = Point::new(pts[0], pts[1]);
+                    if nodes.contains_key(&p0) {
+                        let nl: usize = *nodes.get_mut(&p0).unwrap();
+                        netlists[nl].identifier = Option::from("NC".to_string());
+                        netlists[nl].netlist_type = "no_connect".to_string();
+                    } else {
+                        netlists.push(NetlistItem::new(
+                            Option::from("NC".to_string()),
+                            "no_connect".to_string(),
+                            p0,
+                        ));
+                        nodes.insert(p0, netlists.len() - 1);
+                    }
+                }
+            }
+        }
+
+        Netlist {
+            index: 0,
+            libraries: libraries,
+            symbols: symbols,
+            netlists: netlists,
+            nodes: nodes,
+        }
+    }
+    pub fn pins(&self, lib_name: &str) -> Result<HashMap<String, (Sexp, usize)>, Error> {
         let mut pins = HashMap::new();
         if self.libraries.contains_key(lib_name) {
-            let lib: &SexpNode = self.libraries.get(lib_name).unwrap();
-            for symbol in lib.nodes("symbol").unwrap() {
+            let lib: &Sexp = self.libraries.get(lib_name).unwrap();
+            let symbols: Vec<&Sexp> = lib.get("symbol").unwrap();
+            for symbol in symbols {
                 //get the symbol unit number
-                let name: String = get!(&symbol, 0);
+                let name: String = get!(&symbol, 0).unwrap();
                 let unit = if let Some(line) = sexp::RE.captures_iter(&name).next() {
                     line[1].parse::<usize>().unwrap()
                 } else {
@@ -246,15 +417,17 @@ impl Netlist {
                 };
                 //search the pins
                 if symbol.contains("pin") {
-                    for pin in symbol.nodes("pin").unwrap() {
+                    let _pins: Vec<&Sexp> = symbol.get("pin").unwrap();
+                    for pin in _pins {
                         let number: String = get!(pin, "number", 0);
-                        pins.insert(number.parse::<usize>().unwrap(), (pin.clone(), unit));
+                        pins.insert(number, (pin.clone(), unit));
                     }
                 }
             }
         } //TODO generatea error when library is not foud
         Ok(pins)
     }
+    /*
     fn property(&self, key: &str, node: &SexpNode) -> Option<String> {
         for prop in node.nodes("property").unwrap() {
             let my_key: String = get!(prop, 0);
@@ -264,7 +437,7 @@ impl Netlist {
             }
         }
         None
-    }
+    } */
     pub fn dump(&mut self) -> Result<(), Error> {
 
 
@@ -289,14 +462,12 @@ impl Netlist {
             }
 
             let symbols = &self.symbols.get(reference).unwrap();
-            let first_symbol: &SexpNode = &symbols[0];
+            let first_symbol: &Sexp = &symbols[0];
 
             //skip symbol when Netlist_Enabled is 'N'
-            let netlist_enabled = self.property("Spice_Netlist_Enabled", first_symbol);
-            if let Some(enabled) = &netlist_enabled {
-                if enabled == "N" {
-                    continue;
-                }
+            let netlist_enabled = get_property(first_symbol, "Spice_Netlist_Enabled").unwrap();
+            if netlist_enabled == "N" {
+                continue;
             }
 
             //create the pin order
@@ -305,32 +476,32 @@ impl Netlist {
             let mut pin_sequence: Vec<usize> = (0..my_pins.len()).collect();
 
             //when Node_Sequence is defined, use it
-            let netlist_sequence = self.property("Spice_Node_Sequence", first_symbol);
-            if let Some(seq) = &netlist_sequence {
+            let netlist_sequence = get_property(first_symbol, "Spice_Node_Sequence").unwrap();
+            //if let Some(seq) = &netlist_sequence {
                 pin_sequence.clear();
-                let splits: Vec<&str> = seq.split(' ').collect();
+                let splits: Vec<&str> = netlist_sequence.split(' ').collect();
                 for s in splits {
                     pin_sequence.push(s.parse::<usize>().unwrap());
                 }
-            }
+            //}
 
             //write the spice netlist item
-            let spice_primitive = self.property("Spice_Primitive", &first_symbol);
-            let spice_model = self.property("Spice_Model", &first_symbol);
-            let spice_value = self.property("Value", first_symbol);
-            match &spice_primitive {
-                Some(primitive) => {
+            let spice_primitive = get_property(first_symbol, "Spice_Primitive");
+            let spice_model = get_property(first_symbol, "Spice_Model");
+            let spice_value = get_property(first_symbol, "Value");
+            match spice_primitive {
+                Ok(primitive) => {
                     if primitive == "X" {
                         let mut seq_string = String::new();
                         for seq in pin_sequence {
-                            let real_pin = &seq + 1;
+                            let real_pin = (&seq + 1).to_string();
                             let pin = my_pins.get(&real_pin).unwrap();
-                            let pin_pos: Array1<f64> = get!(pin.0, "at");
+                            let pin_pos: Array1<f64> = get!(pin.0, "at").unwrap();
                             //get the symbol from the unit number
                             for s in symbols.iter() {
                                 let unit: usize = get!(s, "unit", 0);
                                 if unit == pin.1 {
-                                    let pts = s.transform(&pin_pos);
+                                    let pts = Shape::transform(s, &pin_pos);
                                     let p0 = Point::new(pts[0], pts[1]);
                                     if let Some(n) = self.nodes.get(&p0) {
                                         let id = if let Some(id) = &self.netlists[*n].identifier {
@@ -356,18 +527,18 @@ impl Netlist {
                     } else {
                         println!("{}{} - - {}", primitive, reference, spice_value.unwrap());
                     }
-                }
-                _ => {
+                },
+                Err(Error::PropertyNotFound(_)) => {
                     let mut seq_string = String::new();
                     for seq in pin_sequence {
-                        let real_pin = &seq + 1;
+                        let real_pin = (&seq + 1).to_string();
                         let pin = my_pins.get(&real_pin).unwrap();
-                        let pin_pos: Array1<f64> = get!(pin.0, "at");
+                        let pin_pos: Array1<f64> = get!(pin.0, "at").unwrap();
                         //get the symbol from the unit number
                         for s in symbols.iter() {
                             let unit: usize = get!(s, "unit", 0);
                             if unit == pin.1 {
-                                let pts = s.transform(&pin_pos);
+                                let pts = Shape::transform(s, &pin_pos);
                                 let p0 = Point::new(pts[0], pts[1]);
                                 if let Some(n) = self.nodes.get(&p0) {
                                     let id = if let Some(id) = &self.netlists[*n].identifier {
@@ -385,7 +556,8 @@ impl Netlist {
                         }
                     }
                     println!("{} {}{}", reference, seq_string, spice_value.unwrap());
-                }
+                }, 
+                _ => { spice_primitive.unwrap(); }
             }
         }
         Ok(())
