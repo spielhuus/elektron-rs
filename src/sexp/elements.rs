@@ -147,7 +147,7 @@ macro_rules! wire {
     ($pts:expr) => {
         Sexp::Node(
             String::from("wire"),
-            vec![pts!($pts.row(0)), pts!($pts.row(1)), stroke!(), uuid!()],
+            vec![pts!($pts.row(0), $pts.row(1)), stroke!(), uuid!()],
         )
     };
 }

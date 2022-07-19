@@ -231,12 +231,18 @@ impl Draw {
     fn get_library(&mut self, name: &str) -> Result<Sexp, Error> {
         if !self.has_library(name) { //load the library symbol
             let mut lib_symbol = self.libs.get(name).unwrap();
-            /* let val = lib_symbol.values.get_mut(0).unwrap();
-            if let Sexp::Text(v) = val {
-                v = name.to_string();
+            //update the name with full path XX:yy
+            if let Sexp::Node(_, ref mut values) = lib_symbol {
+                let sym_name: &mut Sexp = values.get_mut(0).unwrap();
+                if let Sexp::Text(ref mut value) = sym_name {
+                    println!("set name {}", name);
+                    *value = name.to_string();
+                } else {
+                    println!("symbol value is not a value node");
+                }
             } else {
-                println!("other type found for {:?}", val); //TODO this is an error ERROR
-            } */
+                println!("symbol is not a node");
+            }
             self.libraries.push(lib_symbol.clone());
             return Ok(lib_symbol);
 
