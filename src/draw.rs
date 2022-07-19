@@ -2,10 +2,12 @@ use crate::Error;
 use crate::libraries::Libraries;
 use crate::shape::{Shape, Transform, Bounds};
 use crate::sexp::{
-    Sexp, Get, Test, get, get_pin, get_unit, get_pins, get_property
+    Sexp, Get, Test, get, get_pin, get_unit, get_pins, get_property, parser::SexpParser
 };
 use pyo3::prelude::*;
 use std::collections::HashMap;
+use std::io::Write;
+use std::fs::File;
 
 use ndarray::{arr1, arr2, Array1};
 use uuid::Uuid;
@@ -175,20 +177,19 @@ impl Draw {
             .push(symbol_instance!(uuid, reference, value, 1, footprint));
     }
 
-    /* pub fn write(&mut self, filename: Option<&str>, pretty: bool) {
-        let out: Box<dyn Write> = if let Some(filename) = filename {
+    pub fn write(&mut self, filename: Option<&str>, pretty: bool) {
+        let mut out: Box<dyn Write> = if let Some(filename) = filename {
             Box::new(File::create(filename).unwrap())
         } else {
             Box::new(std::io::stdout())
         };
-        let writer: Box<dyn SexpConsumer> = Box::new(SexpWrite::new(out, pretty));
-        match self._write(writer) {
+        match self._write(&mut out) {
             Ok(_) => {}
             Err(err) => {
                 println!("{:?}", err);
             }
         }
-    } */
+    }
 
     /* pub fn plot(&mut self, filename: Option<String>, border: bool, scale: f64) {
         let plotter = Box::new(CairoPlotter::new());
@@ -267,33 +268,22 @@ impl Draw {
         Err(Error::SymbolNotFound(reference.to_string()))
     }
 
-    /* fn _write(&mut self, mut writer: Box<dyn SexpConsumer>) -> Result<(), Error> {
-        //produce the content
-        writer.start(&self.version, &self.generator)?;
-        writer.visit(self.uuid.clone())?;
-        writer.visit(self.paper.clone())?;
-        writer.visit(self.title_block.clone())?;
-        writer.start_library_symbols()?;
-        for lib in &self.libraries {
-            writer.visit(lib.clone())?;
-        }
-        writer.end_library_symbols()?;
+    fn _write(&mut self, writer: &mut dyn Write) -> Result<(), Error> {
+
+        let mut doc = SexpParser::new();
+        doc.push(Sexp::Node(String::from("version"), vec![Sexp::Value(self.version.clone())]))?;
+        doc.push(Sexp::Node(String::from("generator"), vec![Sexp::Value(self.generator.clone())]))?;
+        doc.push(self.uuid.clone())?;
+        doc.push(self.paper.clone())?;
+        doc.push(self.title_block.clone())?;
+        doc.push(Sexp::Node(String::from("lib_symbols"), self.libraries.clone()))?;
         for element in &self.elements {
-            writer.visit(element.clone())?;
+            doc.push(element.clone())?;
         }
-        writer.start_sheet_instances()?;
-        for sheet in &self.sheet_instance {
-            writer.visit(sheet.clone())?;
-        }
-        writer.end_sheet_instances()?;
-        writer.start_symbol_instances()?;
-        for lib in &self.symbol_instance {
-            writer.visit(lib.clone())?;
-        }
-        writer.end_symbol_instances()?;
-        writer.end()?;
-        Ok(())
-    } */
+        doc.push(Sexp::Node(String::from("sheet_instances"), self.sheet_instance.clone()))?;
+        doc.push(Sexp::Node(String::from("symbol_instances"), self.symbol_instance.clone()))?;
+        doc.save(writer)
+    }
 
     fn place_property(&mut self, symbol: &mut Sexp) -> Result<(), Error> {
         let pos: Array1<f64> = get!(symbol, "at")?;

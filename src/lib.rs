@@ -11,7 +11,7 @@ pub mod themes;
 pub mod netlist;
 pub mod shape;
 
-use crate::sexp::{Sexp, SexpParser};
+use crate::sexp::{Sexp, parser::SexpParser};
 use crate::reports::bom;
 use crate::cairo_plotter::CairoPlotter;
 use crate::themes::Style;

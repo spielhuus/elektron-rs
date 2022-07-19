@@ -1,7 +1,7 @@
 from typing import Dict
 import numpy as np
 
-from elektron.elektron import Draw  # , ElementType
+from elektron.elektron import Draw  as RDraw # , ElementType
 from elektron.elektron import get_bom, schema_plot, schema_netlist, search
 
 
@@ -123,7 +123,7 @@ class Draw():
     """Place a connection on the schematic."""
 
     def __init__(self):
-        self.schema = Schema(["/usr/share/kicad/symbols/"])
+        self.schema = RDraw(["/usr/share/kicad/symbols/"])
         self.pos = np.array((0.0, 0.0))
 
     def add(self, element: DrawElement):

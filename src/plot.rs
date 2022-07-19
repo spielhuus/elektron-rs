@@ -2,7 +2,7 @@ use std::fs::File;
 
 use crate::shape::{Shape, Transform};
 use crate::sexp::Sexp;
-use crate::sexp::SexpParser;
+use crate::sexp::parser::SexpParser;
 use crate::sexp::Get;
 use crate::sexp::{Effects, LineType, FillType, Stroke, get, Color, get_unit};
 use crate::themes::StyleTypes;

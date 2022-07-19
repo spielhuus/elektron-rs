@@ -24,6 +24,6 @@ draw.add(Element("R3", "Device:R", value="100k").xy(out_dot).rotate(180))
 draw.add(Element("GND", "power:GND", value="GND").at("R3", 1))
 
 draw.write("schema.kicad_sch", True)
-draw.plot("schema.svg", False, 3)
-draw.netlist("schema.cir")
+# draw.plot("schema.svg", False, 3)
+# draw.netlist("schema.cir")
 

@@ -1,5 +1,5 @@
 use crate::{Error, SearchItem};
-use super::sexp::{Sexp, get, Get, SexpParser};
+use super::sexp::{Sexp, get, Get, parser::SexpParser};
 use std::fs;
 
 
@@ -45,26 +45,27 @@ impl Libraries {
     }
 
     pub fn get(&mut self, name: &str) -> Result<Sexp, Error> {
-//        let t: Vec<&str> = name.split(':').collect();
-//        if !self.libraries.contains_key(t[0]) {
-//            let pathlist = self.pathlist.clone();
-//            for path in pathlist {
-//                let filename = &format!("{}/{}.kicad_sym", path, t[0]);
-//                let path = Path::new(filename);
-//                self.load_file(path)?;
-//            }
-//        }
-//
-//        println!("search library for: {}", name);
-//        let libs: &Vec<Sexp> = self.libraries.get(t[0]).unwrap();
-//        for lib in libs {
-//            let symbol: String = lib.get(0).unwrap();
-//            if symbol == t[1] {
-//                return Ok(lib.clone());
-//            }
-//        }
-//        Err(Error::LibraryNotFound(name.to_string())) //TODO format string
-        Err(Error::ParseError)
+       let t: Vec<&str> = name.split(':').collect();
+       for path in &self.pathlist {
+           let filename = &format!("{}/{}.kicad_sym", path, t[0]);
+           println!("load library: {}", filename);
+            let parser = SexpParser::load(filename)?;
+            //get the Libraries
+            for node in parser.values() {
+                match node {
+                    Sexp::Node(node_name, _) => {
+                        if node_name == "symbol" {
+                            let lib_id: String = get!(node, 0)?;
+                            if lib_id == t[1] {
+                                return Ok(node.clone());
+                            }
+                        }
+                    }
+                    _ => { return Err(Error::ExpectSexpNode); }
+                }
+            }
+       }
+        Err(Error::LibraryNotFound(name.to_string())) //TODO format string
     }
 
 //    pub fn load(&mut self) -> Result<(), Error> {

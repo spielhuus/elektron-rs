@@ -1,14 +1,11 @@
-use core::slice::Iter;
-use memmap2::MmapOptions;
 use ndarray::{arr1, Array1, Array2, ArrayView};
-use std::fs::File;
-use std::io::Write;
 //use smallstr::SmallString;
 use crate::Error;
 use regex::Regex;
 use lazy_static::lazy_static;
 
 pub mod elements;
+pub mod parser;
 
 lazy_static! {
     pub static ref RE: regex::Regex = Regex::new(r"^.*_(\w*)_(\w*)$").unwrap();
@@ -107,122 +104,6 @@ pub enum Sexp {
     Value(String),
     Text(String),
     Empty,
-}
-
-#[derive(PartialEq)]
-enum State {
-    Symbol,
-    Values,
-}
-
-fn parser(iter: &mut Iter<u8>) -> Sexp {
-    let mut name = String::new();
-    let mut values = Vec::new();
-    let mut state = State::Symbol;
-    let mut s = String::new();
-    while let Some(ch) = iter.next() {
-        match *ch as char {
-            '(' => {
-                values.push(parser(iter));
-            }
-            ')' => {
-                if !s.is_empty() {
-                    //println!("{} {}", s.to_string(), s.len());
-                    values.push(Sexp::Value(s.to_string()));
-                    s.clear();
-                }
-                break;
-            }
-            '"' => {
-                let mut text = String::new();
-                loop {
-                    // collect the characters to the next quote
-                    if let Some(ch) = iter.next() {
-                        if *ch as char == '"' {
-                            break;
-                        } else {
-                            text.push(*ch as char);
-                        }
-                    } //TODO handle early end of file
-                }
-                values.push(Sexp::Text(text));
-            }
-            ' ' | '\n' => {
-                if state == State::Symbol {
-                    name = s.to_string();
-                    s.clear();
-                    state = State::Values;
-                } else if state == State::Values {
-                    if !s.is_empty() {
-                        //println!("{} {}", s.to_string(), s.len());
-                        values.push(Sexp::Value(s.to_string()));
-                        s.clear();
-                    }
-                }
-            }
-            c => {
-                s.push(c);
-            }
-        };
-    }
-    Sexp::Node(name, values)
-}
-
-pub struct SexpParser {
-    nodes: Sexp,
-}
-impl SexpParser {
-    fn new() -> Self {
-        Self { nodes: Sexp::Empty }
-    }
-    pub fn load(filename: &str) -> Result<Self, Error> {
-        let file = File::open(filename)?;
-        let mmap = unsafe { MmapOptions::new().map(&file)? };
-        let iter = &mut mmap.iter();
-        iter.find(|c| **c as char == '(');
-        Ok(Self {
-            nodes: parser(iter),
-        })
-    }
-    pub fn save(&self, writer: &mut dyn Write) -> Result<(), Error> {
-        self.write_node(&self.nodes, writer, 0)
-    }
-
-    fn write_node(&self, node: &Sexp, writer: &mut dyn Write, indent: usize) -> Result<(), Error> {
-        let prefix = &String::from("  ").repeat(indent);
-        match node {
-            Sexp::Node(name, values) => {
-                if indent == 0 {
-                    write!(writer, "({}", name)?;
-                } else {
-                    write!(writer, "\n{}({}", prefix, name)?;
-                }
-                for n in values.iter() {
-                    self.write_node(n, writer, indent + 1)?;
-                }
-                write!(writer, ")")?;
-            }
-            Sexp::Value(value) => {
-                write!(writer, " {}", value)?;
-            }
-            Sexp::Text(text) => {
-                write!(writer, " \"{}\"", text)?;
-            }
-            Sexp::Empty => {
-                return Err(Error::NotLoaded);
-            }
-        }
-        if indent == 0 {
-            write!(writer, "\n")?;
-        }
-        Ok(())
-    }
-
-    pub fn values(&self) -> impl Iterator<Item = &Sexp> {
-        if let Sexp::Node(_, values) = &self.nodes {
-            values.into_iter()
-        } else { panic!("nodes not set."); }
-    }
 }
 
 macro_rules! get {
@@ -624,100 +505,4 @@ pub fn get_property(node: &Sexp, key: &str) -> Result<String, Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn load_and_iterate() {
-        let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
-        let mut count = 0;
-        for _ in doc.values() {
-            count += 1;
-        }
-        assert_eq!(count, 51);
-    }
-    #[test]
-    fn load_and_iterate_wires() {
-        let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
-        let mut count = 0;
-        for n in doc.values() {
-            match n {
-                Sexp::Node(name, _values) if name == "wire" => {
-                    count += 1;
-                }
-                _ => {}
-            }
-        }
-        assert_eq!(count, 14);
-    }
-    #[test]
-    fn test_get_value() {
-        let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
-        let mut count = 0;
-        for n in doc.values() {
-            match n {
-                Sexp::Node(ref name, ref _values) if name == "label" => {
-                    count += 1;
-                    let str: String = n.get(0).unwrap();
-                    assert_eq!(String::from("IN_1"), str);
-                    break;
-                }
-                _ => {}
-            }
-        }
-        assert_eq!(count, 1);
-    }
-    #[test]
-    fn test_get_properties() {
-        let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
-        let mut count = 0;
-        for n in doc.values() {
-            match n {
-                Sexp::Node(ref name, ref _values) if name == "symbol" => {
-                    count += 1;
-                    let properties: Vec<&Sexp> = n.get("property").unwrap();
-                    assert_eq!(properties.len(), 5);
-                    break;
-                }
-                _ => {}
-            }
-        }
-        assert_eq!(count, 1);
-    }
-    #[test]
-    fn test_get_wire_pts() {
-        let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
-        let mut count = 0;
-        for n in doc.values() {
-            match n {
-                Sexp::Node(ref name, ref _values) if name == "wire" => {
-                    count += 1;
-                    let coords: Array2<f64> = n.get("pts").unwrap();
-                    assert_eq!(coords.len(), 4);
-                    assert_eq!(coords[[0, 0]], 96.52);
-                    assert_eq!(coords[[0, 1]], 33.02);
-                    assert_eq!(coords[[1, 0]], 96.52);
-                    assert_eq!(coords[[1, 1]], 45.72);
-                    break;
-                }
-                _ => {}
-            }
-        }
-        assert_eq!(count, 1);
-    }
-    #[test]
-    fn test_get_macro() {
-        let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
-        let mut count = 0;
-        for n in doc.values() {
-            match n {
-                Sexp::Node(ref name, ref _values) if name == "symbol" => {
-                    count += 1;
-                    let lib_id: String = get!(n, "lib_id", 0);
-                    assert_eq!(lib_id, "Device:R");
-                    break;
-                }
-                _ => {}
-            }
-        }
-        assert_eq!(count, 1);
-    }
 }
