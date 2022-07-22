@@ -39,7 +39,7 @@ pub struct Effects {
     pub bold: bool,
     pub italic: bool,
     pub line_spacing: f64,
-    pub justify: Justify,
+    pub justify: Vec<Justify>,
     pub hide: bool,
 }
 impl Effects {
@@ -51,7 +51,7 @@ impl Effects {
         bold: bool,
         italic: bool,
         line_spacing: f64,
-        justify: Justify,
+        justify: Vec<Justify>,
         hide: bool,
     ) -> Effects {
         Effects {
@@ -273,10 +273,10 @@ impl<'a> Get<'a, &str, Effects> for Sexp {
                     } else {
                         0.0
                     };
-                    let justify: Justify = if font.contains("justify") {
-                        get!(*font, "justify").unwrap()
+                    let justify: Vec<Justify> = if node.contains("justify") {
+                        get!(*node, "justify").unwrap()
                     } else {
-                        Justify::Center
+                        vec![Justify::Center]
                     };
 
                     let effects = Effects::new(
@@ -293,7 +293,7 @@ impl<'a> Get<'a, &str, Effects> for Sexp {
                         font.has("italic"),
                         line_spacing,
                         justify,
-                        font.has("hide"),
+                        node.has("hide"),
                     );
                     return Ok(effects);
                 } else {
@@ -352,23 +352,39 @@ impl<'a> Get<'a, &str, Stroke> for Sexp {
     }
 }
 
-impl<'a> Get<'a, &str, Justify> for Sexp {
+impl<'a> Get<'a, &str, Vec<Justify>> for Sexp {
     /// Get the LineType
-    fn get(&self, key: &str) -> Result<Justify, Error> {
-        let mytype: String = get!(self, key, 0);
-        if mytype == "right" {
-            Ok(Justify::Right)
-        } else if mytype == "left" {
-            Ok(Justify::Left)
-        } else if mytype == "top" {
-            Ok(Justify::Top)
-        } else if mytype == "bottom" {
-            Ok(Justify::Bottom)
-        } else if mytype == "mirror" {
-            Ok(Justify::Mirror)
+    fn get(&self, key: &str) -> Result<Vec<Justify>, Error> {
+        let mut justify = Vec::new();
+        let node: Vec<&Sexp> = self.get(key).unwrap();
+        if node.len() == 1 {
+            if let Sexp::Node(_, j) = node.get(0).unwrap() {
+                for _j in j {
+                    if let Sexp::Value(_j) = _j {
+                        if _j == "right" {
+                            justify.push(Justify::Right);
+                        } else if _j == "left" {
+                            justify.push(Justify::Left);
+                        } else if _j == "top" {
+                            justify.push(Justify::Top);
+                        } else if _j == "bottom" {
+                            justify.push(Justify::Bottom);
+                        } else if _j == "mirror" {
+                            justify.push(Justify::Mirror);
+                        } else {
+                            return Err(Error::JustifyValueError);
+                        }
+                    } else {
+                        return Err(Error::ExpectValueNode);
+                    }
+                }
+            } else {
+                return Err(Error::ExpectSexpNode);
+            }
         } else {
-            Err(Error::JustifyValueError)
+            return Err(Error::JustifyValueError);
         }
+        Ok(justify)
     }
 }
 
@@ -413,7 +429,7 @@ impl<'a> Get<'a, &str, LineType> for Sexp {
 }
 
 pub fn get_unit(node: &Sexp) -> Result<usize, Error> {
-    if let Sexp::Node(name, values) = node {
+    if let Sexp::Node(name, _) = node {
         if name != "symbol" {
             return Err(Error::ExpectSexpNode); //TODO
         }
@@ -504,5 +520,5 @@ pub fn get_property(node: &Sexp, key: &str) -> Result<String, Error> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+//    use super::*;
 }

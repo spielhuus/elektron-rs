@@ -135,7 +135,7 @@ impl SexpParser {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sexp::{get, Get};
+    use crate::sexp::{get, Get, get_property, Test};
     use ndarray::Array2;
 
     #[test]
@@ -189,6 +189,37 @@ mod tests {
                     let properties: Vec<&Sexp> = n.get("property").unwrap();
                     assert_eq!(properties.len(), 5);
                     break;
+                }
+                _ => {}
+            }
+        }
+        assert_eq!(count, 1);
+    }
+    #[test]
+    fn test_get_property_hide() {
+        let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
+        let mut count = 0;
+        for n in doc.values() {
+            match n {
+                Sexp::Node(ref name, ref _values) if name == "symbol" => {
+                    let reference = get_property(n, "Reference").unwrap();
+                    if reference == "R5" {
+                        for val in _values {
+                            match val {
+                                Sexp::Node(name, _) if name == "property" => {
+
+                                    let property_name: String = get!(val, 0).unwrap();
+                                    if property_name == "Footprint" {
+                                        let effects: Vec<&Sexp> = val.get("effects").unwrap();
+                                        assert_eq!(effects.len(), 1);
+                                        assert!(effects.get(0).unwrap().has("hide"));
+                                        count += 1;
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
                 }
                 _ => {}
             }

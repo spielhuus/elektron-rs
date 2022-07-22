@@ -75,14 +75,14 @@ fn get_bom(input: &str, output: Option<&str>, group: bool) -> PyResult<()> {
 #[pyfunction]
 fn schema_plot(
     filename: &str,
-    output: Option<String>,
+    output: Option<&str>,
     border: bool,
     scale: f64,
 ) -> Result<(), Error> {
     let mut cairo = CairoPlotter::new();
     let style = Style::new();
     let parser = SexpParser::load(filename).unwrap();
-    plot(&mut cairo, Option::from("out.svg"), &parser, true, style).unwrap();
+    plot(&mut cairo, output, &parser, border, style).unwrap();
     Ok(())
 }
 

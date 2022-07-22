@@ -1,8 +1,11 @@
 use std::io::Write;
 use ndarray::{arr1, arr2, s, Array1, Array2};
 use crate::sexp::{Color, Justify, LineType};
+use crate::plot::paper;
 extern crate cairo;
 use cairo::{Format, Context, SvgSurface, FontSlant, FontWeight, ImageSurface, FontFace};
+
+
 
 #[derive(Debug)]
 pub struct Line {
@@ -111,10 +114,11 @@ pub struct Text {
     pub color: Color,
     pub fontsize: f64,
     pub font: String,
-    pub align: Justify,
+    pub align: Vec<Justify>,
+    pub angle: f64,
 }
 impl Text {
-    pub fn new(pos: Array1<f64>, text: String, color: Color, fontsize: f64, font: &str, align: Justify) -> Text {
+    pub fn new(pos: Array1<f64>, angle: f64, text: String, color: Color, fontsize: f64, font: &str, align: Vec<Justify>) -> Text {
         Text {
             pos,
             text,
@@ -122,6 +126,7 @@ impl Text {
             fontsize,
             font: font.to_string(),
             align,
+            angle,
         }
     }
 }
@@ -161,7 +166,7 @@ macro_rules! effects {
             FontSlant::Normal,
             FontWeight::Normal).unwrap();
         $context.set_font_face(&face);
-        $context.set_source_rgba(0.0, 0.0, 0.0, 1.0);
+        $context.set_source_rgba(0.0, 0.0, 0.0, 1.0); //TODO
     };
 }
 
@@ -170,21 +175,24 @@ pub trait Plotter {
     fn text_size(&self, item: &Text) -> Array1<f64>;
     fn bounds(&self) -> Array2<f64>;
     fn plot(&mut self, file: Box<dyn Write>, border: bool, scale: f64);
+    fn paper(&mut self, paper: String);
 }
 
 /// Plotter implemntation for SVG and PDF file.
 pub struct CairoPlotter {
     items: Vec<PlotItem>,
     context: Context,
+    paper_size: (f64, f64),
 }
 impl CairoPlotter {
     pub fn new() -> CairoPlotter {
-        let surface = ImageSurface::create(Format::Rgb24, (297.0 * 2.54) as i32, (210.0 * 2.54) as i32).unwrap();
+        let surface = ImageSurface::create(Format::Rgb24, (297.0 * 72.0 / 25.4) as i32, (210.0 * 72.0 / 25.4) as i32).unwrap();
         let context = Context::new(&surface).unwrap();
         context.scale(72.0 / 25.4, 72.0 / 25.4);
         CairoPlotter {
             items: Vec::new(),
             context,
+            paper_size: paper::A4,
         }
     }
     fn arr_outline(&self, boxes: &Array2<f64>) -> Array2<f64>{
@@ -223,7 +231,7 @@ impl Plotter for CairoPlotter {
     /// get the text size in pixels.
     fn text_size(&self, item: &Text) -> Array1<f64>{
         effects!(self.context, item);
-        let extends = self.context.text_extents (item.text.as_str()).unwrap();
+        let extends = self.context.text_extents(item.text.as_str()).unwrap();
         arr1(&[extends.width, extends.height])
     }
     /// Calculate the drawing area.
@@ -243,12 +251,12 @@ impl Plotter for CairoPlotter {
                     let outline = self.text_size(&text);
                     let mut x = text.pos[0];
                     let mut y = text.pos[1];
-                    if text.align == Justify::Right {
+                    if text.align.contains(&Justify::Right) {
                         x = x - outline[0];
-                    } else if text.align == Justify::Top {
+                    } else if text.align.contains(&Justify::Top) {
                         y = y - outline[1];
-                    } else if text.align != Justify::Left &&
-                              text.align != Justify::Bottom {
+                    } else if !text.align.contains(&Justify::Left) &&
+                              !text.align.contains(&Justify::Bottom) {
                         x = x - outline[0] / 2.0;
                         y = y - outline[1] / 2.0;
                     }
@@ -279,9 +287,9 @@ impl Plotter for CairoPlotter {
 
     fn plot(&mut self, file: Box<dyn Write>, border: bool, scale: f64) {
         let (context, surface) = if border {
-            let surface = SvgSurface::for_stream(297.0 * 2.54, 210.0 * 2.54, file).unwrap(); //TODO paper size
+            let surface = SvgSurface::for_stream(self.paper_size.0 * 96.0 / 25.4, self.paper_size.1 * 96.0 / 25.4, file).unwrap(); //TODO paper size
             let context = Context::new(&surface).unwrap();
-            context.scale(72.0 / 25.4, 72.0 / 25.4);
+            context.scale(96.0 / 25.4, 96.0 / 25.4);
             (context, surface)
         } else {
             println!("without border");
@@ -344,25 +352,41 @@ impl Plotter for CairoPlotter {
                     context.stroke().unwrap()
                 }
                 PlotItem::TextItem(text) => {
+                    context.save().unwrap();
                     effects!(context, text);
-                    let outline = self.text_size(&text);
                     let mut x = text.pos[0];
                     let mut y = text.pos[1];
-                    if text.align == Justify::Right {
+                    let outline = self.text_size(&text);
+                    // context.arc(x, y, 0.2, 0., 10.);
+                    if text.align.contains(&Justify::Right) {
                         x = x - outline[0];
-                    } else if text.align == Justify::Top {
-                        y = y - outline[1];
-                    } else if text.align != Justify::Left &&
-                              text.align != Justify::Bottom {
+                    } else if text.align.contains(&Justify::Left) {
+                        x = x; //  outline[0];
+                    } else {
                         x = x - outline[0] / 2.0;
-                        y = y - outline[1] / 2.0;
+                    }
+                    if text.align.contains(&Justify::Top) {
+                        y = y - outline[1];
+                    } else if text.align.contains(&Justify::Bottom) {
+                        y = y;
+                    } else {
+                        y = y + outline[1] / 2.0;
                     }
                     context.move_to(x, y);
+                    context.rotate(text.angle * 3.14 / 180.0);
+                    //context.show_text(format!("{:?}, {:?}", text.text.as_str(), text.align).as_str()).unwrap();
                     context.show_text(text.text.as_str()).unwrap();
-                    context.stroke().unwrap()
+                    context.stroke().unwrap();
+                    context.restore().unwrap();
                 }
             }
         }
         surface.finish_output_stream().unwrap();
     }
+    fn paper(&mut self, paper_size: String) {
+        if paper_size == String::from("A4") {
+            self.paper_size = paper::A4;
+        } // TODO other paper sizes
+    }
+
 }

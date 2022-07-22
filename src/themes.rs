@@ -15,6 +15,9 @@ pub struct Style {
     graphic: Stroke,
     fill_outline: Color,
     fill_background: Color,
+    schema_border: Stroke,
+    schema_title_effects: Effects,
+    schema_effects: Effects,
 }
 
 /// Access the nodes and values.
@@ -24,6 +27,8 @@ pub trait StyleTypes<S, T> {
 
 impl StyleTypes<&str, Effects> for Style {
     fn style(&self, node: &Sexp, key: &str, context: StyleContext) -> Result<Effects, Error> {
+    
+        let overwrite = true;
 
         let style_effects = self.effects(&context);
         if !node.contains(key) {
@@ -31,25 +36,30 @@ impl StyleTypes<&str, Effects> for Style {
         }
         let effect: Effects = get!(node, key).unwrap();
 
-        let font = if effect.font != "" {
+        let font = if effect.font != "" && !overwrite {
             effect.font.clone()
         } else {
             style_effects.font.clone()
         };
-        let size = if effect.size != 0.0 {
+        let size = if effect.size != 0.0 && !overwrite {
             effect.size.clone()
         } else {
             style_effects.size.clone()
         };
-        let thickness = if effect.thickness != 0.0 {
+        let thickness = if effect.thickness != 0.0 && !overwrite {
             effect.thickness.clone()
         } else {
             style_effects.thickness.clone()
         };
-        let line_spacing = if effect.line_spacing != 0.0 {
+        let line_spacing = if effect.line_spacing != 0.0 && !overwrite {
             effect.line_spacing
         } else {
             style_effects.line_spacing
+        };
+        let justify = if !effect.justify.is_empty() {
+            effect.justify
+        } else {
+            style_effects.justify.clone()
         };
         Ok(Effects::new(
             font,
@@ -59,7 +69,7 @@ impl StyleTypes<&str, Effects> for Style {
             effect.bold,
             effect.italic,
             line_spacing,
-            effect.justify.clone(),
+            justify,
             effect.hide,
         ))
     }
@@ -106,35 +116,35 @@ impl Style {
     pub fn new() -> Style {
         Style {
             property_effects: Effects::new(
-                "monospace".to_string(),
+                "osifont".to_string(),
                 Color {
                     r: 0.0,
                     g: 0.0,
                     b: 0.0,
                     a: 1.0,
                 },
-                1.27,
+                2.0,
                 1.0,
                 false,
                 false,
                 1.0,
-                Justify::Center,
+                vec![Justify::Center],
                 false,
             ),
             label_effects: Effects::new(
-                "monospace".to_string(),
+                "osifont".to_string(),
                 Color {
                     r: 0.0,
                     g: 0.0,
                     b: 0.0,
                     a: 1.0,
                 },
-                1.27,
+                2.0,
                 1.0,
                 false,
                 false,
                 1.0,
-                Justify::Center,
+                vec![Justify::Center],
                 false,
             ),
             schema_wire: Stroke {
@@ -182,6 +192,49 @@ impl Style {
                 b: 194.0 / 255.0,
                 a: 1.0,
             },
+            schema_border: Stroke {
+                width: 0.25,
+                line_type: LineType::Default,
+                color: Color {
+                    r: 0.0,
+                    g: 150.0 / 255.0,
+                    b: 0.0,
+                    a: 1.0,
+                },
+                fill: FillType::None,
+            },
+            schema_effects: Effects::new(
+                "osifont".to_string(),
+                Color {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: 1.0,
+                },
+                2.5,
+                1.0,
+                false,
+                false,
+                1.0,
+                vec![Justify::Left],
+                false,
+            ),
+            schema_title_effects: Effects::new(
+                "osifont".to_string(),
+                Color {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: 1.0,
+                },
+                5.0,
+                1.0,
+                false,
+                false,
+                1.0,
+                vec![Justify::Left],
+                false,
+            ),
         }
     }
 
@@ -205,5 +258,14 @@ impl Style {
             FillType::Background => Option::from(self.fill_background.clone()),
             _ => None,
         }
+    }
+    pub fn schema_border(&self) -> Stroke {
+        return self.schema_border.clone();
+    }
+    pub fn schema_effects(&self) -> Effects {
+        return self.schema_effects.clone();
+    }
+    pub fn schema_title_effects(&self) -> Effects {
+        return self.schema_title_effects.clone();
     }
 }
