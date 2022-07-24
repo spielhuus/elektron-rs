@@ -1,10 +1,12 @@
 use crate::Error;
-use crate::sexp::{Sexp, Test};
+use crate::sexp::Sexp;
+use crate::sexp::test::Test;
 use lazy_static::lazy_static;
 use ndarray::{arr2, s, Array, Array1, Array2};
 use std::collections::HashMap;
 
-use crate::sexp::{Get, get, get_unit};
+use crate::sexp::get_unit;
+use crate::sexp::get::{Get, get};
 
 lazy_static! {
     pub static ref MIRROR: HashMap<String, Array2<f64>> = HashMap::from([ //TODO make global
@@ -43,7 +45,6 @@ impl Transform<Array1<f64>> for Shape {
         let pos: Array1<f64> = get!(node, "at").unwrap();
         let angle: f64 = get!(node, "at", 2);
         let mirror: String = if node.contains("mirror") {
-            //TODO use &str
             get!(node, "mirror", 0)
         } else {
             String::from("")
@@ -53,7 +54,10 @@ impl Transform<Array1<f64>> for Shape {
         let mut verts: Array1<f64> = pts.dot(&rot);
         verts = verts.dot(MIRROR.get(mirror.as_str()).unwrap());
         let verts = pos + verts;
-        verts.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap())
+        verts.mapv_into(|v| {
+            let res = format!("{:.2}", v).parse::<f64>().unwrap(); 
+            if res == -0.0 { 0.0 } else { res } 
+        })
     }
 }
 

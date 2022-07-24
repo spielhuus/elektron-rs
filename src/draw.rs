@@ -1,9 +1,13 @@
 use crate::Error;
+use crate::circuit::Circuit;
 use crate::libraries::Libraries;
 use crate::shape::{Shape, Transform, Bounds};
 use crate::sexp::{
-    Sexp, Get, Test, get, get_pin, get_unit, get_pins, get_property, parser::SexpParser
+    Sexp, get_pin, get_unit, get_pins, get_property, parser::SexpParser
 };
+use crate::sexp::get::{Get, get};
+use crate::sexp::test::Test;
+use crate::netlist::Netlist;
 use pyo3::prelude::*;
 use std::collections::HashMap;
 use std::io::Write;
@@ -79,8 +83,6 @@ impl Draw {
         self.elements.push(junction!(arr1(&[pos[0], pos[1]])));
     }
     fn label(&mut self, name: &str, pos: Vec<f64>, angle: f64) {
-
-        println!("Label: {} {:?} {}", name, pos, angle);
         self.elements
             .push(label!(arr1(&[pos[0], pos[1]]), &angle, name.to_string()));
     }
@@ -97,13 +99,10 @@ impl Draw {
         end_pos: Option<f64>,
         properties: HashMap<String, String>,
     ) {
-        println!(
-            "Symbol: {} {} {} {:?} {} {} {}",
-            reference, value, unit, pos, pin, angle, mirror
-        );
         let lib_symbol = self.get_library(library).unwrap();
         let uuid = Uuid::new_v4();
 
+        // println!("load pin for {}:{:?}", reference, &lib_symbol);
         let sym_pin = get_pin(&lib_symbol, pin).unwrap();
         let pin_pos: Array1<f64> = get!(sym_pin, "at").unwrap();
         // transform pin pos
@@ -114,7 +113,6 @@ impl Draw {
 
         //TODO verts = verts.dot(sexp::MIRROR.get(mirror.as_str()).unwrap());
         verts = arr1(&[pos[0], pos[1]]) - &verts;
-        verts = verts.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
 
         if let Some(end_pos) = end_pos {
             let pins = get_pins(&lib_symbol, Option::from(unit)).unwrap();
@@ -131,16 +129,18 @@ impl Draw {
                         let sym_len = verts[0] - verts2[0];
                         let wire_len = ((end_pos - pos[0]) - sym_len) / 2.0;
                         verts = verts + arr1(&[wire_len, 0.0]);
-                        println!("the pinlen is {}, len:{}", verts[0] - verts2[0], pos[0] - end_pos);
-                        self.elements
-                            .push(wire!(arr2(&[[pos[0], pos[1]], [pos[0] + wire_len, pos[1]]])));
-                        self.elements
-                            .push(wire!(arr2(&[[pos[0] + wire_len + sym_len, pos[1]], [pos[0] + 2.0 * wire_len + sym_len, pos[1]]])));
+                        let mut wire1 = arr2(&[[pos[0], pos[1]], [pos[0] + wire_len, pos[1]]]);
+                        wire1 = wire1.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
+                        let mut wire2 = arr2(&[[pos[0] + wire_len + sym_len, pos[1]], [pos[0] + 2.0 * wire_len + sym_len, pos[1]]]);
+                        wire2 = wire2.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
+                        self.elements.push(wire!(wire1));
+                        self.elements.push(wire!(wire2));
                     }
                 }
             }
         }
 
+        verts = verts.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
         let mut symbol = symbol!(verts, angle, reference, library, unit, &uuid);
 
         //copy the properties from the library to the symbol
@@ -171,24 +171,25 @@ impl Draw {
             }
         }
 
-        self.place_property(&mut symbol).unwrap(); //TODO
+        //TODO self.place_property(&mut symbol).unwrap(); //TODO
         self.elements.push(symbol);
         self.symbol_instance
-            .push(symbol_instance!(uuid, reference, value, 1, footprint));
+            .push(symbol_instance!(uuid, reference, value, unit, footprint));
     }
 
-    pub fn write(&mut self, filename: Option<&str>, pretty: bool) {
+    pub fn write(&mut self, filename: Option<&str>) -> Result<(), Error> {
         let mut out: Box<dyn Write> = if let Some(filename) = filename {
             Box::new(File::create(filename).unwrap())
         } else {
             Box::new(std::io::stdout())
         };
-        match self._write(&mut out) {
-            Ok(_) => {}
+        match self._write() {
+            Ok(doc) => {doc.save(&mut out)?;}
             Err(err) => {
                 println!("{:?}", err);
             }
         }
+        Ok(())
     }
 
     /* pub fn plot(&mut self, filename: Option<String>, border: bool, scale: f64) {
@@ -201,17 +202,21 @@ impl Draw {
             }
         }
     } */
-    /* pub fn netlist(&mut self, filename: Option<String>) {
-        let netlist = Box::new(Netlist::new());
-        match self._write(netlist) {
-            Ok(_) => {
-                //netlist.dump();
+    pub fn circuit(&mut self) -> Circuit {
+        let mut circuit: Circuit = Circuit::new(vec!["/home/etienne/elektron/samples/files/spice".to_string()]); //TODO
+        match self._write() {
+            Ok(doc) => {
+                let mut netlist = Box::new(Netlist::from(&doc));
+                netlist.dump(&mut circuit).unwrap();
+                return circuit;
             }
             Err(err) => {
                 println!("{:?}", err);
             }
         }
-    } */
+        // Err(Error::ParseError)
+        panic!();
+    }
 }
 
 impl Draw {
@@ -235,7 +240,6 @@ impl Draw {
             if let Sexp::Node(_, ref mut values) = lib_symbol {
                 let sym_name: &mut Sexp = values.get_mut(0).unwrap();
                 if let Sexp::Text(ref mut value) = sym_name {
-                    println!("set name {}", name);
                     *value = name.to_string();
                 } else {
                     println!("symbol value is not a value node");
@@ -274,7 +278,7 @@ impl Draw {
         Err(Error::SymbolNotFound(reference.to_string()))
     }
 
-    fn _write(&mut self, writer: &mut dyn Write) -> Result<(), Error> {
+    fn _write(&mut self) -> Result<SexpParser, Error> {
 
         let mut doc = SexpParser::new();
         doc.push(Sexp::Node(String::from("version"), vec![Sexp::Value(self.version.clone())]))?;
@@ -288,7 +292,7 @@ impl Draw {
         }
         doc.push(Sexp::Node(String::from("sheet_instances"), self.sheet_instance.clone()))?;
         doc.push(Sexp::Node(String::from("symbol_instances"), self.symbol_instance.clone()))?;
-        doc.save(writer)
+        Ok(doc)
     }
 
     fn place_property(&mut self, symbol: &mut Sexp) -> Result<(), Error> {
@@ -307,14 +311,13 @@ impl Draw {
         let pins = get_pins(&lib, None).unwrap().len();
         if pins == 1 { //PINS!
             if positions[0] == 1 { //west
-                todo!();
                 /* vis_fields[0].pos = (_size[1][0]+1.28, symbol.pos[1])
                 assert vis_fields[0].text_effects, "pin has no text_effects"
                 vis_fields[0].text_effects.justify = [Justify.LEFT]
                 vis_fields[0].angle = 360 - symbol.angle */
 
             } else if positions[1] == 1 { //south
-                todo!();
+                
                 /* vis_fields[0].pos = (symbol.pos[0], _size[0][1]-1.28)
                 assert vis_fields[0].text_effects, "pin has no text_effects"
                 vis_fields[0].text_effects.justify = [Justify.CENTER] */
@@ -368,23 +371,39 @@ impl Draw {
                 _size[[1, 1]] - ((vis_field as f64-1.0) * 2.0) - 0.64
             };
             if positions[3] == 0 { //north
-                /* symbol.nodes_mut("property")?.iter_mut().for_each(|node| {
-                    let effects: Sexp = get!(node, "effects");
-                    if !effects.has("hide") { 
-                        let mut field_pos: Array1<f64> = get!(node, "at");
-                        field_pos[1] = top_pos - offset;
-                        node.set("at", field_pos).unwrap();
-                        for n in &mut node.values {
-                            if let Sexp::Node(_, effects) = n {
-                                if effects.name == "effects" {
-                                    effects.delete("justify".to_string()).unwrap();
+                let mut props: Vec<&Sexp> = symbol.get("property").unwrap();
+                /* for prop in &mut props {
+                    if let Sexp::Node(name, values) = prop {
+                        let effects: Vec<&Sexp> = get!(prop, "effects").unwrap();
+                        if effects.len() == 1 {
+                            let effect = effects.get(0).unwrap();
+                            if !effect.has("hide") { 
+                                let mut field_pos: Array1<f64> = get!(prop, "at").unwrap();
+                                field_pos[1] = top_pos - offset;
+                                let mut pos_write: Vec<&Sexp> = prop.get("at").unwrap();
+                                if pos_write.len() == 1 {
+                                    let mut pos_write = pos_write.get_mut(0).unwrap();
+                                    if let Sexp::Node(ref mut name, ref mut values) = pos_write {
+                                        values[0] = Sexp::Value(field_pos[0].to_string());
+                                        values[1] = Sexp::Value(field_pos[1].to_string());
+                                        values[2] = Sexp::Value((360.0 - angle).to_string());
+                                    }
                                 }
+                                    /* node.set("at", field_pos).unwrap();
+
+                                    for n in &mut node.values {
+                                        if let Sexp::Node(_, effects) = n {
+                                            if effects.name == "effects" {
+                                                effects.delete("justify".to_string()).unwrap();
+                                            }
+                                        }
+                                    } */
+                                //TODO set!(node, "at", 2, 360.0 - angle);
+                                offset += 2.0;
                             }
                         }
-                        //TODO set!(node, "at", 2, 360.0 - angle);
-                        offset += 2.0;
-                    }
-                }); */
+                    } 
+                } */
                 return Ok(());
 
             } else if positions[2] == 0 { //east

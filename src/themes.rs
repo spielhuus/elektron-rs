@@ -1,4 +1,6 @@
-use crate::sexp::{Sexp, Color, get, Get, Effects, Justify, LineType, Stroke, FillType, Test};
+use crate::sexp::{Sexp, Color, Effects, Justify, LineType, Stroke, FillType};
+use crate::sexp::get::{get, Get};
+use crate::sexp::test::Test;
 use crate::Error;
 
 pub enum StyleContext {

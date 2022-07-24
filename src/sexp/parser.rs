@@ -24,9 +24,12 @@ fn parser(iter: &mut Iter<u8>) -> Sexp {
             }
             ')' => {
                 if !s.is_empty() {
-                    //println!("{} {}", s.to_string(), s.len());
-                    values.push(Sexp::Value(s.to_string()));
-                    s.clear();
+                    if state == State::Symbol {
+                        name = s.to_string();
+                    } else {
+                        values.push(Sexp::Value(s.to_string()));
+                        s.clear();
+                    }
                 }
                 break;
             }
@@ -42,7 +45,7 @@ fn parser(iter: &mut Iter<u8>) -> Sexp {
                             text.push(*ch as char);
                             last_char = *ch as char;
                         }
-                    } //TODO handle early end of file
+                    }
                 }
                 values.push(Sexp::Text(text));
             }
@@ -123,7 +126,7 @@ impl SexpParser {
         } else { panic!("nodes not set."); }
     }
     pub fn push(&mut self, node: Sexp) -> Result<(), Error> {
-        if let Sexp::Node(name, ref mut values) = &mut self.nodes {
+        if let Sexp::Node(_, ref mut values) = &mut self.nodes {
             values.push(node);
         } else {
             return Err(Error::ParseError);

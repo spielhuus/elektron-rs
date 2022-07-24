@@ -1,7 +1,8 @@
 use json;
 
 use crate::Error;
-use crate::sexp::{Get, Sexp, parser::SexpParser, get_unit};
+use crate::sexp::{Sexp, parser::SexpParser, get_unit};
+use crate::sexp::get::Get;
 
 use std::collections::HashMap;
 use std::fs::File;

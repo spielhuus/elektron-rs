@@ -1,3 +1,6 @@
+use std::fs::File;
+use std::io::Write;
+
 use pyo3::exceptions::PyOSError;
 use pyo3::prelude::*;
 
@@ -10,13 +13,16 @@ pub mod sexp;
 pub mod themes;
 pub mod netlist;
 pub mod shape;
+pub mod circuit;
+pub mod ngspice;
 
-use crate::sexp::{Sexp, parser::SexpParser};
+use crate::sexp::parser::SexpParser;
 use crate::reports::bom;
 use crate::cairo_plotter::CairoPlotter;
 use crate::themes::Style;
 use crate::plot::plot;
 use crate::libraries::Libraries;
+use crate::circuit::Circuit;
 
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum Error {
@@ -44,10 +50,17 @@ pub enum Error {
     PropertyNotFound(String),
     #[error("More then one Property found for {0}")]
     MoreThenOnPropertyFound(String),
+    #[error("Spice model not found: {0}")]
+    SpiceModelNotFound(String),
 }
 
 impl std::convert::From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
+        Error::IoError(err.to_string())
+    }
+}
+impl std::convert::From<std::fmt::Error> for Error {
+    fn from(err: std::fmt::Error) -> Self {
         Error::IoError(err.to_string())
     }
 }
@@ -95,19 +108,16 @@ fn search(term: &str, path: Vec<String>) -> PyResult<Vec<SearchItem>> {
 
 #[pyfunction]
 fn schema_netlist(input: &str, output: Option<String>) -> PyResult<()> {
-    /* let out: Box<dyn Write> = if let Some(filename) = output {
+    let out: Box<dyn Write> = if let Some(filename) = output {
         Box::new(File::create(filename).unwrap())
     } else {
         Box::new(std::io::stdout())
     };
-    let mut file = File::open(input)?;
-    let mut content = String::new();
-    file.read_to_string(&mut content)?;
-    let mut parser = SexpParser::new(&content);
-    let mut netlist = netlist::Netlist::new();
-    parser.parse(&mut netlist)?;
-    netlist.dump()?; */
-
+    let parser = SexpParser::load(input).unwrap();
+    let mut netlist = netlist::Netlist::from(&parser);
+    let mut circuit = Circuit::new(vec!["/home/etienne/elektron/samples/files/spice".to_string()]);
+    netlist.dump(&mut circuit)?;
+    println!("{}", circuit);
     Ok(())
 }
 
@@ -120,5 +130,6 @@ fn elektron(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(schema_netlist, m)?)?;
     m.add_class::<draw::Draw>()?;
     m.add_class::<SearchItem>()?;
+    m.add_class::<circuit::Circuit>()?;
     Ok(())
 }

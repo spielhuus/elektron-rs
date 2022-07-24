@@ -20,8 +20,10 @@ svg = "0.10.0"
 cairo-rs = { version = "0.15.11", features = ["svg"] }
 ndarray = "0.15.4"
 ngspice-sys = "0.2.1"
+libloading = "0.7.3"
 thiserror = "1.0.31"
 memmap2 = "0.5.4"
+plotly = { version = "0.7.0", features = ["kaleido"] }
 
 [package.metadata.maturin]
 python-source = "python"

@@ -25,6 +25,8 @@ class DrawElement():
         self.xy_pos: DrawElement | None = None
         self.x_pos: DrawElement | None = None
         self.y_pos: DrawElement | None = None
+        self.atref: str|None = None
+        self.atpin: int|None = None
 
     def rotate(self, angle: float):
         self.angle = angle
@@ -51,8 +53,8 @@ class DrawElement():
         return self
 
     def at(self, reference: str, pin: int):
-        self.reference = reference
-        self.pin = pin
+        self.atref = reference
+        self.atpin = pin
         return self
 
     def xy(self, element: "DrawElement"):
@@ -60,12 +62,10 @@ class DrawElement():
         return self
 
     def tox(self, element: "DrawElement"):
-        print(f"set tox {element.pos[0]}")
         self.x_pos = element.pos[0]
         return self
 
     def toy(self, element: "DrawElement"):
-        print(f"set tox {element.pos[1]}")
         self.y_pos = element.pos[1]
         return self
 
@@ -106,12 +106,13 @@ class Label(DrawElement):
 class Element(DrawElement):
     """Place a connection on the schematic."""
 
-    def __init__(self, ref: str, library: str, value: str, **kwargs):
+    def __init__(self, ref: str, library: str, value: str, unit: int, **kwargs):
         super().__init__()
         self.ref = ref
         self.library = library
         self.value = value
         self.pin = 1
+        self.unit = unit
         self.properties = kwargs
 
     def anchor(self, pin: int):
@@ -127,23 +128,21 @@ class Draw():
         self.pos = np.array((0.0, 0.0))
 
     def add(self, element: DrawElement):
-        print(
-            f"{type(element)}: xy:{element.xy_pos} x:{element.x_pos} y:{element.y_pos}")
+
         if isinstance(element, Line):
-            if element.reference and element.pin: # from pin
+            if element.atref and element.atpin: # from pin
+                self.pos = self.schema.pin_pos(element.atref, element.atpin)
+            elif element.reference and element.pin: # from pin
                 self.pos = self.schema.pin_pos(element.reference, element.pin)
                 self.schema.wire(self.pos, self.pos + element.pt())
                 self.pos += element.pt()
             elif element.xy_pos is not None: # from coordinates
-                print(f"set out pos: {element.xy_pos}")
                 self.pos = element.xy_pos
                 self.schema.wire(self.pos, self.pos + element.pt())
                 self.pos += element.pt()
             elif element.x_pos is not None: # to x pos
-                print(f"set x pos: {element.x_pos}")
                 self.schema.wire(self.pos, np.array([element.x_pos, self.pos[1]]))
                 self.pos = np.array([element.x_pos, self.pos[1]])
-                print(f"last_pos: {np.array([element.x_pos, self.pos[1]])}")
             else:
                 self.schema.wire(self.pos, self.pos + element.pt())
                 self.pos += element.pt()
@@ -155,24 +154,24 @@ class Draw():
         elif isinstance(element, Label):
             self.schema.label(element.name, self.pos, element.angle)
         elif isinstance(element, Element):
-            if element.reference and element.pin:
+            if element.atref and element.atpin: # from pin
+                self.pos = self.schema.pin_pos(element.atref, element.atpin)
+            elif element.reference and element.pin:
                 self.pos = self.schema.pin_pos(element.reference, element.pin)
             elif element.xy_pos is not None:
-                print(f"set out pos: {element.xy_pos}")
                 self.pos = element.xy_pos
 
             self.schema.symbol(element.ref, element.value, element.library,
-                               1, self.pos, element.pin, element.angle, "", element.x_pos, element.properties)  # TODO mirror
+                               element.unit, self.pos, element.pin, element.angle, "", element.x_pos, element.properties)  # TODO mirror
 
             if element.x_pos is not None:
                 self.pos = np.array([element.x_pos, self.pos[1]])
-                print(f"set x pos {self.pos}")
 
-    def write(self, filename: str | None, pretty: bool):
-        self.schema.write(filename, pretty)
+    def write(self, filename: str | None):
+        self.schema.write(filename)
 
     def plot(self, filename, border: bool, scale: float):
         self.schema.plot(filename, border, scale)
 
-    def netlist(self, filename):
-        self.schema.netlist(filename)
+    def circuit(self):
+        return self.schema.circuit()

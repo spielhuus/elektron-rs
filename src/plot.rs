@@ -1,10 +1,11 @@
 use std::fs::File;
 
 use crate::shape::{Shape, Transform};
-use crate::sexp::{Sexp, Test, Justify};
+use crate::sexp::{Sexp, Justify};
 use crate::sexp::parser::SexpParser;
-use crate::sexp::Get;
-use crate::sexp::{Effects, LineType, FillType, Stroke, get, Color, get_unit};
+use crate::sexp::get::{Get, get};
+use crate::sexp::test::Test;
+use crate::sexp::{Effects, LineType, FillType, Stroke, Color, get_unit};
 use crate::themes::StyleTypes;
 use crate::themes::{Style, StyleContext};
 use crate::Error;

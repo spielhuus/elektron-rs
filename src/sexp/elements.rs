@@ -157,7 +157,7 @@ macro_rules! symbol {
         Sexp::Node(
             String::from("symbol"),
             vec![
-                node!("lib_id", $library),
+                Sexp::Node("lib_id".to_string(), vec![Sexp::Text($library.to_string())]),
                 pos!($pos, $angle),
                 node!("unit", $unit),
                 node!("in_bom", "yes"),
