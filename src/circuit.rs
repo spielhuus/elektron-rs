@@ -1,5 +1,5 @@
 use crate::{Error, ngspice::{NgSpice, Callbacks, ComplexSlice}};
-use std::{fs::{self, File}, fmt::Display, io::Write};
+use std::{fs::{self, File}, fmt::Display, io::Write, collections::HashMap};
 use ngspice_sys::*;
 use std::ffi::{CString, CStr, c_void};
 use std::os::raw::{c_char, c_int};
@@ -106,17 +106,32 @@ impl Circuit {
         self.items.push(CircuitItem::V(reference, n1, n2, value));
     }
 
-    fn tran(&self) {
+    fn tran(&self) -> HashMap<String, Vec<f64>> {
         unsafe {
             let mut circ = self.to_str().unwrap();
             self.ngspice.circuit(circ);
             self.ngspice.command("tran 10u 10ms").unwrap();
             let plot = self.ngspice.current_plot().unwrap();
-            let res = self.ngspice.all_vecs(plot.as_str());
-            let re = self.ngspice.vector_info("input");
-            println!("plot: {:?}", res);
-            println!("vec: {:?}", re);
-
+            let res = self.ngspice.all_vecs(plot.as_str()).unwrap();
+            let mut map: HashMap<String, Vec<f64>> = HashMap::new();
+            for name in res {
+                let re = self.ngspice.vector_info(name.as_str());
+                for r in re {
+                    let name = r.name;
+                    let data1 = match r.data {
+                        ComplexSlice::Real(list) => {
+                            list.iter().map(|i| i.clone()).collect()
+                        },
+                        ComplexSlice::Complex(list) => {
+                            //list.into_iter().map(|f| f.parse::<f64>()).collect()
+                            println!("found complex list");
+                            vec![0.0]
+                        }
+                    };
+                    map.insert(name, data1);
+                }
+            }
+            map
             /* let ng = ngspice::new(library_filename("ngspice")).unwrap();
             ng.ngSpice_Init(Some(send_char), None, Some(controlled_exit), None, None, None, std::ptr::null_mut());
             let s = CString::new("tran 10u 10ms").expect("CString::new failed");
