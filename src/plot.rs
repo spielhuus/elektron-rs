@@ -1,4 +1,5 @@
 use std::fs::File;
+use std::io::Write;
 
 use crate::shape::{Shape, Transform};
 use crate::sexp::{Sexp, Justify};
@@ -571,7 +572,12 @@ pub fn plot(plotter: &mut dyn Plotter, filename: Option<&str>, sexp_parser: &Sex
     if border {
         draw_border(title_block, paper_size, plotter, &style)?;
     }
-    let file = Box::from(File::create(filename.unwrap()).unwrap());
-    plotter.plot(file, border, 1.0);
+
+    let out: Box<dyn Write> = if let Some(filename) = filename {
+        Box::new(File::create(filename).unwrap())
+    } else {
+        Box::new(std::io::stdout())
+    };
+    plotter.plot(out, border, 1.0);
     Ok(())
 }
