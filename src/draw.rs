@@ -8,6 +8,9 @@ use crate::sexp::{
 use crate::sexp::get::{Get, get};
 use crate::sexp::test::Test;
 use crate::netlist::Netlist;
+use crate::cairo_plotter::CairoPlotter;
+use crate::plot::plot;
+use crate::themes::Style;
 use pyo3::prelude::*;
 use std::collections::HashMap;
 use std::io::Write;
@@ -192,16 +195,17 @@ impl Draw {
         Ok(())
     }
 
-    /* pub fn plot(&mut self, filename: Option<String>, border: bool, scale: f64) {
-        let plotter = Box::new(CairoPlotter::new());
-        let plot = Plot::new(plotter, filename, border, scale);
-        match self._write(Box::new(plot)) {
-            Ok(_) => {}
+    pub fn plot(&mut self, filename: Option<&str>, border: bool, scale: f64) {
+        let mut plotter = CairoPlotter::new();
+        match self._write() {
+            Ok(doc) => {
+                plot(&mut plotter, filename, &doc, border, Style::new()).unwrap();
+            }
             Err(err) => {
                 println!("{:?}", err);
             }
         }
-    } */
+    }
     pub fn circuit(&mut self) -> Circuit {
         let mut circuit: Circuit = Circuit::new(vec!["/home/etienne/elektron/samples/files/spice".to_string()]); //TODO
         match self._write() {

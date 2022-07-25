@@ -28,7 +28,7 @@ draw.add(Element("GND", "power:GND", value="GND", unit=1).at("U1", 14))
 draw.add(Element("GND", "power:+5V", value="+5V", unit=1).at("U1", 7))
 
 draw.write("schema.kicad_sch")
-# draw.plot("schema.svg", False, 3)
+draw.plot("schema.svg", False, 3)
 circuit = draw.circuit()
 circuit.voltage("1", "+5V", "GND", "5V")
 circuit.voltage("2", "INPUT", "GND", "5V SIN(0, 2.5, 100)")
