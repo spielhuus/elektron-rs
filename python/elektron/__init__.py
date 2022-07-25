@@ -171,7 +171,7 @@ class Draw():
         self.schema.write(filename)
 
     def plot(self, filename, border: bool, scale: float) -> str:
-        return data=self.schema.plot(filename, border, scale)
+        return self.schema.plot(filename, border, scale)
 
     def circuit(self):
         return self.schema.circuit()
