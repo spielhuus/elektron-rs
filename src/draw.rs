@@ -13,12 +13,18 @@ use crate::plot::plot;
 use crate::themes::Style;
 use pyo3::prelude::*;
 use std::collections::HashMap;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::fs::File;
 
 use ndarray::{arr1, arr2, Array1};
 use uuid::Uuid;
 use crate::sexp::elements::{node, uuid, pos, stroke, effects, pts, property, junction, label, wire, symbol, symbol_instance, sheet};
+use std::env::temp_dir;
+use rand::Rng;
+
+fn print_type_of<T>(_: &T) {
+    println!("{}", std::any::type_name::<T>())
+}
 
 #[pyclass]
 pub struct Draw {
@@ -195,14 +201,30 @@ impl Draw {
         Ok(())
     }
 
-    pub fn plot(&mut self, filename: Option<&str>, border: bool, scale: f64) {
+    pub fn plot(&mut self, filename: Option<&str>, border: bool, _scale: f64) -> Result<String, Error> {
         let mut plotter = CairoPlotter::new();
         match self._write() {
             Ok(doc) => {
-                plot(&mut plotter, filename, &doc, border, Style::new()).unwrap();
+
+                if let Some(filename) = filename {
+                    let out: Box<dyn Write> = Box::new(File::create(filename).unwrap());
+                    plot(&mut plotter, out, &doc, border, Style::new()).unwrap();
+                    Ok(String::new())
+
+                } else {
+                    let mut rng = rand::thread_rng();
+                    let num: u32 = rng.gen();
+                    let filename = String::new() + temp_dir().to_str().unwrap() + "/" + &num.to_string() + ".svg";
+                    let out: Box<dyn Write> = Box::new(File::create(&filename).unwrap());
+                    plot(&mut plotter, out, &doc, border, Style::new()).unwrap();
+                    let mut file2 = File::open(filename).unwrap();
+                    let mut buf = String::new();
+                    file2.read_to_string(&mut buf)?;
+                    Ok(buf)
+                }
             }
             Err(err) => {
-                println!("{:?}", err);
+                Err(err)
             }
         }
     }

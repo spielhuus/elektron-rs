@@ -170,8 +170,8 @@ class Draw():
     def write(self, filename: str | None):
         self.schema.write(filename)
 
-    def plot(self, filename, border: bool, scale: float):
-        self.schema.plot(filename, border, scale)
+    def plot(self, filename, border: bool, scale: float) -> str:
+        return self.schema.plot(filename, border, scale)
 
     def circuit(self):
         return self.schema.circuit()

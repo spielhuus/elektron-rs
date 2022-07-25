@@ -24,6 +24,7 @@ libloading = "0.7.3"
 thiserror = "1.0.31"
 memmap2 = "0.5.4"
 plotly = { version = "0.7.0", features = ["kaleido"] }
+rand = "0.8.5"
 
 [package.metadata.maturin]
 python-source = "python"
@@ -34,4 +35,4 @@ features = [
     "v4",                # Lets you generate random UUIDs
     "fast-rng",          # Use a faster (but still sufficiently random) RNG
     "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
-]
+] 

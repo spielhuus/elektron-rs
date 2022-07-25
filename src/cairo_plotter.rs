@@ -1,5 +1,7 @@
-use std::io::Write;
+use std::any::Any;
+use std::io::{Write, BufWriter};
 use ndarray::{arr1, arr2, s, Array1, Array2};
+use crate::Error;
 use crate::sexp::{Color, Justify, LineType};
 use crate::plot::paper;
 extern crate cairo;
@@ -174,7 +176,7 @@ pub trait Plotter {
     fn push(&mut self, item: PlotItem);
     fn text_size(&self, item: &Text) -> Array1<f64>;
     fn bounds(&self) -> Array2<f64>;
-    fn plot(&mut self, file: Box<dyn Write>, border: bool, scale: f64);
+    fn plot(&mut self, file: Box<dyn Write>, border: bool, scale: f64) -> Result<Box<dyn Any>, Error>;
     fn paper(&mut self, paper: String);
 }
 
@@ -285,7 +287,8 @@ impl Plotter for CairoPlotter {
     }
 
 
-    fn plot(&mut self, file: Box<dyn Write>, border: bool, scale: f64) {
+    fn plot(&mut self, file: Box<dyn Write>, border: bool, scale: f64) -> Result<Box<dyn Any>, Error> {
+        
         let (context, surface) = if border {
             let surface = SvgSurface::for_stream(self.paper_size.0 * 96.0 / 25.4, self.paper_size.1 * 96.0 / 25.4, file).unwrap(); //TODO paper size
             let context = Context::new(&surface).unwrap();
@@ -381,7 +384,10 @@ impl Plotter for CairoPlotter {
                 }
             }
         }
-        surface.finish_output_stream().unwrap();
+
+        let res = surface.finish_output_stream().unwrap();
+        println!("{:?}", &res);
+        Ok(res)
     }
     fn paper(&mut self, paper_size: String) {
         if paper_size == String::from("A4") {

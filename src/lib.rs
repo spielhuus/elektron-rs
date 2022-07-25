@@ -95,7 +95,14 @@ fn schema_plot(
     let mut cairo = CairoPlotter::new();
     let style = Style::new();
     let parser = SexpParser::load(filename).unwrap();
-    plot(&mut cairo, output, &parser, border, style).unwrap();
+
+    if let Some(filename) = output {
+        let mut out: Box<dyn Write> = Box::new(File::create(filename).unwrap());
+        plot(&mut cairo, out, &parser, border, style).unwrap();
+    } else {
+        let mut out: Box<dyn Write> = Box::new(std::io::stdout());
+        plot(&mut cairo, out, &parser, border, style).unwrap();
+    };
     Ok(())
 }
 

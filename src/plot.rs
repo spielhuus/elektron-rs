@@ -1,4 +1,4 @@
-use std::fs::File;
+use std::any::Any;
 use std::io::Write;
 
 use crate::shape::{Shape, Transform};
@@ -512,7 +512,7 @@ fn libraries(sexp_parser: &SexpParser) -> Result<std::collections::HashMap<Strin
    Ok(libraries)
 }
 
-pub fn plot(plotter: &mut dyn Plotter, filename: Option<&str>, sexp_parser: &SexpParser, border: bool, style: Style) -> Result<(), Error> {
+pub fn plot(plotter: &mut dyn Plotter, out: Box<dyn Write>, sexp_parser: &SexpParser, border: bool, style: Style) -> Result<Box<dyn Any>, Error> {
 
     let libraries = libraries(sexp_parser).unwrap();
     let mut title_block: Option<Sexp> = None;
@@ -573,11 +573,5 @@ pub fn plot(plotter: &mut dyn Plotter, filename: Option<&str>, sexp_parser: &Sex
         draw_border(title_block, paper_size, plotter, &style)?;
     }
 
-    let out: Box<dyn Write> = if let Some(filename) = filename {
-        Box::new(File::create(filename).unwrap())
-    } else {
-        Box::new(std::io::stdout())
-    };
-    plotter.plot(out, border, 1.0);
-    Ok(())
+    Ok(plotter.plot(out, border, 1.0).unwrap())
 }
