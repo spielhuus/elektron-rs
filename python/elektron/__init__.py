@@ -1,6 +1,6 @@
 from typing import Dict
 import numpy as np
-
+from IPython.display import Image
 from elektron.elektron import Draw  as RDraw # , ElementType
 from elektron.elektron import get_bom, schema_plot, schema_netlist, search
 
@@ -171,7 +171,7 @@ class Draw():
         self.schema.write(filename)
 
     def plot(self, filename, border: bool, scale: float) -> str:
-        return IPython.display.Image(data=self.schema.plot(filename, border, scale))
+        return Image(data=self.schema.plot(filename, border, scale))
 
     def circuit(self):
         return self.schema.circuit()
