@@ -24,7 +24,7 @@ impl Libraries {
                 if dir.path().is_file() {
                     let parser = SexpParser::load(dir.path().to_str().unwrap())?;
                     //get the Libraries
-                    for node in parser.values() {
+                    for node in parser.iter() {
                         match node {
                             Sexp::Node(node_name, _) => {
                                 if node_name == "symbol" {
@@ -52,7 +52,7 @@ impl Libraries {
            println!("load library: {}", filename);
             let parser = SexpParser::load(filename)?;
             //get the Libraries
-            for node in parser.values() {
+            for node in parser.iter() {
                 match node {
                     Sexp::Node(node_name, _) => {
                         if node_name == "symbol" {

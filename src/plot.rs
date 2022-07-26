@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::io::Write;
 
 use crate::shape::{Shape, Transform};
@@ -497,9 +496,10 @@ pub fn symbol(node: &Sexp, libs: &std::collections::HashMap<String, &Sexp>, plot
     Ok(())
 }
 
+//TODO use global libraries from iterator crate
 fn libraries(sexp_parser: &SexpParser) -> Result<std::collections::HashMap<String, &Sexp>, Error> {
    let mut libraries: std::collections::HashMap<String, &Sexp> = std::collections::HashMap::new();
-   for element in sexp_parser.values() {
+   for element in sexp_parser.iter() {
        if let Sexp::Node(name, values) = element {
            if name == "lib_symbols" {
                for value in values {
@@ -516,9 +516,9 @@ pub fn plot(plotter: &mut dyn Plotter, out: Box<dyn Write>, sexp_parser: &SexpPa
 
     let libraries = libraries(sexp_parser).unwrap();
     let mut title_block: Option<Sexp> = None;
-    let mut paper_size = paper::A4;
+    let paper_size = paper::A4; //TODO use paper size from document
 
-    sexp_parser.values()
+    sexp_parser.iter()
         .for_each(|node| {
             if let Sexp::Node(name, _) = node {
                 if name == "version" || name == "generator" || 

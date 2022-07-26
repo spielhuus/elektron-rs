@@ -76,7 +76,7 @@ fn read_entry(node: &Sexp) -> Result<Option<BomItem>, Error> {
 pub fn bom(filename: Option<&str>, sexp_parser: &SexpParser, group: bool) -> Result<(), Error> {
 
     let mut items: Vec<BomItem> = sexp_parser
-        .values()
+        .iter()
         .filter_map(|n| read_entry(n).transpose()).collect::<Result<Vec<BomItem>, Error>>()?;
 
     if group {

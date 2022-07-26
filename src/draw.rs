@@ -11,6 +11,7 @@ use crate::netlist::Netlist;
 use crate::cairo_plotter::CairoPlotter;
 use crate::plot::plot;
 use crate::themes::Style;
+use itertools::Itertools;
 use pyo3::prelude::*;
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -21,6 +22,54 @@ use uuid::Uuid;
 use crate::sexp::elements::{node, uuid, pos, stroke, effects, pts, property, junction, label, wire, symbol, symbol_instance, sheet};
 use std::env::temp_dir;
 use rand::Rng;
+
+fn filter_properties(node: &&mut Sexp) -> bool {
+    let mut show = true;
+    if let Sexp::Node(name, values) = node {
+        if name == "property" {
+            for value in values {
+                if let Sexp::Node(name, _) = value {
+                    if name == "effects" {
+                        if value.has("hide") {
+                            show = false 
+                        }
+                    }
+                }
+            }
+        }
+    }
+    show
+}
+
+fn sort_properties(a: &&mut Sexp, b: &&mut Sexp) -> std::cmp::Ordering {
+    let mut ida = 0;
+    if let Sexp::Node(_, values) = a {
+        for v in values {
+            if let Sexp::Node(name, values) = v {
+                if name.as_str() == "id" {
+                    let idnode = values.get(0).unwrap();
+                    if let Sexp::Value(value) = idnode {
+                        ida = value.parse::<usize>().unwrap();
+                    }
+                }
+            }
+        }
+    }
+    let mut idb = 0;
+    if let Sexp::Node(_, values) = b {
+        for v in values {
+            if let Sexp::Node(name, values) = v {
+                if name.as_str() == "id" {
+                    let idnode = values.get(0).unwrap();
+                    if let Sexp::Value(value) = idnode {
+                        idb = value.parse::<usize>().unwrap();
+                    }
+                }
+            }
+        }
+    }
+    ida.cmp(&idb)
+}
 
 fn print_type_of<T>(_: &T) {
     println!("{}", std::any::type_name::<T>())
@@ -163,24 +212,24 @@ impl Draw {
                     break;
                 //set the reference
                 } else if name == "Reference" {
-                    values.push(property!(verts, 0.0, "Reference", reference.to_string(), "0"));
+                    values.push(property!(verts, 0.0, "Reference", reference.to_string(), "0", false));
                 //set the value
                 } else if name == "Value" {
-                    values.push(property!(verts, 0.0, "Value", value.to_string(), "1"));
+                    values.push(property!(verts, 0.0, "Value", value.to_string(), "1", false));
                 } else if name == "footprint" {
                     footprint = Option::from(name);
-                    values.push(property!(verts, 0.0, "Value", value.to_string(), "1"));
+                    values.push(property!(verts, 0.0, "Value", value.to_string(), "1", false));
                 } else {
                     values.push(prop.clone());
                 }
             }
             // add the extra properties
             for (k, v) in properties.iter() {
-                values.push(property!(verts, 0.0, k, v, "1"));
+                values.push(property!(verts, 0.0, k, v, "1", true));
             }
         }
 
-        //TODO self.place_property(&mut symbol).unwrap(); //TODO
+        self.place_property(&mut symbol).unwrap();
         self.elements.push(symbol);
         self.symbol_instance
             .push(symbol_instance!(uuid, reference, value, unit, footprint));
@@ -342,12 +391,14 @@ impl Draw {
                 vis_fields[0].text_effects.justify = [Justify.LEFT]
                 vis_fields[0].angle = 360 - symbol.angle */
 
+                return Ok(());
             } else if positions[1] == 1 { //south
                 
                 /* vis_fields[0].pos = (symbol.pos[0], _size[0][1]-1.28)
                 assert vis_fields[0].text_effects, "pin has no text_effects"
                 vis_fields[0].text_effects.justify = [Justify.CENTER] */
 
+                return Ok(());
             } else if positions[2] == 1 { //east
                 todo!();
                 /* vis_fields[0].pos = (_size[0][0]-1.28, symbol.pos[1])
@@ -397,64 +448,69 @@ impl Draw {
                 _size[[1, 1]] - ((vis_field as f64-1.0) * 2.0) - 0.64
             };
             if positions[3] == 0 { //north
-                let mut props: Vec<&Sexp> = symbol.get("property").unwrap();
-                /* for prop in &mut props {
-                    if let Sexp::Node(name, values) = prop {
-                        let effects: Vec<&Sexp> = get!(prop, "effects").unwrap();
-                        if effects.len() == 1 {
-                            let effect = effects.get(0).unwrap();
-                            if !effect.has("hide") { 
-                                let mut field_pos: Array1<f64> = get!(prop, "at").unwrap();
-                                field_pos[1] = top_pos - offset;
-                                let mut pos_write: Vec<&Sexp> = prop.get("at").unwrap();
-                                if pos_write.len() == 1 {
-                                    let mut pos_write = pos_write.get_mut(0).unwrap();
-                                    if let Sexp::Node(ref mut name, ref mut values) = pos_write {
-                                        values[0] = Sexp::Value(field_pos[0].to_string());
-                                        values[1] = Sexp::Value(field_pos[1].to_string());
-                                        values[2] = Sexp::Value((360.0 - angle).to_string());
+                if let Sexp::Node(_, ref mut values) = symbol {
+                    values.iter_mut()
+                    .filter(filter_properties)
+                    .sorted_by(sort_properties)
+                    .for_each(|node|{
+                        if let Sexp::Node(name, ref mut values) = node {
+                            if name == "property" {
+                                for value in values {
+                                    if let Sexp::Node(name, values) = value {
+                                        if name == "effects" {
+                                            for value in values {
+                                                if let Sexp::Node(name, values) = value {
+                                                    if name == "justify" {
+                                                        values.clear();
+                                                    }
+                                                }
+                                            }
+                                        } else if name == "at" {
+                                            values[0] = Sexp::Value(pos[0].to_string());
+                                            values[1] = Sexp::Value((top_pos - offset).to_string());
+                                            values[2] = Sexp::Value((0.0 - angle).to_string());
+                                            offset -= 2.0;
+                                        }
                                     }
                                 }
-                                    /* node.set("at", field_pos).unwrap();
-
-                                    for n in &mut node.values {
-                                        if let Sexp::Node(_, effects) = n {
-                                            if effects.name == "effects" {
-                                                effects.delete("justify".to_string()).unwrap();
-                                            }
-                                        }
-                                    } */
-                                //TODO set!(node, "at", 2, 360.0 - angle);
-                                offset += 2.0;
                             }
                         }
-                    } 
-                } */
+                    });
+                }
                 return Ok(());
 
             } else if positions[2] == 0 { //east
-                /* let top_pos = _size[[0, 1]] + ((_size[[1, 1]] - _size[[0, 1]]) / 2.0) - 
+                let top_pos = _size[[0, 1]] + ((_size[[1, 1]] - _size[[0, 1]]) / 2.0) - 
                     ((vis_field as f64-1.0) * 2.0) / 2.0;
-                symbol.nodes_mut("property")?.iter_mut().for_each(|node| {
-                    let effects: Sexp = get!(node, "effects");
-                    if !effects.has("hide") { 
-                        let mut field_pos: Array1<f64> = get!(node, "at");
-                        field_pos[0] = _size[[0, 1]];
-                        field_pos[1] = top_pos - offset;
-                        field_pos = field_pos + &pos;
-                        node.set("at", field_pos).unwrap();
-                        for n in &mut node.values {
-                            if let Sexp::Node(effects) = n {
-                                if effects.name == "effects" {
-                                    effects.delete("justify".to_string()).unwrap();
+                if let Sexp::Node(_, ref mut values) = symbol {
+                    values.iter_mut()
+                    .filter(filter_properties)
+                    .sorted_by(sort_properties)
+                    .for_each(|node|{
+                        if let Sexp::Node(name, ref mut values) = node {
+                            if name == "property" {
+                                for value in values {
+                                    if let Sexp::Node(name, values) = value {
+                                        if name == "effects" {
+                                            for value in values {
+                                                if let Sexp::Node(name, values) = value {
+                                                    if name == "justify" {
+                                                        values.clear();
+                                                    }
+                                                }
+                                            }
+                                        } else if name == "at" {
+                                            values[0] = Sexp::Value((_size[[0, 0]]).to_string());
+                                            values[1] = Sexp::Value((top_pos - offset).to_string());
+                                            values[2] = Sexp::Value((0.0 - angle).to_string());
+                                            offset -= 2.0;
+                                        }
+                                    }
                                 }
                             }
                         }
-                        node.values.push(effects!( "1.27", "1.27", "left"));
-                        set!(node, "at", 2, 360.0 - angle);
-                        offset += 2.0;
-                    }
-                }); */
+                    });
+                }
                 return Ok(());
 
             } else if positions[0] == 0 { //west
@@ -504,6 +560,7 @@ impl Draw {
             position[pos] += 1;
         }
         position.rotate_right(symbol_shift);
+        println!("positions: {:?}", &position);
         position
     }
 } 

@@ -120,8 +120,13 @@ impl SexpParser {
         Ok(())
     }
 
-    pub fn values(&self) -> impl Iterator<Item = &Sexp> {
+    pub fn iter(&self) -> impl Iterator<Item = &Sexp> {
         if let Sexp::Node(_, values) = &self.nodes {
+            values.into_iter()
+        } else { panic!("nodes not set."); }
+    }
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Sexp> {
+        if let Sexp::Node(_, values) = &mut self.nodes {
             values.into_iter()
         } else { panic!("nodes not set."); }
     }
@@ -145,7 +150,7 @@ mod tests {
     fn load_and_iterate() {
         let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
         let mut count = 0;
-        for _ in doc.values() {
+        for _ in doc.iter() {
             count += 1;
         }
         assert_eq!(count, 51);
@@ -154,7 +159,7 @@ mod tests {
     fn load_and_iterate_wires() {
         let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
         let mut count = 0;
-        for n in doc.values() {
+        for n in doc.iter() {
             match n {
                 Sexp::Node(name, _values) if name == "wire" => {
                     count += 1;
@@ -168,7 +173,7 @@ mod tests {
     fn test_get_value() {
         let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
         let mut count = 0;
-        for n in doc.values() {
+        for n in doc.iter() {
             match n {
                 Sexp::Node(ref name, ref _values) if name == "label" => {
                     count += 1;
@@ -185,7 +190,7 @@ mod tests {
     fn test_get_properties() {
         let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
         let mut count = 0;
-        for n in doc.values() {
+        for n in doc.iter() {
             match n {
                 Sexp::Node(ref name, ref _values) if name == "symbol" => {
                     count += 1;
@@ -202,7 +207,7 @@ mod tests {
     fn test_get_property_hide() {
         let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
         let mut count = 0;
-        for n in doc.values() {
+        for n in doc.iter() {
             match n {
                 Sexp::Node(ref name, ref _values) if name == "symbol" => {
                     let reference = get_property(n, "Reference").unwrap();
@@ -233,7 +238,7 @@ mod tests {
     fn test_quoted_string() {
         let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
         let mut count = 0;
-        for n in doc.values() {
+        for n in doc.iter() {
             match n {
                 Sexp::Node(ref name, ref values) if name == "lib_symbols" => {
                     for symbol in values {
@@ -266,7 +271,7 @@ mod tests {
     fn test_get_wire_pts() {
         let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
         let mut count = 0;
-        for n in doc.values() {
+        for n in doc.iter() {
             match n {
                 Sexp::Node(ref name, ref _values) if name == "wire" => {
                     count += 1;
@@ -287,7 +292,7 @@ mod tests {
     fn test_get_macro() {
         let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
         let mut count = 0;
-        for n in doc.values() {
+        for n in doc.iter() {
             match n {
                 Sexp::Node(ref name, ref _values) if name == "symbol" => {
                     count += 1;

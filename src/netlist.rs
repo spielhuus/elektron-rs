@@ -104,7 +104,7 @@ impl<'a> Netlist<'a> {
         let mut netlists: Vec<NetlistItem> = Vec::new();
         let mut symbols: HashMap<String, Vec<Sexp>> = HashMap::new();
 
-        for node in doc.values() {
+        for node in doc.iter() {
             if let Sexp::Node(name, _) = node {
                 if name == "symbol" {
                     iterate_unit_pins(node, &libraries).iter().for_each(|el| {

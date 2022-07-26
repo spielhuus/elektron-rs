@@ -66,8 +66,22 @@ macro_rules! effects {
             Sexp::Node(String::from("justify"), vec![
                 Sexp::Value(String::from("left")),
                 Sexp::Value(String::from("bottom"))]
-            )]
-        )
+            ),
+        ])
+    };
+    ($hide:expr) => {
+        Sexp::Node(String::from("effects"), vec![
+            Sexp::Node(String::from("font"), vec![
+                Sexp::Node(String::from("size"), vec![
+                    Sexp::Value(String::from("1.27")),
+                    Sexp::Value(String::from("1.27"))]
+                    )]
+                ),
+            Sexp::Node(String::from("justify"), vec![
+                Sexp::Value(String::from("left")),
+                Sexp::Value(String::from("bottom"))]
+            ),
+        Sexp::Value(String::from("hide"))])
     };
     ($font_width:expr, $font_height:expr, $($align:expr),+) => {
         Sexp::Node(String::from("effects"), vec![
@@ -96,13 +110,13 @@ macro_rules! pts {
 }
 
 macro_rules! property {
-    ($pos:expr, $angle:expr, $key:expr, $value:expr, $id:expr) => {
+    ($pos:expr, $angle:expr, $key:expr, $value:expr, $id:expr, $hide:expr) => {
         Sexp::Node("property".to_string(), vec![
             Sexp::Value($key.to_string()),
             Sexp::Value($value.to_string()),
             node!("id", $id),
             pos!($pos, $angle),
-            effects!(),
+            if $hide {effects!(hide)} else {effects!()},
         ])
     }
 }
