@@ -97,11 +97,11 @@ fn schema_plot(
     let parser = SexpParser::load(filename).unwrap();
 
     if let Some(filename) = output {
-        let mut out: Box<dyn Write> = Box::new(File::create(filename).unwrap());
-        plot(&mut cairo, out, &parser, border, style).unwrap();
+        let out: Box<dyn Write> = Box::new(File::create(filename).unwrap());
+        plot(&mut cairo, out, &parser, border, scale, style).unwrap();
     } else {
-        let mut out: Box<dyn Write> = Box::new(std::io::stdout());
-        plot(&mut cairo, out, &parser, border, style).unwrap();
+        let out: Box<dyn Write> = Box::new(std::io::stdout());
+        plot(&mut cairo, out, &parser, border, scale, style).unwrap();
     };
     Ok(())
 }

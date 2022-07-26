@@ -1,20 +1,17 @@
-use std::any::Any;
-use std::io::{Write, BufWriter};
-use ndarray::{arr1, arr2, s, Array1, Array2};
-use crate::Error;
-use crate::sexp::{Color, Justify, LineType};
 use crate::plot::paper;
+use crate::sexp::{Color, Justify, LineType};
+use crate::Error;
+use ndarray::{arr1, arr2, s, Array1, Array2};
+use std::io::Write;
 extern crate cairo;
-use cairo::{Format, Context, SvgSurface, FontSlant, FontWeight, ImageSurface, FontFace};
-
-
+use cairo::{Context, FontFace, FontSlant, FontWeight, Format, ImageSurface, SvgSurface};
 
 #[derive(Debug)]
 pub struct Line {
     pub pts: Array2<f64>,
     pub linewidth: f64,
     pub linetype: LineType,
-    pub color: Color
+    pub color: Color,
 }
 impl Line {
     pub fn new(pts: Array2<f64>, linewidth: f64, linetype: LineType, color: Color) -> Line {
@@ -22,7 +19,7 @@ impl Line {
             pts,
             linewidth,
             linetype,
-            color
+            color,
         }
     }
 }
@@ -36,7 +33,13 @@ pub struct Rectangle {
     pub fill: Option<Color>,
 }
 impl Rectangle {
-    pub fn new(pts: Array2<f64>, color: Color, linewidth: f64, linetype: LineType, fill: Option<Color>) -> Rectangle {
+    pub fn new(
+        pts: Array2<f64>,
+        color: Color,
+        linewidth: f64,
+        linetype: LineType,
+        fill: Option<Color>,
+    ) -> Rectangle {
         Rectangle {
             pts,
             color,
@@ -54,10 +57,18 @@ pub struct Arc {
     pub linewidth: f64,
     pub linetype: LineType,
     pub color: Color,
-    pub fill: Option<Color>
+    pub fill: Option<Color>,
 }
 impl Arc {
-    pub fn new(start: Array1<f64>, mid: Array1<f64>, end: Array1<f64>, linewidth: f64, linetype: LineType, color: Color, fill: Option<Color>) -> Arc {
+    pub fn new(
+        start: Array1<f64>,
+        mid: Array1<f64>,
+        end: Array1<f64>,
+        linewidth: f64,
+        linetype: LineType,
+        color: Color,
+        fill: Option<Color>,
+    ) -> Arc {
         Arc {
             start,
             mid,
@@ -65,7 +76,7 @@ impl Arc {
             linewidth,
             linetype,
             color,
-            fill
+            fill,
         }
     }
 }
@@ -76,17 +87,24 @@ pub struct Circle {
     pub linewidth: f64,
     pub linetype: LineType,
     pub color: Color,
-    pub fill: Option<Color>
+    pub fill: Option<Color>,
 }
 impl Circle {
-    pub fn new(pos: Array1<f64>, radius: f64, linewidth: f64, linetype: LineType, color: Color, fill: Option<Color>) -> Circle {
+    pub fn new(
+        pos: Array1<f64>,
+        radius: f64,
+        linewidth: f64,
+        linetype: LineType,
+        color: Color,
+        fill: Option<Color>,
+    ) -> Circle {
         Circle {
             pos,
             radius,
             linewidth,
             linetype,
             color,
-            fill
+            fill,
         }
     }
 }
@@ -96,16 +114,22 @@ pub struct Polyline {
     pub color: Color,
     pub linewidth: f64,
     pub linetype: LineType,
-    pub fill: Option<Color>
+    pub fill: Option<Color>,
 }
 impl Polyline {
-    pub fn new(pts: Array2<f64>, color: Color, linewidth: f64, linetype: LineType, fill: Option<Color>) -> Polyline {
+    pub fn new(
+        pts: Array2<f64>,
+        color: Color,
+        linewidth: f64,
+        linetype: LineType,
+        fill: Option<Color>,
+    ) -> Polyline {
         Polyline {
             pts,
             color,
             linewidth,
             linetype,
-            fill
+            fill,
         }
     }
 }
@@ -120,7 +144,15 @@ pub struct Text {
     pub angle: f64,
 }
 impl Text {
-    pub fn new(pos: Array1<f64>, angle: f64, text: String, color: Color, fontsize: f64, font: &str, align: Vec<Justify>) -> Text {
+    pub fn new(
+        pos: Array1<f64>,
+        angle: f64,
+        text: String,
+        color: Color,
+        fontsize: f64,
+        font: &str,
+        align: Vec<Justify>,
+    ) -> Text {
         Text {
             pos,
             text,
@@ -145,7 +177,12 @@ pub enum PlotItem {
 
 macro_rules! stroke {
     ($context:expr, $stroke:expr) => {
-        $context.set_source_rgba($stroke.color.r, $stroke.color.g, $stroke.color.b, $stroke.color.a);
+        $context.set_source_rgba(
+            $stroke.color.r,
+            $stroke.color.g,
+            $stroke.color.b,
+            $stroke.color.a,
+        );
         $context.set_line_width($stroke.linewidth);
     };
 }
@@ -166,7 +203,9 @@ macro_rules! effects {
         let face = FontFace::toy_create(
             $effects.font.as_str(),
             FontSlant::Normal,
-            FontWeight::Normal).unwrap();
+            FontWeight::Normal,
+        )
+        .unwrap();
         $context.set_font_face(&face);
         $context.set_source_rgba(0.0, 0.0, 0.0, 1.0); //TODO
     };
@@ -176,7 +215,12 @@ pub trait Plotter {
     fn push(&mut self, item: PlotItem);
     fn text_size(&self, item: &Text) -> Array1<f64>;
     fn bounds(&self) -> Array2<f64>;
-    fn plot(&mut self, file: Box<dyn Write>, border: bool, scale: f64) -> Result<Box<dyn Any>, Error>;
+    fn plot(
+        &mut self,
+        file: Box<dyn Write>,
+        border: bool,
+        scale: f64,
+    ) -> Result<(), Error>;
     fn paper(&mut self, paper: String);
 }
 
@@ -188,7 +232,12 @@ pub struct CairoPlotter {
 }
 impl CairoPlotter {
     pub fn new() -> CairoPlotter {
-        let surface = ImageSurface::create(Format::Rgb24, (297.0 * 72.0 / 25.4) as i32, (210.0 * 72.0 / 25.4) as i32).unwrap();
+        let surface = ImageSurface::create(
+            Format::Rgb24,
+            (297.0 * 72.0 / 25.4) as i32,
+            (210.0 * 72.0 / 25.4) as i32,
+        )
+        .unwrap();
         let context = Context::new(&surface).unwrap();
         context.scale(72.0 / 25.4, 72.0 / 25.4);
         CairoPlotter {
@@ -197,7 +246,7 @@ impl CairoPlotter {
             paper_size: paper::A4,
         }
     }
-    fn arr_outline(&self, boxes: &Array2<f64>) -> Array2<f64>{
+    fn arr_outline(&self, boxes: &Array2<f64>) -> Array2<f64> {
         let axis1 = boxes.slice(s![.., 0]);
         let axis2 = boxes.slice(s![.., 1]);
         arr2(&[
@@ -205,21 +254,25 @@ impl CairoPlotter {
                 axis1
                     .iter()
                     .min_by(|a, b| a.partial_cmp(b).unwrap())
-                    .unwrap().clone(),
+                    .unwrap()
+                    .clone(),
                 axis2
                     .iter()
                     .min_by(|a, b| a.partial_cmp(b).unwrap())
-                    .unwrap().clone(),
+                    .unwrap()
+                    .clone(),
             ],
             [
                 axis1
                     .iter()
                     .max_by(|a, b| a.partial_cmp(b).unwrap())
-                    .unwrap().clone(),
+                    .unwrap()
+                    .clone(),
                 axis2
                     .iter()
                     .max_by(|a, b| a.partial_cmp(b).unwrap())
-                    .unwrap().clone(),
+                    .unwrap()
+                    .clone(),
             ],
         ])
     }
@@ -231,7 +284,7 @@ impl Plotter for CairoPlotter {
         self.items.push(item);
     }
     /// get the text size in pixels.
-    fn text_size(&self, item: &Text) -> Array1<f64>{
+    fn text_size(&self, item: &Text) -> Array1<f64> {
         effects!(self.context, item);
         let extends = self.context.text_extents(item.text.as_str()).unwrap();
         arr1(&[extends.width, extends.height])
@@ -243,12 +296,17 @@ impl Plotter for CairoPlotter {
             let arr: Option<Array2<f64>>;
             match item {
                 PlotItem::ArcItem(arc) => {
-                    arr = Option::from(arr2(&[[arc.start[0], arc.start[1]], [arc.end[0], arc.end[1]]]));
-                },
+                    arr = Option::from(arr2(&[
+                        [arc.start[0], arc.start[1]],
+                        [arc.end[0], arc.end[1]],
+                    ]));
+                }
                 PlotItem::LineItem(line) => {
-                    arr = Option::from(arr2(&[[line.pts[[0, 0]], line.pts[[0, 1]]], 
-                         [line.pts[[1, 0]], line.pts[[1, 1]]]]));
-                },
+                    arr = Option::from(arr2(&[
+                        [line.pts[[0, 0]], line.pts[[0, 1]]],
+                        [line.pts[[1, 0]], line.pts[[1, 1]]],
+                    ]));
+                }
                 PlotItem::TextItem(text) => {
                     let outline = self.text_size(&text);
                     let mut x = text.pos[0];
@@ -257,25 +315,29 @@ impl Plotter for CairoPlotter {
                         x = x - outline[0];
                     } else if text.align.contains(&Justify::Top) {
                         y = y - outline[1];
-                    } else if !text.align.contains(&Justify::Left) &&
-                              !text.align.contains(&Justify::Bottom) {
+                    } else if !text.align.contains(&Justify::Left)
+                        && !text.align.contains(&Justify::Bottom)
+                    {
                         x = x - outline[0] / 2.0;
                         y = y - outline[1] / 2.0;
                     }
-                    arr = Option::from(arr2(&[[x, y], 
-                           [x + outline[0], y + outline[1]]]));
-                },
+                    arr = Option::from(arr2(&[[x, y], [x + outline[0], y + outline[1]]]));
+                }
                 PlotItem::CircleItem(circle) => {
-                    arr = Option::from(arr2(&[[circle.pos[0] - circle.radius, circle.pos[1] - circle.radius], 
-                           [circle.pos[0] + circle.radius, circle.pos[1] + circle.radius]]));
-                },
+                    arr = Option::from(arr2(&[
+                        [circle.pos[0] - circle.radius, circle.pos[1] - circle.radius],
+                        [circle.pos[0] + circle.radius, circle.pos[1] + circle.radius],
+                    ]));
+                }
                 PlotItem::PolylineItem(polyline) => {
-                    arr = Option::from( self.arr_outline(&polyline.pts));
-                },
+                    arr = Option::from(self.arr_outline(&polyline.pts));
+                }
                 PlotItem::RectangleItem(rect) => {
-                    arr = Option::from(arr2(&[[rect.pts[[0, 0]], rect.pts[[0, 1]]], 
-                         [rect.pts[[1, 0]], rect.pts[[1, 1]]]]));
-                },
+                    arr = Option::from(arr2(&[
+                        [rect.pts[[0, 0]], rect.pts[[0, 1]]],
+                        [rect.pts[[1, 0]], rect.pts[[1, 1]]],
+                    ]));
+                }
             }
             if let Some(array) = arr {
                 for row in array.rows() {
@@ -286,25 +348,36 @@ impl Plotter for CairoPlotter {
         self.arr_outline(&__bounds)
     }
 
-
-    fn plot(&mut self, file: Box<dyn Write>, border: bool, scale: f64) -> Result<Box<dyn Any>, Error> {
-        
+    fn plot(
+        &mut self,
+        file: Box<dyn Write>,
+        border: bool,
+        scale: f64,
+    ) -> Result<(), Error> {
         let (context, surface) = if border {
-            let surface = SvgSurface::for_stream(self.paper_size.0 * 96.0 / 25.4, self.paper_size.1 * 96.0 / 25.4, file).unwrap(); //TODO paper size
+            let surface = SvgSurface::for_stream(
+                self.paper_size.0 * 96.0 / 25.4,
+                self.paper_size.1 * 96.0 / 25.4,
+                file,
+            )
+            .unwrap();
             let context = Context::new(&surface).unwrap();
             context.scale(96.0 / 25.4, 96.0 / 25.4);
             (context, surface)
         } else {
-            println!("without border");
             let size = self.bounds() + arr2(&[[-2.54, -2.54], [2.54, 2.54]]);
-            let surface = SvgSurface::for_stream((size[[1, 0]] - size[[0, 0]]) * 72.0 / 25.4 * scale, 
-                                       (size[[1, 1]] - size[[0, 1]]) * 72.0 / 25.4 * scale, file).unwrap();
+            let surface = SvgSurface::for_stream(
+                (size[[1, 0]] - size[[0, 0]]) * 72.0 / 25.4 * scale,
+                (size[[1, 1]] - size[[0, 1]]) * 72.0 / 25.4 * scale,
+                file,
+            )
+            .unwrap();
             let context = Context::new(&surface).unwrap();
             context.scale(72.0 / 25.4 * scale, 72.0 / 25.4 * scale);
             context.translate(-size[[0, 0]], -size[[0, 1]]);
             (context, surface)
         };
-        
+
         context.set_source_rgb(1.0, 1.0, 1.0);
         context.paint().unwrap();
 
@@ -333,9 +406,12 @@ impl Plotter for CairoPlotter {
                 }
                 PlotItem::RectangleItem(rectangle) => {
                     stroke!(context, rectangle);
-                    context.rectangle(rectangle.pts[[0, 0]], rectangle.pts[[0, 1]],
-                                      rectangle.pts[[1, 0]] - rectangle.pts[[0, 0]],
-                                      rectangle.pts[[1, 1]] - rectangle.pts[[0, 1]]);
+                    context.rectangle(
+                        rectangle.pts[[0, 0]],
+                        rectangle.pts[[0, 1]],
+                        rectangle.pts[[1, 0]] - rectangle.pts[[0, 0]],
+                        rectangle.pts[[1, 1]] - rectangle.pts[[0, 1]],
+                    );
                     context.stroke_preserve().unwrap();
                     fill!(context, rectangle.fill);
                     context.stroke().unwrap()
@@ -360,7 +436,6 @@ impl Plotter for CairoPlotter {
                     let mut x = text.pos[0];
                     let mut y = text.pos[1];
                     let outline = self.text_size(&text);
-                    // context.arc(x, y, 0.2, 0., 10.);
                     if text.align.contains(&Justify::Right) {
                         x = x - outline[0];
                     } else if text.align.contains(&Justify::Left) {
@@ -377,7 +452,6 @@ impl Plotter for CairoPlotter {
                     }
                     context.move_to(x, y);
                     context.rotate(text.angle * 3.14 / 180.0);
-                    //context.show_text(format!("{:?}, {:?}", text.text.as_str(), text.align).as_str()).unwrap();
                     context.show_text(text.text.as_str()).unwrap();
                     context.stroke().unwrap();
                     context.restore().unwrap();
@@ -385,14 +459,12 @@ impl Plotter for CairoPlotter {
             }
         }
 
-        let res = surface.finish_output_stream().unwrap();
-        println!("{:?}", &res);
-        Ok(res)
+        surface.finish_output_stream();
+        Ok(())
     }
     fn paper(&mut self, paper_size: String) {
         if paper_size == String::from("A4") {
             self.paper_size = paper::A4;
         } // TODO other paper sizes
     }
-
 }

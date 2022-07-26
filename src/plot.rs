@@ -512,7 +512,7 @@ fn libraries(sexp_parser: &SexpParser) -> Result<std::collections::HashMap<Strin
    Ok(libraries)
 }
 
-pub fn plot(plotter: &mut dyn Plotter, out: Box<dyn Write>, sexp_parser: &SexpParser, border: bool, style: Style) -> Result<Box<dyn Any>, Error> {
+pub fn plot(plotter: &mut dyn Plotter, out: Box<dyn Write>, sexp_parser: &SexpParser, border: bool, scale: f64, style: Style) -> Result<(), Error> {
 
     let libraries = libraries(sexp_parser).unwrap();
     let mut title_block: Option<Sexp> = None;
@@ -573,5 +573,5 @@ pub fn plot(plotter: &mut dyn Plotter, out: Box<dyn Write>, sexp_parser: &SexpPa
         draw_border(title_block, paper_size, plotter, &style)?;
     }
 
-    Ok(plotter.plot(out, border, 1.0).unwrap())
+    Ok(plotter.plot(out, border, scale).unwrap())
 }

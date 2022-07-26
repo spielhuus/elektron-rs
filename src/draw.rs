@@ -201,14 +201,14 @@ impl Draw {
         Ok(())
     }
 
-    pub fn plot(&mut self, filename: Option<&str>, border: bool, _scale: f64) -> Result<String, Error> {
+    pub fn plot(&mut self, filename: Option<&str>, border: bool, scale: f64) -> Result<String, Error> {
         let mut plotter = CairoPlotter::new();
         match self._write() {
             Ok(doc) => {
 
                 if let Some(filename) = filename {
                     let out: Box<dyn Write> = Box::new(File::create(filename).unwrap());
-                    plot(&mut plotter, out, &doc, border, Style::new()).unwrap();
+                    plot(&mut plotter, out, &doc, border, scale, Style::new()).unwrap();
                     Ok(String::new())
 
                 } else {
@@ -216,7 +216,7 @@ impl Draw {
                     let num: u32 = rng.gen();
                     let filename = String::new() + temp_dir().to_str().unwrap() + "/" + &num.to_string() + ".svg";
                     let out: Box<dyn Write> = Box::new(File::create(&filename).unwrap());
-                    plot(&mut plotter, out, &doc, border, Style::new()).unwrap();
+                    plot(&mut plotter, out, &doc, border, scale, Style::new()).unwrap();
                     let mut file2 = File::open(filename).unwrap();
                     let mut buf = String::new();
                     file2.read_to_string(&mut buf)?;
