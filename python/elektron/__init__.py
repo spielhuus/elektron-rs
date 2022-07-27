@@ -210,17 +210,13 @@ class Draw():
         self.schema.write(filename)
 
     def plot(self, filename, border: bool, scale: float):
-        print("plot content")
         if filename is None and sys.stdout.isatty():
-            print("called from tty")
             image = self.schema.plot(filename, border, scale, "png")
             write_chunked(a='T', f=100, data=bytearray(image))
         elif filename is None:
-            print("called from inline document")
             image = self.schema.plot(filename, border, scale, "png")
             return bytearray(image)
         else:
-            print("write file")
             filetype = ""
             if filename.endswith(".png"):
                 filetype = "png"
