@@ -132,6 +132,8 @@ impl Draw {
     }
 
     fn wire(&mut self, pts: Vec<f64>, end: Vec<f64>) {
+        let pts: Vec<f64> = pts.iter().map(|v| format!("{:.2}", v).parse::<f64>().unwrap()).collect();
+        let end: Vec<f64> = end.iter().map(|v| format!("{:.2}", v).parse::<f64>().unwrap()).collect();
         self.elements
             .push(wire!(arr2(&[[pts[0], pts[1]], [end[0], end[1]]])));
     }
@@ -155,6 +157,7 @@ impl Draw {
         end_pos: Option<f64>,
         properties: HashMap<String, String>,
     ) {
+        let pos: Vec<f64> = pos.iter().map(|v| format!("{:.2}", v).parse::<f64>().unwrap()).collect();
         let lib_symbol = self.get_library(library).unwrap();
         let uuid = Uuid::new_v4();
 

@@ -104,7 +104,7 @@ class Line(DrawElement):
         if self.x_pos is not None:
             return np.array((self.x_pos, pos[1]))
         if self.xy_pos is not None:
-            return self.xy_pos.pos
+            return self.xy_pos
 
         if self.direction == "down":
             return pos + np.array((0.0, self.length))
@@ -168,7 +168,7 @@ class Draw():
                     self.pos = element.atref.pos
                 else:
                     self.pos = self.schema.pin_pos(element.atref, element.atpin)
-
+                
                 self.schema.wire(self.pos, element.pt(self.pos))
                 self.pos = element.pt(self.pos)
 
@@ -221,9 +221,9 @@ class Draw():
             filetype = ""
             if filename.endswith(".png"):
                 filetype = "png"
-            elif filename.endswidth(".svg"):
+            elif filename.endswith(".svg"):
                 filetype = "svg"
-            elif filename.endswidth(".pdf"):
+            elif filename.endswith(".pdf"):
                 filetype = "pdf"
             else:
                 raise TypeError(f"filetype not found {filename}")
