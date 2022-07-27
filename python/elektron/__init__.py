@@ -215,7 +215,7 @@ class Draw():
             write_chunked(a='T', f=100, data=bytearray(image))
         elif filename is None:
             image = self.schema.plot(filename, border, scale, "png")
-            return bytearray(image)
+            return image
         else:
             filetype = ""
             if filename.endswith(".png"):
@@ -229,20 +229,6 @@ class Draw():
             self.schema.plot(filename, border, scale, filetype)
 
         return self
-
-    def _repr_svg_(self):
-        ''' SVG representation for Jupyter '''
-        print("call repr svg")
-        return bytearray(self.schema.plot(filename, border, scale, "svg"))
-
-    def _repr_png_(self):
-        ''' PNG representation for Jupyter '''
-        print("call repr")
-        return bytearray(self.schema.plot(filename, border, scale, "png"))
-    def _repr_(self):
-        ''' PNG representation for Jupyter '''
-        print("call repr png")
-        return bytearray(self.schema.plot(filename, border, scale, "png"))
 
     def circuit(self):
         return self.schema.circuit()
