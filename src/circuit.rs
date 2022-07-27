@@ -126,6 +126,7 @@ impl Circuit {
                 map.insert(name, data1);
             }
         }
+        println!("{:?}", &map);
         map
     }
 
