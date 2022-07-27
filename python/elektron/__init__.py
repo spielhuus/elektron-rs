@@ -209,7 +209,7 @@ class Draw():
 
         self.schema.write(filename)
 
-    def plot(self, filename, border: bool, scale: float) -> None:
+    def plot(self, filename, border: bool, scale: float):
         if filename is None and sys.stdout.isatty():
             print("called from tty")
             image = self.schema.plot(filename, border, scale, "png")
@@ -229,6 +229,21 @@ class Draw():
                 raise TypeError(f"filetype not found {filename}")
             self.schema.plot(filename, border, scale, filetype)
 
+        return self
+
+    def _repr_svg_(self):
+        ''' SVG representation for Jupyter '''
+        print("call repr svg")
+        return bytearray(self.schema.plot(filename, border, scale, "svg"))
+
+    def _repr_png_(self):
+        ''' PNG representation for Jupyter '''
+        print("call repr")
+        return bytearray(self.schema.plot(filename, border, scale, "png"))
+    
+    def _repr_(self):
+        ''' PNG representation for Jupyter '''
+        print("call repr png")
+        return bytearray(self.schema.plot(filename, border, scale, "png"))
 
     def circuit(self):
-        return self.schema.circuit()
