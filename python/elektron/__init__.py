@@ -1,6 +1,6 @@
 from typing import Dict
 import numpy as np
-from IPython.display import display, SVG, Image
+from IPython.display import display, SVG, Image, HTML
 from elektron.elektron import Draw  as RDraw # , ElementType
 from elektron.elektron import get_bom, schema_plot, schema_netlist, search
 
