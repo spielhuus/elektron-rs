@@ -247,3 +247,5 @@ class Draw():
         return bytearray(self.schema.plot(filename, border, scale, "png"))
 
     def circuit(self):
+        return self.schema.circuit()
+
