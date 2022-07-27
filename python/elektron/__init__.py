@@ -216,7 +216,7 @@ class Draw():
             write_chunked(a='T', f=100, data=bytearray(image))
         elif filename is None:
             image = self.schema.plot(filename, border, scale, "png")
-            display(Image(data=bytearray(image)))
+            bytearray(image)
         else:
             filetype = ""
             if filename.endswith(".png"):
@@ -240,7 +240,6 @@ class Draw():
         ''' PNG representation for Jupyter '''
         print("call repr")
         return bytearray(self.schema.plot(filename, border, scale, "png"))
-    
     def _repr_(self):
         ''' PNG representation for Jupyter '''
         print("call repr png")
