@@ -300,6 +300,8 @@ impl<'a> Netlist<'a> {
     } */
     pub fn dump(&mut self, circuit: &mut Circuit) -> Result<(), Error> {
 
+        println!("{:?}", self.netlists);
+        println!("{:?}", self.nodes);
         //create a numeric netname for the unnamed nets in the netlist
         let mut _id = 1;
         for mut net in self.netlists.iter_mut() {

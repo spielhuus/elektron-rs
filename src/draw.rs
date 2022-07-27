@@ -138,9 +138,12 @@ impl Draw {
             .push(wire!(arr2(&[[pts[0], pts[1]], [end[0], end[1]]])));
     }
     fn junction(&mut self, pos: Vec<f64>) {
+        let pos: Vec<f64> = pos.iter().map(|v| format!("{:.2}", v).parse::<f64>().unwrap()).collect();
         self.elements.push(junction!(arr1(&[pos[0], pos[1]])));
     }
     fn label(&mut self, name: &str, pos: Vec<f64>, angle: f64) {
+        let pos: Vec<f64> = pos.iter().map(|v| format!("{:.2}", v).parse::<f64>().unwrap()).collect();
+        println!("add label: {}, {:?}", name, pos);
         self.elements
             .push(label!(arr1(&[pos[0], pos[1]]), &angle, name.to_string()));
     }
