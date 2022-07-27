@@ -216,7 +216,7 @@ class Draw():
             write_chunked(a='T', f=100, data=bytearray(image))
         elif filename is None:
             image = self.schema.plot(filename, border, scale, "png")
-            bytearray(image)
+            return bytearray(image)
         else:
             filetype = ""
             if filename.endswith(".png"):
