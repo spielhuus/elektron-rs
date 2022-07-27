@@ -1,6 +1,6 @@
 from typing import Dict
 import numpy as np
-from IPython.display import Image
+from IPython.display import display, SVG, Image
 from elektron.elektron import Draw  as RDraw # , ElementType
 from elektron.elektron import get_bom, schema_plot, schema_netlist, search
 
@@ -209,14 +209,14 @@ class Draw():
 
         self.schema.write(filename)
 
-    def plot(self, filename, border: bool, scale: float) -> str:
+    def plot(self, filename, border: bool, scale: float) -> None:
         if filename is None and sys.stdout.isatty():
             print("called from tty")
             image = self.schema.plot(filename, border, scale, "png")
             write_chunked(a='T', f=100, data=bytearray(image))
         elif filename is None:
             image = self.schema.plot(filename, border, scale, "svg")
-            return bytearray(image)
+            display(SVG(data=image))
         else:
             filetype = ""
             if filename.endswith(".png"):
@@ -229,8 +229,6 @@ class Draw():
                 raise TypeError(f"filetype not found {filename}")
             self.schema.plot(filename, border, scale, filetype)
 
-
-        return "" #self.schema.plot(filename, border, scale)
 
     def circuit(self):
         return self.schema.circuit()
