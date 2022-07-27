@@ -8,13 +8,14 @@ use crate::sexp::{
 use crate::sexp::get::{Get, get};
 use crate::sexp::test::Test;
 use crate::netlist::Netlist;
-use crate::cairo_plotter::CairoPlotter;
+use crate::cairo_plotter::{CairoPlotter, ImageType};
 use crate::plot::plot;
 use crate::themes::Style;
 use itertools::Itertools;
 use pyo3::prelude::*;
 use std::collections::HashMap;
 use std::io::{Read, Write};
+use std::fs;
 use std::fs::File;
 
 use ndarray::{arr1, arr2, Array1};
@@ -200,7 +201,7 @@ impl Draw {
         } else {
             String::from("yes")
         };
-        let mut symbol = symbol!(verts, angle, reference, library, unit, &uuid, on_schema);
+        let mut symbol = symbol!(verts, angle, mirror, reference, library, unit, &uuid, on_schema);
 
         //copy the properties from the library to the symbol
         let mut footprint: Option<String> = None;
@@ -253,26 +254,34 @@ impl Draw {
         Ok(())
     }
 
-    pub fn plot(&mut self, filename: Option<&str>, border: bool, scale: f64) -> Result<String, Error> {
+    pub fn plot(&mut self, filename: Option<&str>, border: bool, scale: f64, image_type: Option<&str>) -> Result<Vec<u8>, Error> {
         let mut plotter = CairoPlotter::new();
+        let image_type: ImageType = match image_type {
+            Some("png") => ImageType::Png,
+            Some("svg") => ImageType::Svg,
+            Some("pdf") => ImageType::Pdf,
+            None => ImageType::Svg,
+            Some(&_) => { todo!(); },
+        };
         match self._write() {
             Ok(doc) => {
 
                 if let Some(filename) = filename {
                     let out: Box<dyn Write> = Box::new(File::create(filename).unwrap());
-                    plot(&mut plotter, out, &doc, border, scale, Style::new()).unwrap();
-                    Ok(String::new())
+                    plot(&mut plotter, out, &doc, border, scale, Style::new(), image_type).unwrap();
+                    Ok(Vec::new())
 
                 } else {
                     let mut rng = rand::thread_rng();
                     let num: u32 = rng.gen();
                     let filename = String::new() + temp_dir().to_str().unwrap() + "/" + &num.to_string() + ".svg";
                     let out: Box<dyn Write> = Box::new(File::create(&filename).unwrap());
-                    plot(&mut plotter, out, &doc, border, scale, Style::new()).unwrap();
-                    let mut file2 = File::open(filename).unwrap();
-                    let mut buf = String::new();
-                    file2.read_to_string(&mut buf)?;
-                    Ok(buf)
+                    plot(&mut plotter, out, &doc, border, scale, Style::new(), image_type).unwrap();
+                    let mut f = File::open(&filename).expect("no file found");
+                    let metadata = fs::metadata(&filename).expect("unable to read metadata");
+                    let mut buffer = vec![0; metadata.len() as usize];
+                    f.read(&mut buffer).expect("buffer overflow");
+                    Ok(buffer)
                 }
             }
             Err(err) => {
@@ -519,7 +528,7 @@ impl Draw {
             } else if positions[0] == 0 { //west
                 todo!();
             } else if positions[1] == 0 { //south
-                todo!();
+                return Ok(());
             } else {
                 todo!();
             }
@@ -527,6 +536,12 @@ impl Draw {
         Err(Error::ParseError)
     }
 
+
+    /// get the pin position
+    /// returns an array containing the number of pins:
+    ///   3
+    /// 2   0
+    ///   1 
     fn pin_position(&self, symbol: &Sexp, lib: &Sexp) -> Vec<usize> {
         let mut position: Vec<usize> = vec![0; 4];
         let symbol_angle: f64 = get!(symbol, "at", 2);
@@ -538,32 +553,14 @@ impl Draw {
         for pin in get_pins(lib, Option::from(get_unit(symbol).unwrap())).unwrap() {
             let pin_angle: f64 = get!(pin, "at", 2);
             let lib_pos: usize = (pin_angle / 90.0).round() as usize;
-            let pos: usize =
-                /* if mirror.contains("xy") {
-                    todo!(); */
-                if mirror.contains('x') {
-                    if lib_pos == 1 {
-                        3
-                    } else if lib_pos == 3 {
-                        1
-                    } else {
-                        lib_pos
-                    }
-                } else if mirror.contains('y') {
-                    if lib_pos == 1 {
-                        2 //TODO
-                    } else if lib_pos == 3 {
-                       0 
-                    } else {
-                        lib_pos
-                    }
-                } else {
-                    lib_pos
-                };
-            position[pos] += 1;
+            position[lib_pos] += 1;
         }
         position.rotate_right(symbol_shift);
-        println!("positions: {:?}", &position);
+        if mirror.contains("x") {
+            position = vec![position[0], position[3], position[2], position[1]];
+        } else if mirror.contains("y") {
+            position = vec![position[2], position[1], position[0], position[3]];
+        }
         position
     }
 } 

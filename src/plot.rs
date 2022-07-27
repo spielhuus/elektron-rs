@@ -9,7 +9,7 @@ use crate::sexp::{Effects, LineType, FillType, Stroke, Color, get_unit};
 use crate::themes::StyleTypes;
 use crate::themes::{Style, StyleContext};
 use crate::Error;
-use crate::cairo_plotter::{Arc, Circle, Line, PlotItem, Plotter, Polyline, Rectangle, Text};
+use crate::cairo_plotter::{Arc, Circle, Line, PlotItem, Plotter, Polyline, Rectangle, Text, ImageType};
 use ndarray::{arr1, arr2, Array1, Array2};
 
 pub mod paper {
@@ -516,7 +516,7 @@ fn libraries(sexp_parser: &SexpParser) -> Result<std::collections::HashMap<Strin
    Ok(libraries)
 }
 
-pub fn plot(plotter: &mut dyn Plotter, out: Box<dyn Write>, sexp_parser: &SexpParser, border: bool, scale: f64, style: Style) -> Result<(), Error> {
+pub fn plot(plotter: &mut dyn Plotter, out: Box<dyn Write>, sexp_parser: &SexpParser, border: bool, scale: f64, style: Style, image_type: ImageType) -> Result<(), Error> {
 
     let libraries = libraries(sexp_parser).unwrap();
     let mut title_block: Option<Sexp> = None;
@@ -577,5 +577,5 @@ pub fn plot(plotter: &mut dyn Plotter, out: Box<dyn Write>, sexp_parser: &SexpPa
         draw_border(title_block, paper_size, plotter, &style)?;
     }
 
-    Ok(plotter.plot(out, border, scale).unwrap())
+    Ok(plotter.plot(out, border, scale, image_type).unwrap())
 }

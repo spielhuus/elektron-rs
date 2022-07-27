@@ -4,6 +4,28 @@ from IPython.display import Image
 from elektron.elektron import Draw  as RDraw # , ElementType
 from elektron.elektron import get_bom, schema_plot, schema_netlist, search
 
+from base64 import standard_b64encode
+import sys
+def serialize_gr_command(**cmd):
+    payload = cmd.pop('payload', None)
+    cmd = ','.join(f'{k}={v}' for k, v in cmd.items())
+    ans = []
+    w = ans.append
+    w(b'\033_G'), w(cmd.encode('ascii'))
+    if payload:
+        w(b';')
+        w(payload)
+    w(b'\033\\')
+    return b''.join(ans)
+def write_chunked(**cmd):
+    data = standard_b64encode(cmd.pop('data'))
+    while data:
+        chunk, data = data[:4096], data[4096:]
+        m = 1 if data else 0
+        sys.stdout.buffer.write(serialize_gr_command(payload=chunk, m=m,
+                                                    **cmd))
+        sys.stdout.flush()
+        cmd.clear()
 
 class LogicException(Exception):
     """Exception is raised when a wrong logic is applied."""
@@ -52,7 +74,7 @@ class DrawElement():
         self.length = length
         return self
 
-    def at(self, reference: str, pin: int):
+    def at(self, reference: str, pin: int=0):
         self.atref = reference
         self.atpin = pin
         return self
@@ -76,15 +98,22 @@ class Line(DrawElement):
     def __init__(self) -> None:
         super().__init__()
 
-    def pt(self):
+    def pt(self, pos):
+        if self.y_pos is not None:
+            return np.array((pos[0], self.y_pos))
+        if self.x_pos is not None:
+            return np.array((self.x_pos, pos[1]))
+        if self.xy_pos is not None:
+            return self.xy_pos.pos
+
         if self.direction == "down":
-            return np.array((0.0, self.length))
+            return pos + np.array((0.0, self.length))
         if self.direction == "up":
-            return np.array((0.0, -self.length))
+            return pos + np.array((0.0, -self.length))
         if self.direction == "left":
-            return np.array((-self.length, 0.0))
+            return pos + np.array((-self.length, 0.0))
         # right
-        return np.array((self.length, 0))
+        return pos + np.array((self.length, 0))
 
 
 class Dot(DrawElement):
@@ -114,11 +143,15 @@ class Element(DrawElement):
         self.pin = 1
         self.unit = unit
         self.properties = kwargs
+        self.mirror_axis = ""
 
     def anchor(self, pin: int):
         self.pin = pin
         return self
 
+    def mirror(self, axis: str):
+        self.mirror_axis = axis
+        return self
 
 class Draw():
     """Place a connection on the schematic."""
@@ -130,22 +163,22 @@ class Draw():
     def add(self, element: DrawElement):
 
         if isinstance(element, Line):
-            if element.atref and element.atpin: # from pin
-                self.pos = self.schema.pin_pos(element.atref, element.atpin)
+            if element.atref and element.atpin is not None: # from pin
+                if isinstance(element.atref, Dot):
+                    self.pos = element.atref.pos
+                else:
+                    self.pos = self.schema.pin_pos(element.atref, element.atpin)
+
+                self.schema.wire(self.pos, element.pt(self.pos))
+                self.pos = element.pt(self.pos)
+
             elif element.reference and element.pin: # from pin
                 self.pos = self.schema.pin_pos(element.reference, element.pin)
-                self.schema.wire(self.pos, self.pos + element.pt())
-                self.pos += element.pt()
-            elif element.xy_pos is not None: # from coordinates
-                self.pos = element.xy_pos
-                self.schema.wire(self.pos, self.pos + element.pt())
-                self.pos += element.pt()
-            elif element.x_pos is not None: # to x pos
-                self.schema.wire(self.pos, np.array([element.x_pos, self.pos[1]]))
-                self.pos = np.array([element.x_pos, self.pos[1]])
+                self.schema.wire(self.pos, element.pt(self.pos))
+                self.pos = element.pt(self.pos)
             else:
-                self.schema.wire(self.pos, self.pos + element.pt())
-                self.pos += element.pt()
+                self.schema.wire(self.pos, element.pt(self.pos))
+                self.pos = element.pt(self.pos)
 
 
         elif isinstance(element, Dot):
@@ -154,24 +187,50 @@ class Draw():
         elif isinstance(element, Label):
             self.schema.label(element.name, self.pos, element.angle)
         elif isinstance(element, Element):
-            if element.atref and element.atpin: # from pin
-                self.pos = self.schema.pin_pos(element.atref, element.atpin)
+            if element.atref and element.atpin is not None: # from pin
+                if isinstance(element.atref, Dot):
+                    self.pos = element.atref.pos
+                else:
+                    self.pos = self.schema.pin_pos(element.atref, element.atpin)
+
             elif element.reference and element.pin:
                 self.pos = self.schema.pin_pos(element.reference, element.pin)
             elif element.xy_pos is not None:
                 self.pos = element.xy_pos
 
             self.schema.symbol(element.ref, element.value, element.library,
-                               element.unit, self.pos, element.pin, element.angle, "", element.x_pos, element.properties)  # TODO mirror
+                               element.unit, self.pos, element.pin, element.angle,
+                               element.mirror_axis, element.x_pos, element.properties)
 
             if element.x_pos is not None:
                 self.pos = np.array([element.x_pos, self.pos[1]])
 
     def write(self, filename: str | None):
+
         self.schema.write(filename)
 
     def plot(self, filename, border: bool, scale: float) -> str:
-        return self.schema.plot(filename, border, scale)
+        if filename is None and sys.stdout.isatty():
+            print("called from tty")
+            image = self.schema.plot(filename, border, scale, "png")
+            write_chunked(a='T', f=100, data=bytearray(image))
+        elif filename is None:
+            image = self.schema.plot(filename, border, scale, "svg")
+            return bytearray(image)
+        else:
+            filetype = ""
+            if filename.endswith(".png"):
+                filetype = "png"
+            elif filename.endswidth(".svg"):
+                filetype = "svg"
+            elif filename.endswidth(".pdf"):
+                filetype = "pdf"
+            else:
+                raise TypeError(f"filetype not found {filename}")
+            self.schema.plot(filename, border, scale, filetype)
+
+
+        return "" #self.schema.plot(filename, border, scale)
 
     def circuit(self):
         return self.schema.circuit()

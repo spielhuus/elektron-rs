@@ -167,19 +167,35 @@ macro_rules! wire {
 }
 
 macro_rules! symbol {
-    ($pos:expr, $angle:expr, $reference:expr, $library:expr, $unit:expr, $uuid:expr, $on_schema:expr) => {
-        Sexp::Node(
-            String::from("symbol"),
-            vec![
-                Sexp::Node("lib_id".to_string(), vec![Sexp::Text($library.to_string())]),
-                pos!($pos, $angle),
-                node!("unit", $unit),
-                node!("in_bom", "yes"),
-                node!("on_board", "yes"),
-                node!("on_schema", $on_schema),
-                node!("uuid", $uuid),
-            ],
-        )
+    ($pos:expr, $angle:expr, $mirror:expr, $reference:expr, $library:expr, $unit:expr, $uuid:expr, $on_schema:expr) => {
+        if !$mirror.is_empty() {
+            Sexp::Node(
+                String::from("symbol"),
+                vec![
+                    Sexp::Node("lib_id".to_string(), vec![Sexp::Text($library.to_string())]),
+                    pos!($pos, $angle),
+                    node!("mirror", $mirror),
+                    node!("unit", $unit),
+                    node!("in_bom", "yes"),
+                    node!("on_board", "yes"),
+                    node!("on_schema", $on_schema),
+                    node!("uuid", $uuid),
+                ],
+            )
+        } else {
+            Sexp::Node(
+                String::from("symbol"),
+                vec![
+                    Sexp::Node("lib_id".to_string(), vec![Sexp::Text($library.to_string())]),
+                    pos!($pos, $angle),
+                    node!("unit", $unit),
+                    node!("in_bom", "yes"),
+                    node!("on_board", "yes"),
+                    node!("on_schema", $on_schema),
+                    node!("uuid", $uuid),
+                ],
+            )
+        }
     };
 }
 

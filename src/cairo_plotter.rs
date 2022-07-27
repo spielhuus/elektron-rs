@@ -6,6 +6,18 @@ use std::io::Write;
 extern crate cairo;
 use cairo::{Context, FontFace, FontSlant, FontWeight, Format, ImageSurface, SvgSurface};
 
+pub enum Surface {
+    ImageSurface(ImageSurface),
+    SvgSurface(SvgSurface),
+    // PdfSurface(PdfSurface), TODO
+}
+
+pub enum ImageType {
+    Svg,
+    Png,
+    Pdf,
+}
+    
 #[derive(Debug)]
 pub struct Line {
     pub pts: Array2<f64>,
@@ -220,8 +232,10 @@ pub trait Plotter {
         file: Box<dyn Write>,
         border: bool,
         scale: f64,
+        image_type: ImageType,
     ) -> Result<(), Error>;
     fn paper(&mut self, paper: String);
+    fn draw(&mut self, context: &Context);
 }
 
 /// Plotter implemntation for SVG and PDF file.
@@ -350,34 +364,96 @@ impl Plotter for CairoPlotter {
 
     fn plot(
         &mut self,
-        file: Box<dyn Write>,
+        mut file: Box<dyn Write>,
         border: bool,
         scale: f64,
+        image_type: ImageType,
     ) -> Result<(), Error> {
-        let (context, surface) = if border {
-            let surface = SvgSurface::for_stream(
-                self.paper_size.0 * 96.0 / 25.4,
-                self.paper_size.1 * 96.0 / 25.4,
-                file,
-            )
-            .unwrap();
-            let context = Context::new(&surface).unwrap();
-            context.scale(96.0 / 25.4, 96.0 / 25.4);
-            (context, surface)
-        } else {
-            let size = self.bounds() + arr2(&[[-2.54, -2.54], [2.54, 2.54]]);
-            let surface = SvgSurface::for_stream(
-                (size[[1, 0]] - size[[0, 0]]) * 72.0 / 25.4 * scale,
-                (size[[1, 1]] - size[[0, 1]]) * 72.0 / 25.4 * scale,
-                file,
-            )
-            .unwrap();
-            let context = Context::new(&surface).unwrap();
-            context.scale(72.0 / 25.4 * scale, 72.0 / 25.4 * scale);
-            context.translate(-size[[0, 0]], -size[[0, 1]]);
-            (context, surface)
-        };
+        if border { 
+            match image_type {
+                ImageType::Svg => {
+                    let surface = SvgSurface::for_stream(
+                        self.paper_size.0 * 96.0 / 25.4,
+                        self.paper_size.1 * 96.0 / 25.4,
+                        file,
+                    )
+                    .unwrap();
+                    let context = Context::new(&surface).unwrap();
+                    context.scale(96.0 / 25.4, 96.0 / 25.4);
+                    self.draw(&context);
+                    surface.finish_output_stream().unwrap();
+                },
+                ImageType::Png => {
+                    let surface = ImageSurface::create(
+                        Format::Rgb24,
+                        (self.paper_size.0 * 96.0 / 25.4) as i32,
+                        (self.paper_size.1 * 96.0 / 25.4) as i32,
+                    )
+                    .unwrap();
+                    let context = Context::new(&surface).unwrap();
+                    context.scale(96.0 / 25.4, 96.0 / 25.4);
+                    self.draw(&context);
+                    surface.write_to_png(&mut file);
+                },
+                ImageType::Pdf => {
+                    todo!();
+                /*    let surface = PdfSurface::for_stream(
+                        self.paper_size.0 * 96.0 / 25.4,
+                        self.paper_size.1 * 96.0 / 25.4,
+                        file,
+                    )
+                    .unwrap();
+                    let context = Context::new(&surface).unwrap();
+                    context.scale(96.0 / 25.4, 96.0 / 25.4);
+                    (context, Surface::PdfSurface(surface)) */
+                }, 
+            }
 
+        } else {
+            match image_type {
+                ImageType::Svg => {
+                    let size = self.bounds() + arr2(&[[-2.54, -2.54], [2.54, 2.54]]);
+                    let surface = SvgSurface::for_stream(
+                        (size[[1, 0]] - size[[0, 0]]) * 72.0 / 25.4 * scale,
+                        (size[[1, 1]] - size[[0, 1]]) * 72.0 / 25.4 * scale,
+                        file,
+                    )
+                    .unwrap();
+                    let context = Context::new(&surface).unwrap();
+                    context.scale(72.0 / 25.4 * scale, 72.0 / 25.4 * scale);
+                    context.translate(-size[[0, 0]], -size[[0, 1]]);
+                    self.draw(&context);
+                    surface.finish_output_stream().unwrap();
+                }
+                ImageType::Png => {
+                    let size = self.bounds() + arr2(&[[-2.54, -2.54], [2.54, 2.54]]);
+                    let surface = ImageSurface::create(
+                        Format::Rgb24,
+                        ((size[[1, 0]] - size[[0, 0]]) * 72.0 / 25.4 * scale) as i32,
+                        ((size[[1, 1]] - size[[0, 1]]) * 72.0 / 25.4 * scale) as i32,
+                    )
+                    .unwrap();
+                    let context = Context::new(&surface).unwrap();
+                    context.scale(72.0 / 25.4 * scale, 72.0 / 25.4 * scale);
+                    context.translate(-size[[0, 0]], -size[[0, 1]]);
+                    self.draw(&context);
+                    surface.write_to_png(&mut file);
+                }
+                ImageType::Pdf => {
+                    todo!();
+                }
+            }
+        };
+        Ok(())
+    }
+
+    fn paper(&mut self, paper_size: String) {
+        if paper_size == String::from("A4") {
+            self.paper_size = paper::A4;
+        } // TODO other paper sizes
+    }
+
+    fn draw(&mut self, context: &Context) {
         context.set_source_rgb(1.0, 1.0, 1.0);
         context.paint().unwrap();
 
@@ -458,13 +534,5 @@ impl Plotter for CairoPlotter {
                 }
             }
         }
-
-        surface.finish_output_stream().unwrap();
-        Ok(())
-    }
-    fn paper(&mut self, paper_size: String) {
-        if paper_size == String::from("A4") {
-            self.paper_size = paper::A4;
-        } // TODO other paper sizes
     }
 }

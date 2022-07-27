@@ -94,6 +94,9 @@ impl SexpParser {
         let prefix = &String::from("  ").repeat(indent);
         match node {
             Sexp::Node(name, values) => {
+                if name == "on_schema" {
+                    return Ok(())
+                }
                 if indent == 0 {
                     write!(writer, "({}", name)?;
                 } else {

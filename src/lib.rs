@@ -24,6 +24,8 @@ use crate::plot::plot;
 use crate::libraries::Libraries;
 use crate::circuit::Circuit;
 
+use self::cairo_plotter::ImageType;
+
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum Error {
     #[error("Can not parse file.")]
@@ -98,10 +100,10 @@ fn schema_plot(
 
     if let Some(filename) = output {
         let out: Box<dyn Write> = Box::new(File::create(filename).unwrap());
-        plot(&mut cairo, out, &parser, border, scale, style).unwrap();
+        plot(&mut cairo, out, &parser, border, scale, style, ImageType::Svg).unwrap();
     } else {
         let out: Box<dyn Write> = Box::new(std::io::stdout());
-        plot(&mut cairo, out, &parser, border, scale, style).unwrap();
+        plot(&mut cairo, out, &parser, border, scale, style, ImageType::Svg).unwrap();
     };
     Ok(())
 }

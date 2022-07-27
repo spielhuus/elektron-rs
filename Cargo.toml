@@ -17,7 +17,8 @@ json = "0.12.4"
 itertools = "0.10.2"
 png = "0.17.5"
 svg = "0.10.0"
-cairo-rs = { version = "0.15.11", features = ["svg"] }
+pdf = "0.7.2"
+cairo-rs = { version = "0.15.11", features = ["svg", "png", "pdf"] }
 ndarray = "0.15.4"
 ngspice-sys = "0.2.1"
 libloading = "0.7.3"
