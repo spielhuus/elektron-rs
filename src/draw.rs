@@ -71,10 +71,6 @@ fn sort_properties(a: &&mut Sexp, b: &&mut Sexp) -> std::cmp::Ordering {
     ida.cmp(&idb)
 }
 
-fn print_type_of<T>(_: &T) {
-    println!("{}", std::any::type_name::<T>())
-}
-
 #[pyclass]
 pub struct Draw {
     version: String,
@@ -133,7 +129,8 @@ impl Draw {
         }
         panic!("pin not found {}:{}", reference, pin); //TODO return error
     }
-    pub fn wire(&mut self, pts: Vec<f64>, end: Vec<f64>) {
+
+    fn wire(&mut self, pts: Vec<f64>, end: Vec<f64>) {
         self.elements
             .push(wire!(arr2(&[[pts[0], pts[1]], [end[0], end[1]]])));
     }
@@ -183,7 +180,6 @@ impl Draw {
                         verts2 = verts2.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
                         //TODO verts = verts.dot(sexp::MIRROR.get(mirror.as_str()).unwrap());
                         verts2 = arr1(&[pos[0], pos[1]]) - &verts2;
-                        let len = end_pos - &verts2;
                         let sym_len = verts[0] - verts2[0];
                         let wire_len = ((end_pos - pos[0]) - sym_len) / 2.0;
                         verts = verts + arr1(&[wire_len, 0.0]);
@@ -199,7 +195,12 @@ impl Draw {
         }
 
         verts = verts.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
-        let mut symbol = symbol!(verts, angle, reference, library, unit, &uuid);
+        let on_schema = if properties.contains_key("on_schema") {
+            properties.get("on_schema").unwrap().clone()
+        } else {
+            String::from("yes")
+        };
+        let mut symbol = symbol!(verts, angle, reference, library, unit, &uuid, on_schema);
 
         //copy the properties from the library to the symbol
         let mut footprint: Option<String> = None;
@@ -225,7 +226,9 @@ impl Draw {
             }
             // add the extra properties
             for (k, v) in properties.iter() {
-                values.push(property!(verts, 0.0, k, v, "1", true));
+                if k != "on_schema" {
+                    values.push(property!(verts, 0.0, k, v, "1", true));
+                }
             }
         }
 
@@ -339,15 +342,14 @@ impl Draw {
     /// get the symbol by reference and unit from this schema.
     fn get_symbol(&mut self, reference: &str, unit: usize) -> Result<Sexp, Error> {
         for l in &self.elements {
-            if let Sexp::Node(name, values) = l {
-            if name == "symbol" {
-                if let _ref = get_property(l, "Reference").unwrap() {
+            if let Sexp::Node(name, _) = l {
+                if name == "symbol" {
+                    let _ref = get_property(l, "Reference").unwrap();
                     let _unit = get_unit(&l).unwrap();
                     if reference == _ref && unit == _unit {
                         return Ok(l.clone());
                     }
                 }
-            }
             }
         }
         Err(Error::SymbolNotFound(reference.to_string()))
@@ -496,13 +498,14 @@ impl Draw {
                                                 if let Sexp::Node(name, values) = value {
                                                     if name == "justify" {
                                                         values.clear();
+                                                        values.push(Sexp::Value(String::from("left")));
                                                     }
                                                 }
                                             }
                                         } else if name == "at" {
                                             values[0] = Sexp::Value((_size[[0, 0]]).to_string());
                                             values[1] = Sexp::Value((top_pos - offset).to_string());
-                                            values[2] = Sexp::Value((0.0 - angle).to_string());
+                                            values[2] = Sexp::Value((360.0 - angle).to_string());
                                             offset -= 2.0;
                                         }
                                     }

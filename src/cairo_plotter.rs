@@ -459,7 +459,7 @@ impl Plotter for CairoPlotter {
             }
         }
 
-        surface.finish_output_stream();
+        surface.finish_output_stream().unwrap();
         Ok(())
     }
     fn paper(&mut self, paper_size: String) {

@@ -4,7 +4,6 @@ use crate::sexp::{Sexp, get_unit};
 use crate::sexp::get::{Get, get};
 
 use std::collections::HashMap;
-use std::slice::{Iter, IterMut};
 
 pub fn libraries<'a>(sexp_parser: &'a SexpParser) -> Result<HashMap<String, &'a Sexp>, Error> {
    let mut libraries: std::collections::HashMap<String, &Sexp> = std::collections::HashMap::new();

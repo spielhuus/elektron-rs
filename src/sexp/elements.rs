@@ -167,7 +167,7 @@ macro_rules! wire {
 }
 
 macro_rules! symbol {
-    ($pos:expr, $angle:expr, $reference:expr, $library:expr, $unit:expr, $uuid:expr) => {
+    ($pos:expr, $angle:expr, $reference:expr, $library:expr, $unit:expr, $uuid:expr, $on_schema:expr) => {
         Sexp::Node(
             String::from("symbol"),
             vec![
@@ -176,6 +176,7 @@ macro_rules! symbol {
                 node!("unit", $unit),
                 node!("in_bom", "yes"),
                 node!("on_board", "yes"),
+                node!("on_schema", $on_schema),
                 node!("uuid", $uuid),
             ],
         )

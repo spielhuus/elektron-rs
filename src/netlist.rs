@@ -2,10 +2,10 @@ use crate::Error;
 use crate::sexp::iterator::iterate_unit_pins;
 use crate::sexp::parser::SexpParser;
 use super::sexp;
-use super::sexp::{Sexp, get_unit, get_property, get_pins};
+use super::sexp::{Sexp, get_property};
 use super::sexp::get::{Get, get};
 use super::sexp::test::Test;
-use super::sexp::iterator::{libraries};
+use super::sexp::iterator::libraries;
 use super::circuit::Circuit;
 use crate::shape::{Shape, Transform};
 
@@ -254,10 +254,10 @@ impl<'a> Netlist<'a> {
         Netlist {
             index: 0,
             sexp_doc: doc,
-            libraries: libraries,
-            symbols: symbols,
-            netlists: netlists,
-            nodes: nodes,
+            libraries,
+            symbols,
+            netlists,
+            nodes,
         }
     }
     pub fn pins(&self, lib_name: &str) -> Result<HashMap<String, (Sexp, usize)>, Error> {

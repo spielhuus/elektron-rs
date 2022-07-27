@@ -76,9 +76,9 @@ impl Bounds<Array2<f64>> for Sexp {
             if get_unit(self)? == get_unit(symbol)? || get_unit(symbol).unwrap() == 0 {
                 let mut array = Vec::new();
                 let mut rows: usize = 0;
-                if let Sexp::Node(name, values) = symbol {
+                if let Sexp::Node(_, values) = symbol {
                     for element in values {
-                        if let Sexp::Node(name, values) = element {
+                        if let Sexp::Node(name, _) = element {
                             if name == "polyline" {
                                 let pts: Array2<f64> = get!(element, "pts").unwrap();
                                 for row in pts.rows() {

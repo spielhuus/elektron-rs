@@ -23,9 +23,9 @@ draw.add(Line().down().len(10.16))
 draw.add(Element("R3", "Device:R", value="100k", unit=1).xy(out_dot).rotate(180))
 draw.add(Element("GND", "power:GND", value="GND", unit=1).at("R3", 1))
 
-draw.add(Element("U1", "4xxx:4069", value="U1", unit=7, Spice_Primitive="X", Spice_Model="4069UB"))
-draw.add(Element("GND", "power:GND", value="GND", unit=1).at("U1", 14))
-draw.add(Element("GND", "power:+5V", value="+5V", unit=1).at("U1", 7))
+draw.add(Element("U1", "4xxx:4069", value="U1", unit=7, Spice_Primitive="X", Spice_Model="4069UB", on_schema="no"))
+draw.add(Element("GND", "power:GND", value="GND", unit=1, on_schema="no").at("U1", 14))
+draw.add(Element("GND", "power:+5V", value="+5V", unit=1, on_schema="no").at("U1", 7))
 
 draw.write("schema.kicad_sch")
 res = draw.plot("draw.svg", False, 3)

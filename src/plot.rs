@@ -274,6 +274,10 @@ pub fn global_label(node: &Sexp, plotter: &mut dyn Plotter, style: &Style) -> Re
 
 pub fn symbol(node: &Sexp, libs: &std::collections::HashMap<String, &Sexp>, plotter: &mut dyn Plotter, style: &Style) -> Result<(), Error> {
 
+    let on_schema: String = get!(node, "on_schema", 0);
+    if on_schema == "no" {
+        return Ok(())
+    }
     let symbol_angle: f64 = get!(node, "at", 2);
     let properties: Vec<&Sexp> = node.get("property").unwrap();
     for property in properties {

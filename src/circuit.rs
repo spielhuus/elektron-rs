@@ -1,16 +1,12 @@
 use crate::{Error, ngspice::{NgSpice, Callbacks, ComplexSlice}};
 use std::{fs::{self, File}, fmt::Display, io::Write, collections::HashMap};
-use ngspice_sys::*;
-use std::ffi::{CString, CStr, c_void};
-use std::os::raw::{c_char, c_int};
-use libloading::library_filename;
 use lazy_static::lazy_static;
 use regex::Regex;
 use pyo3::prelude::*;
 
-extern crate plotly;
+/* extern crate plotly;
 use plotly::common::Mode;
-use plotly::{Plot, Scatter};
+use plotly::{Plot, Scatter}; */
 
 lazy_static! {
     pub static ref RE_SUBCKT: regex::Regex =
@@ -18,18 +14,18 @@ lazy_static! {
     pub static ref RE_MODEL: regex::Regex = Regex::new(r"(?i:\.model) ([a-zA-Z0-9]*) .*").unwrap();
     pub static ref RE_INCLUDE: regex::Regex = Regex::new(r"(?i:\.include) (.*)").unwrap();
 }
-extern "C" fn controlled_exit(_arg1: c_int, _arg2: bool, _arg3: bool, _arg4: c_int, _arg5: *mut c_void) -> c_int {
+/* extern "C" fn controlled_exit(_arg1: c_int, _arg2: bool, _arg3: bool, _arg4: c_int, _arg5: *mut c_void) -> c_int {
     return 0;
-}
+} */
 
-static mut responses: Vec<String> = Vec::new();
+/* static mut responses: Vec<String> = Vec::new();
 
 unsafe extern "C" fn send_char(arg1: *mut c_char, _arg2: c_int, _arg3: *mut c_void) -> c_int {
     let s = CStr::from_ptr(arg1).to_str().expect("could not make string");
     println!("{}", s);
     responses.push(s.to_string());
     return 0;
-}
+} */
 struct Cb {
     strs: Vec<String>,
 }
@@ -107,40 +103,30 @@ impl Circuit {
     }
 
     fn tran(&self) -> HashMap<String, Vec<f64>> {
-        unsafe {
-            let mut circ = self.to_str().unwrap();
-            self.ngspice.circuit(circ);
-            self.ngspice.command("tran 10u 10ms").unwrap();
-            let plot = self.ngspice.current_plot().unwrap();
-            let res = self.ngspice.all_vecs(plot.as_str()).unwrap();
-            let mut map: HashMap<String, Vec<f64>> = HashMap::new();
-            for name in res {
-                let re = self.ngspice.vector_info(name.as_str());
-                for r in re {
-                    let name = r.name;
-                    let data1 = match r.data {
-                        ComplexSlice::Real(list) => {
-                            list.iter().map(|i| i.clone()).collect()
-                        },
-                        ComplexSlice::Complex(list) => {
-                            //list.into_iter().map(|f| f.parse::<f64>()).collect()
-                            println!("found complex list");
-                            vec![0.0]
-                        }
-                    };
-                    map.insert(name, data1);
-                }
+        let circ = self.to_str().unwrap();
+        self.ngspice.circuit(circ).unwrap();
+        self.ngspice.command("tran 10u 10ms").unwrap(); //TODO
+        let plot = self.ngspice.current_plot().unwrap();
+        let res = self.ngspice.all_vecs(plot.as_str()).unwrap();
+        let mut map: HashMap<String, Vec<f64>> = HashMap::new();
+        for name in res {
+            let re = self.ngspice.vector_info(name.as_str());
+            for r in re {
+                let name = r.name;
+                let data1 = match r.data {
+                    ComplexSlice::Real(list) => {
+                        list.iter().map(|i| i.clone()).collect()
+                    },
+                    ComplexSlice::Complex(_list) => {
+                        //list.into_iter().map(|f| f.parse::<f64>()).collect()
+                        println!("found complex list"); //TODO use this result
+                        vec![0.0]
+                    }
+                };
+                map.insert(name, data1);
             }
-            map
-            /* let ng = ngspice::new(library_filename("ngspice")).unwrap();
-            ng.ngSpice_Init(Some(send_char), None, Some(controlled_exit), None, None, None, std::ptr::null_mut());
-            let s = CString::new("tran 10u 10ms").expect("CString::new failed");
-            let mut circ = self.to_str().unwrap();
-            ng.ngSpice_Circ(circ.as_mut_ptr());
-            ng.ngSpice_Command(s.into_raw());
-            assert_eq!(responses.last().unwrap_or(&String::new()), "stdout hello"); */
         }
-        // assert!(NgSpice::new(Cb { strs: Vec::new() }).is_err());
+        map
     }
 
     fn save(&self, filename: Option<String>) -> PyResult<()> {
@@ -183,7 +169,7 @@ impl Circuit {
         out.flush()?;
         Ok(())
     }
-    fn plot(&self, name: &str, filename: Option<&str>) {
+    /* fn plot(&self, name: &str, filename: Option<&str>) {
 
         let plot = self.ngspice.current_plot().unwrap();
         let vecs = self.ngspice.all_vecs(&plot).unwrap();
@@ -221,7 +207,7 @@ impl Circuit {
         /* plot.add_trace(trace2);
         plot.add_trace(trace3); */
         plot.show();
-    }
+    } */
 }
 
 impl Circuit {
