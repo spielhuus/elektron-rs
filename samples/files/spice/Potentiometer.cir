@@ -1,0 +1,4 @@
+.subckt Potentiometer n1 n2 n3
+R1 n1 n2 10.0kOhm
+R2 n2 n3 90.0kOhm
+.ends RV

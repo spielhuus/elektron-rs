@@ -24,6 +24,9 @@ use crate::sexp::elements::{node, uuid, pos, stroke, effects, pts, property, jun
 use std::env::temp_dir;
 use rand::Rng;
 
+const LABEL_BORDER: f64 = 2.54;
+const LABEL_MIN_BORDER: f64 = 5.06;
+
 fn filter_properties(node: &&mut Sexp) -> bool {
     let mut show = true;
     if let Sexp::Node(name, values) = node {
@@ -173,7 +176,6 @@ impl Draw {
         let mut verts: Array1<f64> = pin_pos.dot(&rot);
         verts = verts.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
 
-        //TODO verts = verts.dot(sexp::MIRROR.get(mirror.as_str()).unwrap());
         verts = arr1(&[pos[0], pos[1]]) - &verts;
 
         if let Some(end_pos) = end_pos {
@@ -397,11 +399,21 @@ impl Draw {
         let angle: f64 = get!(symbol, "at", 2);
         let lib_name: String = get!(symbol, "lib_id", 0);
         let lib = self.get_library(&lib_name).unwrap();
+
+        //get and sort the shape size
         let _size = Shape::transform(symbol, &symbol.bounds(&lib).unwrap());
+        let _size = if _size[[0, 0]] > _size[[1, 0]] {
+            arr2(&[[_size[[1, 0]], _size[[0, 1]]],[_size[[0, 0]], _size[[1, 1]]]])
+        } else { _size };
+        let _size = if _size[[0, 1]] > _size[[1, 1]] {
+            arr2(&[[_size[[0, 0]], _size[[1, 1]]],[_size[[1, 0]], _size[[0, 1]]]])
+        } else { _size };
+        println!("place: {}, {:?}", get_property(symbol, "Reference").unwrap(), _size);
         let positions = self.pin_position(&symbol, &lib);
         let mut offset = 0.0;
         let pins = get_pins(&lib, None).unwrap().len();
         if pins == 1 { //PINS!
+            println!("place single pin {:?}", positions);
             if positions[0] == 1 { //west
                 /* vis_fields[0].pos = (_size[1][0]+1.28, symbol.pos[1])
                 assert vis_fields[0].text_effects, "pin has no text_effects"
@@ -409,11 +421,37 @@ impl Draw {
                 vis_fields[0].angle = 360 - symbol.angle */
 
                 return Ok(());
-            } else if positions[1] == 1 { //south
-                
-                /* vis_fields[0].pos = (symbol.pos[0], _size[0][1]-1.28)
-                assert vis_fields[0].text_effects, "pin has no text_effects"
-                vis_fields[0].text_effects.justify = [Justify.CENTER] */
+            } else if positions[3] == 1 { //south
+                println!("place pin south");
+                if let Sexp::Node(_, ref mut values) = symbol {
+                    values.iter_mut()
+                    .filter(filter_properties)
+                    .sorted_by(sort_properties)
+                    .for_each(|node|{
+                        if let Sexp::Node(name, ref mut values) = node {
+                            if name == "property" {
+                                for value in values {
+                                    if let Sexp::Node(name, values) = value {
+                                        if name == "effects" {
+                                            for value in values {
+                                                if let Sexp::Node(name, values) = value {
+                                                    if name == "justify" {
+                                                        values.clear();
+                                                    }
+                                                }
+                                            }
+                                        } else if name == "at" {
+                                            println!("place pin south at {}", _size[[1, 1]]);
+                                            values[0] = Sexp::Value(pos[0].to_string());
+                                            values[1] = Sexp::Value((_size[[1, 1]] + LABEL_BORDER).to_string());
+                                            values[2] = Sexp::Value((0.0 - angle).to_string());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
 
                 return Ok(());
             } else if positions[2] == 1 { //east
@@ -423,7 +461,7 @@ impl Draw {
                 vis_fields[0].text_effects.justify = [Justify.RIGHT]
                 vis_fields[0].angle = 360 - symbol.angle */
 
-            } else if positions[3] == 1 { //south
+            } else if positions[1] == 1 { //south
                 let top_pos = if _size[[0, 1]] > _size[[1, 1]] {
                     _size[[0, 1]] - ((vis_field as f64-1.0) * 2.0) + 0.64
                 } else {
@@ -460,9 +498,9 @@ impl Draw {
             } 
         } else {
             let top_pos = if _size[[0, 1]] < _size[[1, 1]] {
-                _size[[0, 1]] - ((vis_field as f64-1.0) * 2.0) - 0.64
+                _size[[0, 1]] - ((vis_field as f64-1.0) * LABEL_BORDER) - LABEL_BORDER
             } else {
-                _size[[1, 1]] - ((vis_field as f64-1.0) * 2.0) - 0.64
+                _size[[1, 1]] - ((vis_field as f64-1.0) * LABEL_BORDER) - LABEL_BORDER
             };
             if positions[3] == 0 { //north
                 if let Sexp::Node(_, ref mut values) = symbol {
@@ -486,7 +524,7 @@ impl Draw {
                                             values[0] = Sexp::Value(pos[0].to_string());
                                             values[1] = Sexp::Value((top_pos - offset).to_string());
                                             values[2] = Sexp::Value((0.0 - angle).to_string());
-                                            offset -= 2.0;
+                                            offset -= LABEL_BORDER;
                                         }
                                     }
                                 }
@@ -498,7 +536,7 @@ impl Draw {
 
             } else if positions[2] == 0 { //east
                 let top_pos = _size[[0, 1]] + ((_size[[1, 1]] - _size[[0, 1]]) / 2.0) - 
-                    ((vis_field as f64-1.0) * 2.0) / 2.0;
+                    ((vis_field as f64-1.0) * LABEL_BORDER) / 2.0;
                 if let Sexp::Node(_, ref mut values) = symbol {
                     values.iter_mut()
                     .filter(filter_properties)
@@ -518,10 +556,10 @@ impl Draw {
                                                 }
                                             }
                                         } else if name == "at" {
-                                            values[0] = Sexp::Value((_size[[0, 0]]).to_string());
+                                            values[0] = Sexp::Value((_size[[1, 0]] + LABEL_BORDER / 2.0).to_string());
                                             values[1] = Sexp::Value((top_pos - offset).to_string());
                                             values[2] = Sexp::Value((360.0 - angle).to_string());
-                                            offset -= 2.0;
+                                            offset -= LABEL_BORDER;
                                         }
                                     }
                                 }

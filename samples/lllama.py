@@ -36,7 +36,7 @@ draw.add(Element("GND", "power:GND", value="GND", unit=1).at("R1", 2))
 draw.add(Element("R5", "Device:R", value="100k", unit=1).anchor(2).at(out_dot))
 draw.add(Element("GND", "power:GND", value="GND", unit=1).at("R5", 2))
 
-draw.add(Line().up().len(10.16).at(u1_dot_out))
+draw.add(Line().up().len(12.7).at(u1_dot_out))
 draw.add(feedback_dot_1 := Dot())
 draw.add(Element("C2", "Device:C", value="81p", unit=1).rotate(270).tox(u1_dot_in))
 draw.add(feedback_dot_2 := Dot())
@@ -49,13 +49,14 @@ draw.add(Element("RV1", "Device:R_Potentiometer", value="100k", unit=1,
                  Spice_Netlist_Enabled='Y',
                  Spice_Primitive='X',
                  Spice_Model='Potentiometer').anchor(3).rotate(90).mirror('x'))
-draw.add(Element("R3", "Device:R", value="100k", unit=1).rotate(270).at("RV1", 1).tox(feedback_dot_2))
+draw.add(Element("R3", "Device:R", value="100k", unit=1)
+        .rotate(270).at("RV1", 1).tox(feedback_dot_2))
 draw.add(Line().down().toy(feedback_dot_2))
 
 draw.add(Line().toy(dot_pot).at("RV1", 2))
 draw.add(Line().tox(dot_pot))
 
-draw.add(Line().up().at(u2_dot_out).len(10.16))
+draw.add(Line().up().at(u2_dot_out).len(12.7))
 draw.add(feedback_dot_3 := Dot())
 draw.add(Element("C4", "Device:C", value="100p", unit=1).rotate(270).tox(u2_dot_in))
 draw.add(feedback_dot_4 := Dot())
