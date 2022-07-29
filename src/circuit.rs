@@ -102,10 +102,10 @@ impl Circuit {
         self.items.push(CircuitItem::V(reference, n1, n2, value));
     }
 
-    fn tran(&self) -> HashMap<String, Vec<f64>> {
+    fn tran(&self, step: &str, stop: &str, start: &str) -> HashMap<String, Vec<f64>> {
         let circ = self.to_str().unwrap();
         self.ngspice.circuit(circ).unwrap();
-        self.ngspice.command("tran 10u 10ms").unwrap(); //TODO
+        self.ngspice.command(format!("tran {} {} {}", step, stop, start).as_str()).unwrap(); //TODO
         let plot = self.ngspice.current_plot().unwrap();
         let res = self.ngspice.all_vecs(plot.as_str()).unwrap();
         let mut map: HashMap<String, Vec<f64>> = HashMap::new();

@@ -83,6 +83,6 @@ circuit = draw.circuit()
 circuit.voltage("1", "+5V", "GND", "5V")
 circuit.voltage("2", "INPUT", "GND", "5V SIN(0, 2.5, 100)")
 circuit.save("draw.cir")
-circuit.tran()
+circuit.tran("1us", "10ms", "0")
 # circuit.plot("output", "draw_output.svg")
 
