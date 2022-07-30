@@ -93,6 +93,39 @@ impl Circuit {
         out.flush()?;
         Ok(())
     }
+    pub fn set_value(&mut self, reference: &str, value: &str) -> Result<(), Error>{
+        for item in &mut self.items.iter_mut() {
+            match item {
+                CircuitItem::R(r, _, _, ref mut v) => {
+                    if reference == r {
+                        *v = value.to_string();
+                        return Ok(());
+                    }
+                },
+                CircuitItem::C(r, _, _, ref mut v) => {
+                    if reference == r {
+                        *v = value.to_string();
+                        return Ok(());
+                    }
+                },
+                CircuitItem::D(r, _, _, ref mut v) => {
+                    if reference == r {
+                        *v = value.to_string();
+                        return Ok(());
+                    }
+                },
+                CircuitItem::Q(_, _, _, _, _) => {},
+                CircuitItem::X(_, _, _) => {}
+                CircuitItem::V(r, _, _, ref mut v) => {
+                    if reference == r {
+                        *v = value.to_string();
+                        return Ok(());
+                    }
+                },
+            }
+        }
+        Err(Error::ParseError) //TODO value not found error
+    }
 }
 
 impl Circuit {
