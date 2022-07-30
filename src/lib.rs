@@ -22,7 +22,7 @@ use crate::cairo_plotter::CairoPlotter;
 use crate::themes::Style;
 use crate::plot::plot;
 use crate::libraries::Libraries;
-use crate::circuit::Circuit;
+use crate::circuit::{Circuit, Simulation};
 
 use self::cairo_plotter::ImageType;
 
@@ -124,9 +124,9 @@ fn schema_netlist(input: &str, output: Option<String>) -> PyResult<()> {
     };
     let parser = SexpParser::load(input).unwrap();
     let mut netlist = netlist::Netlist::from(&parser);
-    let mut circuit = Circuit::new(vec!["/home/etienne/elektron/samples/files/spice".to_string()]);
+    let mut circuit = Circuit::new(input.to_string(), Vec::new());
     netlist.dump(&mut circuit)?;
-    println!("{}", circuit);
+    //TODO println!("{}", circuit);
     Ok(())
 }
 
@@ -140,5 +140,6 @@ fn elektron(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<draw::Draw>()?;
     m.add_class::<SearchItem>()?;
     m.add_class::<circuit::Circuit>()?;
+    m.add_class::<circuit::Simulation>()?;
     Ok(())
 }

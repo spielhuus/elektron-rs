@@ -1,5 +1,5 @@
 use crate::Error;
-use crate::circuit::Circuit;
+use crate::circuit::{Simulation, Circuit};
 use crate::libraries::Libraries;
 use crate::shape::{Shape, Transform, Bounds};
 use crate::sexp::{
@@ -297,8 +297,8 @@ impl Draw {
             }
         }
     }
-    pub fn circuit(&mut self) -> Circuit {
-        let mut circuit: Circuit = Circuit::new(vec!["/home/etienne/elektron/samples/files/spice".to_string()]); //TODO
+    pub fn circuit(&mut self, pathlist: Vec<String>) -> Circuit {
+        let mut circuit: Circuit = Circuit::new("circuit from draw".to_string(), pathlist);
         match self._write() {
             Ok(doc) => {
                 let mut netlist = Box::new(Netlist::from(&doc));
@@ -309,7 +309,6 @@ impl Draw {
                 println!("{:?}", err);
             }
         }
-        // Err(Error::ParseError)
         panic!();
     }
 }

@@ -2,6 +2,8 @@ from typing import Dict
 import numpy as np
 from IPython.display import display, SVG, Image, HTML
 from elektron.elektron import Draw  as RDraw # , ElementType
+from elektron.elektron import Simulation as Simulation # , ElementType
+from elektron.elektron import Circuit as Circuit
 from elektron.elektron import get_bom, schema_plot, schema_netlist, search
 
 from base64 import standard_b64encode
@@ -231,6 +233,6 @@ class Draw():
 
         return self
 
-    def circuit(self):
-        return self.schema.circuit()
+    def circuit(self, pathlist):
+        return self.schema.circuit(pathlist)
 

@@ -1,4 +1,4 @@
-from elektron import Line, Dot, Label, Element, Draw
+from elektron import Line, Dot, Label, Element, Draw, Simulation, Circuit
 draw = Draw()
 draw.add(Label("INPUT").rotate(180))
 draw.add(Line())
@@ -79,10 +79,16 @@ draw.write("llama.kicad_sch")
 res = draw.plot(None, False, 3)
 print(res)
 
-circuit = draw.circuit()
+circuit = draw.circuit(['/home/etienne/elektron/samples/files/spice/'])
 circuit.voltage("1", "+5V", "GND", "5V")
 circuit.voltage("2", "INPUT", "GND", "5V SIN(0, 2.5, 100)")
-circuit.save("draw.cir")
-circuit.tran("1us", "10ms", "0")
+pot = Circuit("Potentiometer", ['/home/etienne/elektron/samples/files/spice/'])
+pot.resistor("R1", "n0", "n1", "100k")
+pot.resistor("R2", "n1", "n2", "100k")
+circuit.subcircuit("Potentiometer", ["n0", "n1", "n2"], pot)
+
+circuit.save(None)
+simulation = Simulation(circuit)
+simulation.tran("1us", "10ms", "0")
 # circuit.plot("output", "draw_output.svg")
 

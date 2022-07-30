@@ -1,4 +1,5 @@
 use crate::Error;
+use crate::circuit::Circuit;
 use crate::sexp::iterator::iterate_unit_pins;
 use crate::sexp::parser::SexpParser;
 use super::sexp;
@@ -6,7 +7,7 @@ use super::sexp::{Sexp, get_property};
 use super::sexp::get::{Get, get};
 use super::sexp::test::Test;
 use super::sexp::iterator::libraries;
-use super::circuit::Circuit;
+use super::circuit::Simulation;
 use crate::shape::{Shape, Transform};
 
 use ndarray::{Array1, Array2};
