@@ -7,6 +7,9 @@ pub enum StyleContext {
     SchemaSymbol,
     SchemaWire,
     SchemaProperty,
+    SchemaPin,
+    SchemaPinNumber,
+    SchemaJunction,
 }
 
 pub struct Style {
@@ -19,7 +22,11 @@ pub struct Style {
     fill_background: Color,
     schema_border: Stroke,
     schema_title_effects: Effects,
+    schema_subtitle_effects: Effects,
     schema_effects: Effects,
+    pin: Stroke,
+    pin_number_effects: Effects,
+    junction: Stroke,
 }
 
 /// Access the nodes and values.
@@ -91,7 +98,7 @@ impl StyleTypes<&str, Stroke> for Style {
         match stroke {
             Ok(stroke) => Ok(Stroke {
                 width: if stroke.width != 0.0 {
-                    stroke.width
+                    stroke.width * 1.4
                 } else {
                     style_stroke.width
                 },
@@ -160,12 +167,23 @@ impl Style {
                 },
                 fill: FillType::None,
             },
-            schema_symbol: Stroke {
+            junction: Stroke {
                 width: 0.25,
                 line_type: LineType::Default,
                 color: Color {
                     r: 0.0,
                     g: 150.0 / 255.0,
+                    b: 0.0,
+                    a: 1.0,
+                },
+                fill: FillType::None,
+            },
+            schema_symbol: Stroke {
+                width: 0.25,
+                line_type: LineType::Default,
+                color: Color {
+                    r: 132.0 / 255.0,
+                    g: 0.0,
                     b: 0.0,
                     a: 1.0,
                 },
@@ -195,11 +213,11 @@ impl Style {
                 a: 1.0,
             },
             schema_border: Stroke {
-                width: 0.25,
+                width: 0.18,
                 line_type: LineType::Default,
                 color: Color {
-                    r: 0.0,
-                    g: 150.0 / 255.0,
+                    r: 132.0 / 255.0,
+                    g: 0.0,
                     b: 0.0,
                     a: 1.0,
                 },
@@ -208,7 +226,7 @@ impl Style {
             schema_effects: Effects::new(
                 "osifont".to_string(),
                 Color {
-                    r: 0.0,
+                    r: 132.0 / 255.0,
                     g: 0.0,
                     b: 0.0,
                     a: 1.0,
@@ -237,6 +255,49 @@ impl Style {
                 vec![Justify::Left],
                 false,
             ),
+            schema_subtitle_effects: Effects::new(
+                "osifont".to_string(),
+                Color {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: 1.0,
+                },
+                2.5,
+                1.0,
+                false,
+                false,
+                1.0,
+                vec![Justify::Left],
+                false,
+            ),
+            pin: Stroke {
+                width: 0.25,
+                line_type: LineType::Default,
+                color: Color {
+                    r: 132.0 / 255.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: 1.0,
+                },
+                fill: FillType::None,
+            },
+            pin_number_effects: Effects::new(
+                "osifont".to_string(),
+                Color {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: 1.0,
+                },
+                1.0,
+                1.0,
+                false,
+                false,
+                1.0,
+                vec![Justify::Center],
+                false,
+            ),
         }
     }
 
@@ -244,6 +305,8 @@ impl Style {
         match context {
             StyleContext::SchemaWire => self.schema_wire.clone(),
             StyleContext::SchemaSymbol => self.schema_symbol.clone(),
+            StyleContext::SchemaPin => self.pin.clone(),
+            StyleContext::SchemaJunction => self.junction.clone(),
             _ => self.schema_symbol.clone(), //TODO
         }
     }
@@ -269,5 +332,8 @@ impl Style {
     }
     pub fn schema_title_effects(&self) -> Effects {
         return self.schema_title_effects.clone();
+    }
+    pub fn schema_subtitle_effects(&self) -> Effects {
+        return self.schema_subtitle_effects.clone();
     }
 }

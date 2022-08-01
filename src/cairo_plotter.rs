@@ -1,6 +1,7 @@
 use crate::plot::paper;
 use crate::sexp::{Color, Justify, LineType};
 use crate::Error;
+use itertools::Itertools;
 use ndarray::{arr1, arr2, s, Array1, Array2};
 use std::io::Write;
 extern crate cairo;
@@ -179,12 +180,12 @@ impl Text {
 
 #[derive(Debug)]
 pub enum PlotItem {
-    ArcItem(Arc),
-    CircleItem(Circle),
-    LineItem(Line),
-    RectangleItem(Rectangle),
-    PolylineItem(Polyline),
-    TextItem(Text),
+    ArcItem(usize, Arc),
+    CircleItem(usize, Circle),
+    LineItem(usize, Line),
+    RectangleItem(usize, Rectangle),
+    PolylineItem(usize, Polyline),
+    TextItem(usize, Text),
 }
 
 macro_rules! stroke {
@@ -200,12 +201,10 @@ macro_rules! stroke {
 }
 macro_rules! fill {
     ($context:expr, $fill:expr) => {
-        match &$fill {
-            Some(fill) => {
-                $context.set_source_rgba(fill.r, fill.g, fill.b, fill.a);
-                $context.fill().unwrap();
-            }
-            _ => {}
+        if let Some(fill) = $fill {
+            $context.set_source_rgba(fill.r, fill.g, fill.b, fill.a);
+                    //$content.set_operator(cairo::CAIRO_OPERATOR_DEST_OVER);
+            $context.fill().unwrap();
         }
     };
 }
@@ -235,6 +234,7 @@ pub trait Plotter {
         image_type: ImageType,
     ) -> Result<(), Error>;
     fn paper(&mut self, paper: String);
+    fn get_paper(&self) -> (f64, f64);
     fn draw(&mut self, context: &Context);
 }
 
@@ -309,19 +309,19 @@ impl Plotter for CairoPlotter {
         for item in self.items.iter() {
             let arr: Option<Array2<f64>>;
             match item {
-                PlotItem::ArcItem(arc) => {
+                PlotItem::ArcItem(_, arc) => {
                     arr = Option::from(arr2(&[
                         [arc.start[0], arc.start[1]],
                         [arc.end[0], arc.end[1]],
                     ]));
                 }
-                PlotItem::LineItem(line) => {
+                PlotItem::LineItem(_, line) => {
                     arr = Option::from(arr2(&[
                         [line.pts[[0, 0]], line.pts[[0, 1]]],
                         [line.pts[[1, 0]], line.pts[[1, 1]]],
                     ]));
                 }
-                PlotItem::TextItem(text) => {
+                PlotItem::TextItem(_, text) => {
                     let outline = self.text_size(&text);
                     let mut x = text.pos[0];
                     let mut y = text.pos[1];
@@ -337,16 +337,16 @@ impl Plotter for CairoPlotter {
                     }
                     arr = Option::from(arr2(&[[x, y], [x + outline[0], y + outline[1]]]));
                 }
-                PlotItem::CircleItem(circle) => {
+                PlotItem::CircleItem(_, circle) => {
                     arr = Option::from(arr2(&[
                         [circle.pos[0] - circle.radius, circle.pos[1] - circle.radius],
                         [circle.pos[0] + circle.radius, circle.pos[1] + circle.radius],
                     ]));
                 }
-                PlotItem::PolylineItem(polyline) => {
+                PlotItem::PolylineItem(_, polyline) => {
                     arr = Option::from(self.arr_outline(&polyline.pts));
                 }
-                PlotItem::RectangleItem(rect) => {
+                PlotItem::RectangleItem(_, rect) => {
                     arr = Option::from(arr2(&[
                         [rect.pts[[0, 0]], rect.pts[[0, 1]]],
                         [rect.pts[[1, 0]], rect.pts[[1, 1]]],
@@ -393,7 +393,7 @@ impl Plotter for CairoPlotter {
                     let context = Context::new(&surface).unwrap();
                     context.scale(96.0 / 25.4, 96.0 / 25.4);
                     self.draw(&context);
-                    surface.write_to_png(&mut file);
+                    surface.write_to_png(&mut file)?;
                 },
                 ImageType::Pdf => {
                     todo!();
@@ -417,9 +417,8 @@ impl Plotter for CairoPlotter {
                         (size[[1, 0]] - size[[0, 0]]) * 72.0 / 25.4 * scale,
                         (size[[1, 1]] - size[[0, 1]]) * 72.0 / 25.4 * scale,
                         file,
-                    )
-                    .unwrap();
-                    let context = Context::new(&surface).unwrap();
+                    )?;
+                    let context = Context::new(&surface)?;
                     context.scale(72.0 / 25.4 * scale, 72.0 / 25.4 * scale);
                     context.translate(-size[[0, 0]], -size[[0, 1]]);
                     self.draw(&context);
@@ -431,13 +430,12 @@ impl Plotter for CairoPlotter {
                         Format::Rgb24,
                         ((size[[1, 0]] - size[[0, 0]]) * 72.0 / 25.4 * scale) as i32,
                         ((size[[1, 1]] - size[[0, 1]]) * 72.0 / 25.4 * scale) as i32,
-                    )
-                    .unwrap();
-                    let context = Context::new(&surface).unwrap();
+                    )?;
+                    let context = Context::new(&surface)?;
                     context.scale(72.0 / 25.4 * scale, 72.0 / 25.4 * scale);
                     context.translate(-size[[0, 0]], -size[[0, 1]]);
                     self.draw(&context);
-                    surface.write_to_png(&mut file);
+                    surface.write_to_png(&mut file)?;
                 }
                 ImageType::Pdf => {
                     todo!();
@@ -452,20 +450,45 @@ impl Plotter for CairoPlotter {
             self.paper_size = paper::A4;
         } // TODO other paper sizes
     }
+    fn get_paper(&self) -> (f64, f64) {
+        self.paper_size
+    }
 
     fn draw(&mut self, context: &Context) {
         context.set_source_rgb(1.0, 1.0, 1.0);
         context.paint().unwrap();
 
-        for item in &self.items {
+        //draw the rest
+        self.items.iter().sorted_by(|a, b| {
+            let za = match a {
+                PlotItem::ArcItem(z, _) => z,
+                PlotItem::LineItem(z, _) => z,
+                PlotItem::TextItem(z, _) => z,
+                PlotItem::CircleItem(z, _) => z,
+                PlotItem::PolylineItem(z, _) => z,
+                PlotItem::RectangleItem(z, _) => z,
+            };
+            let zb = match b {
+                PlotItem::ArcItem(z, _) => z,
+                PlotItem::LineItem(z, _) => z,
+                PlotItem::TextItem(z, _) => z,
+                PlotItem::CircleItem(z, _) => z,
+                PlotItem::PolylineItem(z, _) => z,
+                PlotItem::RectangleItem(z, _) => z,
+            };
+
+            Ord::cmp(&za, &zb)
+
+        }).for_each(|item| {
+        //for item in &self.items {
             match item {
-                PlotItem::LineItem(line) => {
+                PlotItem::LineItem(_, line) => {
                     stroke!(context, line);
                     context.move_to(line.pts[[0, 0]], line.pts[[0, 1]]);
                     context.line_to(line.pts[[1, 0]], line.pts[[1, 1]]);
                     context.stroke().unwrap();
                 }
-                PlotItem::PolylineItem(line) => {
+                PlotItem::PolylineItem(_, line) => {
                     stroke!(context, line);
                     let mut first: bool = true;
                     for pos in line.pts.rows() {
@@ -477,10 +500,10 @@ impl Plotter for CairoPlotter {
                             context.stroke_preserve().unwrap();
                         }
                     }
-                    fill!(context, line.fill);
+                    fill!(context, &line.fill);
                     context.stroke().unwrap()
                 }
-                PlotItem::RectangleItem(rectangle) => {
+                PlotItem::RectangleItem(_, rectangle) => {
                     stroke!(context, rectangle);
                     context.rectangle(
                         rectangle.pts[[0, 0]],
@@ -489,50 +512,61 @@ impl Plotter for CairoPlotter {
                         rectangle.pts[[1, 1]] - rectangle.pts[[0, 1]],
                     );
                     context.stroke_preserve().unwrap();
-                    fill!(context, rectangle.fill);
+                    fill!(context, &rectangle.fill);
                     context.stroke().unwrap()
                 }
-                PlotItem::CircleItem(circle) => {
+                PlotItem::CircleItem(_, circle) => {
                     stroke!(context, circle);
                     context.arc(circle.pos[0], circle.pos[1], circle.radius, 0., 10.);
                     context.stroke_preserve().unwrap();
-                    fill!(context, circle.fill);
+                    fill!(context, &circle.fill);
                     context.stroke().unwrap()
                 }
-                PlotItem::ArcItem(circle) => {
+                PlotItem::ArcItem(_, circle) => {
                     stroke!(context, circle);
                     context.arc(circle.start[0], circle.start[1], circle.mid[1], 0., 10.);
                     context.stroke_preserve().unwrap();
-                    fill!(context, circle.fill);
+                    fill!(context, &circle.fill);
                     context.stroke().unwrap()
                 }
-                PlotItem::TextItem(text) => {
+                PlotItem::TextItem(_, text) => {
                     context.save().unwrap();
                     effects!(context, text);
                     let mut x = text.pos[0];
                     let mut y = text.pos[1];
                     let outline = self.text_size(&text);
-                    if text.align.contains(&Justify::Right) {
-                        x = x - outline[0];
-                    } else if text.align.contains(&Justify::Left) {
-                        x = x; //  outline[0];
+                    if text.angle == 0.0 {
+                        if text.align.contains(&Justify::Right) {
+                            x = x - outline[0];
+                        } else if !text.align.contains(&Justify::Left) {
+                            x = x - outline[0] / 2.0;
+                        }
+                        if text.align.contains(&Justify::Top) {
+                            y = y - outline[1];
+                        } else if !text.align.contains(&Justify::Bottom) {
+                            y = y + outline[1] / 2.0;
+                        }
+                    } else if text.angle == 90.0 {
+                        if text.align.contains(&Justify::Right) {
+                           y = y + outline[0];
+                        } else if !text.align.contains(&Justify::Left) {
+                           y = y + outline[0] / 2.0;
+                        }
+                        if text.align.contains(&Justify::Top) {
+                            x = x + outline[1];
+                        } else if !text.align.contains(&Justify::Bottom) {
+                            x = x + outline[1] / 2.0;
+                        }
                     } else {
-                        x = x - outline[0] / 2.0;
-                    }
-                    if text.align.contains(&Justify::Top) {
-                        y = y - outline[1];
-                    } else if text.align.contains(&Justify::Bottom) {
-                        y = y;
-                    } else {
-                        y = y + outline[1] / 2.0;
+                        println!("text angle is: {} ({})", text.angle, text.text);
                     }
                     context.move_to(x, y);
-                    context.rotate(text.angle * 3.14 / 180.0);
+                    context.rotate(-text.angle * 3.14 / 180.0);
                     context.show_text(text.text.as_str()).unwrap();
                     context.stroke().unwrap();
                     context.restore().unwrap();
                 }
             }
-        }
+        });
     }
 }

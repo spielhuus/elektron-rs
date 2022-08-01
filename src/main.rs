@@ -5,6 +5,7 @@ use std::io::{Read, Write};
 use viuer::{Config, print_from_file};
 use std::env::temp_dir;
 use rand::Rng;
+use itertools::Itertools;
 
 pub mod cairo_plotter;
 pub mod circuit;
@@ -136,7 +137,16 @@ fn main() -> Result<(), Error> {
         Command::Search { term } => {
             let mut libs: Libraries = Libraries::new(vec!["/usr/share/kicad/symbols".to_string()]);
             let res = libs.search(&term)?;
-            println!("{:?}", res);
+            let mut length = 0;
+            for i in &res {
+                if i.lib.len() + i.key.len() > length {
+                    length = i.lib.len() + i.key.len();
+                }
+            }
+            length += 4;
+            res.iter().sorted_by(|a, b| { b.score.partial_cmp(&a.score).unwrap() }).for_each(|item| {
+                println!("{:<length$}{}", format!("[{}:{}]", item.lib, item.key), item.description);
+            });
         }
         _ => { /* TODO */ }
     }

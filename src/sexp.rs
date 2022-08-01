@@ -116,14 +116,22 @@ pub fn get_unit(node: &Sexp) -> Result<usize, Error> {
         if name != "symbol" {
             return Err(Error::ExpectSexpNode); //TODO
         }
-
         if node.contains("unit") {
             let unit: usize = get!(node, "unit", 0);
             return Ok(unit);
         } else {
-            let name: String = get!(node, 0).unwrap();
-            if let Some(line) = RE.captures_iter(&name).next() {
-                return Ok(line[1].parse().unwrap());
+            if let Sexp::Node(_, values) = node {
+                if let Some(value) = values.get(0) {
+                    if let Sexp::Text(value) = value {
+                        if let Some(line) = RE.captures_iter(&value).next() {
+                            return Ok(line[1].parse().unwrap());
+                        }
+                    } else if let Sexp::Value(value) = value {
+                        if let Some(line) = RE.captures_iter(&value).next() {
+                            return Ok(line[1].parse().unwrap());
+                        }
+                    }
+                }
             }
         }
     }

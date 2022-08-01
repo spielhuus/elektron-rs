@@ -9,8 +9,8 @@ macro_rules! get {
         $node.get($key)
     };
     ($node:expr, $key:expr, $index:expr) => {
-        Get::<_, Vec<&Sexp>>::get($node, $key)
-            .unwrap().get(0).unwrap()
+        Get::<_, Vec<&Sexp>>::get($node, $key).unwrap()
+            .get(0).unwrap()
             .get($index).unwrap()
     };
 }

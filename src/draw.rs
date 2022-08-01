@@ -146,7 +146,6 @@ impl Draw {
     }
     fn label(&mut self, name: &str, pos: Vec<f64>, angle: f64) {
         let pos: Vec<f64> = pos.iter().map(|v| format!("{:.2}", v).parse::<f64>().unwrap()).collect();
-        println!("add label: {}, {:?}", name, pos);
         self.elements
             .push(label!(arr1(&[pos[0], pos[1]]), &angle, name.to_string()));
     }
@@ -167,7 +166,6 @@ impl Draw {
         let lib_symbol = self.get_library(library).unwrap();
         let uuid = Uuid::new_v4();
 
-        // println!("load pin for {}:{:?}", reference, &lib_symbol);
         let sym_pin = get_pin(&lib_symbol, pin).unwrap();
         let pin_pos: Array1<f64> = get!(sym_pin, "at").unwrap();
         // transform pin pos
@@ -407,12 +405,10 @@ impl Draw {
         let _size = if _size[[0, 1]] > _size[[1, 1]] {
             arr2(&[[_size[[0, 0]], _size[[1, 1]]],[_size[[1, 0]], _size[[0, 1]]]])
         } else { _size };
-        println!("place: {}, {:?}", get_property(symbol, "Reference").unwrap(), _size);
         let positions = self.pin_position(&symbol, &lib);
         let mut offset = 0.0;
         let pins = get_pins(&lib, None).unwrap().len();
         if pins == 1 { //PINS!
-            println!("place single pin {:?}", positions);
             if positions[0] == 1 { //west
                 /* vis_fields[0].pos = (_size[1][0]+1.28, symbol.pos[1])
                 assert vis_fields[0].text_effects, "pin has no text_effects"
@@ -421,7 +417,6 @@ impl Draw {
 
                 return Ok(());
             } else if positions[3] == 1 { //south
-                println!("place pin south");
                 if let Sexp::Node(_, ref mut values) = symbol {
                     values.iter_mut()
                     .filter(filter_properties)
@@ -440,7 +435,6 @@ impl Draw {
                                                 }
                                             }
                                         } else if name == "at" {
-                                            println!("place pin south at {}", _size[[1, 1]]);
                                             values[0] = Sexp::Value(pos[0].to_string());
                                             values[1] = Sexp::Value((_size[[1, 1]] + LABEL_BORDER).to_string());
                                             values[2] = Sexp::Value((0.0 - angle).to_string());
@@ -573,7 +567,7 @@ impl Draw {
             } else if positions[1] == 0 { //south
                 return Ok(());
             } else {
-                todo!();
+                return Ok(()); //todo!();
             }
         }
         Err(Error::ParseError)

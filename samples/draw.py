@@ -1,4 +1,4 @@
-from elektron import Line, Dot, Label, Element, Draw
+from elektron import Line, Dot, Label, Element, Draw, Simulation
 draw = Draw()
 draw.add(Label("INPUT").rotate(180))
 draw.add(Line())
@@ -31,10 +31,10 @@ print(res)
 
 draw.write("draw.kicad_sch")
 
-circuit = draw.circuit()
+circuit = draw.circuit(["samples/files/spice"])
 circuit.voltage("1", "+5V", "GND", "5V")
 circuit.voltage("2", "INPUT", "GND", "5V SIN(0, 2.5, 100)")
 circuit.save(None)
-circuit.tran()
-# circuit.plot("output", "draw_output.svg")
 
+simulation = Simulation(circuit)
+buffer = simulation.tran("0.02ms", "10ms", "0")
