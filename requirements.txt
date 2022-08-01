@@ -1,0 +1,5 @@
+git+https://github.com/PyO3/setuptools-rust@main
+setuptools
+wheel
+numpy
+ipython
