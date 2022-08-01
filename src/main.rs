@@ -1,7 +1,6 @@
 use clap::{Parser, Subcommand};
-use std::fs;
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::Write;
 use viuer::{Config, print_from_file};
 use std::env::temp_dir;
 use rand::Rng;
@@ -21,7 +20,6 @@ pub mod shape;
 pub mod themes;
 
 use crate::cairo_plotter::{CairoPlotter, ImageType};
-use crate::circuit::{Circuit, Simulation};
 use crate::error::Error;
 use crate::libraries::Libraries;
 use crate::plot::plot;
@@ -110,7 +108,7 @@ fn main() -> Result<(), Error> {
                     }
                 }
             }
-            parser.save(output);
+            parser.save(output)?;
         }
         Command::Plot { input, output, border, theme, scale, } => {
             let scale: f64 = if let Some(scale) = scale { scale } else { 1.0 };
@@ -164,7 +162,6 @@ fn main() -> Result<(), Error> {
                 println!("{:<length$}{}", format!("[{}:{}]", item.lib, item.key), item.description);
             });
         }
-        _ => { /* TODO */ }
     }
     Ok(())
 }

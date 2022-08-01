@@ -1,6 +1,5 @@
 use super::sexp::get::{get, Get};
 use super::sexp::{parser::SexpParser, Sexp};
-use crate::sexp::elements::property;
 use crate::sexp::get_property;
 use crate::Error;
 use pyo3::prelude::*;
