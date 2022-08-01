@@ -245,14 +245,9 @@ impl Draw {
             .push(symbol_instance!(uuid, reference, value, unit, footprint));
     }
 
-    pub fn write(&mut self, filename: Option<&str>) -> Result<(), Error> {
-        let mut out: Box<dyn Write> = if let Some(filename) = filename {
-            Box::new(File::create(filename).unwrap())
-        } else {
-            Box::new(std::io::stdout())
-        };
+    pub fn write(&mut self, filename: Option<String>) -> Result<(), Error> {
         match self._write() {
-            Ok(doc) => {doc.save(&mut out)?;}
+            Ok(doc) => {doc.save(filename)?;}
             Err(err) => {
                 println!("{:?}", err);
             }

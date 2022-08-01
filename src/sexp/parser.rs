@@ -87,8 +87,13 @@ impl SexpParser {
             nodes: parser(iter),
         })
     }
-    pub fn save(&self, writer: &mut dyn Write) -> Result<(), Error> {
-        self.write_node(&self.nodes, writer, 0)
+    pub fn save(&self, filename: Option<String>) -> Result<(), Error> {
+    let mut out: Box<dyn Write> = if let Some(filename) = filename {
+        Box::new(File::create(filename).unwrap())
+    } else {
+        Box::new(std::io::stdout())
+    };
+        self.write_node(&self.nodes, &mut out, 0)
     }
     fn write_node(&self, node: &Sexp, writer: &mut dyn Write, indent: usize) -> Result<(), Error> {
         let prefix = &String::from("  ").repeat(indent);

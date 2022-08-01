@@ -69,9 +69,9 @@ enum Command {
     Dump {
         #[clap(short, long, value_parser)]
         input: String,
-        #[clap(forbid_empty_values = true)]
-        /// Name of the package to search
-        package_name: String,
+        #[clap(short, long, value_parser)]
+        /// the output filename, prints to console when not defined.
+        output: Option<String>,
     },
 }
 
@@ -95,6 +95,22 @@ fn main() -> Result<(), Error> {
                 }
             }
             bom(output, &parser, group).unwrap();
+        }
+        Command::Dump {
+            input,
+            output,
+        } => {
+            let parser = SexpParser::load(input.as_str())?;
+            if let Some(filename) = &output {
+                let path = std::path::Path::new(&filename);
+                let parent = path.parent();
+                if let Some(parent) = parent {
+                    if parent.to_str().unwrap() != "" && !parent.exists() {
+                        std::fs::create_dir_all(parent)?;
+                    }
+                }
+            }
+            parser.save(output);
         }
         Command::Plot { input, output, border, theme, scale, } => {
             let scale: f64 = if let Some(scale) = scale { scale } else { 1.0 };
