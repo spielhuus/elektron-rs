@@ -351,7 +351,8 @@ pub fn symbol(
     }
     let lib_id: String = get!(node, "lib_id", 0);
     let symbol_unit: usize = get_unit(node).unwrap();
-    let lib: &Sexp = &libs.get(&lib_id).unwrap();
+    let lib: Option<&&Sexp> = libs.get(&lib_id);
+    if let Some(lib) = lib {
     let units: Vec<&Sexp> = lib.get("symbol").unwrap();
     for _unit in units {
         let unit_number = get_unit(&_unit).unwrap();
@@ -470,7 +471,7 @@ pub fn symbol(
                                 let pin_number: String = get!(graph, "number", 0);
                                 let pin_name: String = get!(graph, "name", 0);
                                 let show_pin_numbers = if lib.contains("pin_numbers") {
-                                    let numbers_hide: String = get!(lib, "pin_numbers", 0);
+                                    let numbers_hide: String = get!(*lib, "pin_numbers", 0);
                                     numbers_hide != "hide"
                                 } else {
                                     true
@@ -555,6 +556,16 @@ pub fn symbol(
                 }
             }
         }
+    }
+    } else {
+        let pts = arr2(&[[0.0, 0.0], [10.0, 10.0]]); 
+                                plotter.push(PlotItem::RectangleItem(10, Rectangle::new(
+                                    Shape::transform(&node, &pts),
+                                    Color{r:1.0, g:0.0, b:0.0, a:1.0},
+                                    2.0,
+                                    LineType::Solid,
+                                    None,
+                                )));
     }
     Ok(())
 }
