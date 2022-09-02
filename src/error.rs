@@ -1,13 +1,13 @@
-use pyo3::exceptions::PyOSError;
-use pyo3::prelude::*;
+//use pyo3::exceptions::PyOSError;
+//use pyo3::prelude::*;
+
+use pyo3::{PyErr, exceptions::PyOSError};
 
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum Error {
     #[error("Can not parse file.")]
     ParseError,
-    #[error("can not find symbol {0}.")]
-    SymbolNotFound(String),
-    #[error("can not find symbol.")]
+    /* #[error("can not find symbol.")]
     ExpectSexpNode,
     #[error("element is not a value node.")]
     ExpectValueNode,
@@ -15,20 +15,26 @@ pub enum Error {
     JustifyValueError,
     #[error("LineType value error")]
     LineTypeValueError,
-    #[error("File manipulatuion error {0}.")]
-    IoError(String),
-    #[error("Library not found {0}.")]
-    LibraryNotFound(String),
     #[error("Sexp content not loaded.")]
     NotLoaded,
-    #[error("Pin not found for {0}")]
-    PinNotFound(usize),
     #[error("Property not found for {0}")]
     PropertyNotFound(String),
     #[error("More then one Property found for {0}")]
-    MoreThenOnPropertyFound(String),
+    MoreThenOnPropertyFound(String), */
+    #[error("Pin not found for {0}")]
+    PinNotFound(usize),
+    #[error("can not find symbol {0}.")]
+    SymbolNotFound(String),
+    #[error("Library not found {0}.")]
+    LibraryNotFound(String),
+    #[error("File manipulatuion error {0}.")]
+    IoError(String),
+    #[error("Can not find Theme item: {0}{1}")]
+    Theme(String, String),
     #[error("Spice model not found: {0}")]
     SpiceModelNotFound(String),
+    #[error("Unknown circuit element {0}")]
+    UnknownCircuitElement(String),
 }
 
 impl std::convert::From<std::io::Error> for Error {

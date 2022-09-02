@@ -1,111 +1,197 @@
-use std::fs::File;
-use std::io::Write;
+#![allow(non_upper_case_globals)]
+#![allow(non_camel_case_types)]
+#![allow(non_snake_case)]
 
-use pyo3::prelude::*;
+include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
-pub mod cairo_plotter;
-pub mod libraries;
+pub mod circuit;
+pub mod draw;
+pub mod error;
 pub mod plot;
 pub mod reports;
-pub mod draw;
 pub mod sexp;
-pub mod themes;
-pub mod netlist;
-pub mod shape;
-pub mod circuit;
-pub mod ngspice;
-pub mod error;
+pub mod spice;
 
-use crate::error::Error;
-use crate::sexp::parser::SexpParser;
-use crate::reports::bom;
-use crate::cairo_plotter::CairoPlotter;
-use crate::themes::Style;
-use crate::plot::plot;
-use crate::libraries::{Libraries, SearchItem};
-use crate::circuit::{Circuit, Simulation};
+pub use crate::error::Error;
 
-use self::cairo_plotter::ImageType;
+use std::{fs::File, io::Write};
 
+use pyo3::prelude::*;
+use rust_fuzzy_search::fuzzy_compare;
 
-#[pyfunction]
-fn get_bom(input: &str, output: Option<String>, group: bool) -> PyResult<()> {
-    let parser = SexpParser::load(input)?;
-    
-    if let Some(filename) = &output {
-        let path = std::path::Path::new(&filename);
-        let parent = path.parent();
-        if let Some(parent) = parent {
-            if parent.to_str().unwrap() != "" && !parent.exists() {
-                std::fs::create_dir_all(parent)?;
+use crate::{
+    plot::{CairoPlotter, ImageType, Theme},
+    sexp::model::{SchemaElement, Sheet},
+};
+
+use self::{
+    circuit::{Circuit, Netlist},
+    reports::BomItem,
+    sexp::{model::LibrarySymbol, SchemaIterator, SexpParser, State},
+};
+
+pub fn check_directory(filename: &str) -> Result<(), Error> {
+    let path = std::path::Path::new(filename);
+    let parent = path.parent();
+    if let Some(parent) = parent {
+        if parent.to_str().unwrap() != "" && !parent.exists() {
+            std::fs::create_dir_all(parent)?;
+        }
+    }
+    Ok(())
+}
+
+pub fn bom(filename: &str, group: bool) -> Result<Vec<BomItem>, Error> {
+    let doc = SexpParser::load(filename)?;
+    reports::bom(&mut doc.iter().node(), group)
+}
+
+pub fn netlist(
+    input: &str,
+    output: Option<String>,
+    spice_models: Vec<String>,
+) -> Result<(), Error> {
+    let doc = SexpParser::load(input)?; //.iter().node();
+    let mut iter = doc.iter().node();
+    let mut netlist = Netlist::from(&mut iter)?;
+    let mut circuit = Circuit::new(input.to_string(), spice_models);
+    netlist.dump(&mut circuit)?;
+    circuit.save(output)?;
+    Ok(())
+}
+
+pub fn dump(input: &str, output: Option<String>) -> Result<(), Error> {
+    let doc = SexpParser::load(input)?; //.iter().node();
+    let iter = doc.iter().node();
+    if let Some(output) = output {
+        check_directory(&output)?;
+        let mut out = File::create(output)?;
+        sexp::write(&mut out, iter)?;
+    } else {
+        sexp::write(&mut std::io::stdout(), iter)?;
+    }
+    Ok(())
+}
+
+pub fn get_library(key: &str, path: Vec<String>) -> Result<LibrarySymbol, Error> {
+    let mut library = sexp::Library::new(path);
+    library.get(key)
+}
+
+pub fn plot(
+    input: &str,
+    output: &str,
+    scale: Option<f64>,
+    border: bool,
+    theme: Option<String>,
+) -> Result<(), Error> {
+    use crate::plot::{PlotIterator, Plotter};
+    let scale: f64 = if let Some(scale) = scale { scale } else { 1.0 };
+    let doc = SexpParser::load(input).unwrap();
+
+    let iter: Vec<SchemaElement> = doc.iter().node().collect();
+    let sheets: Vec<&Sheet> = iter
+        .iter()
+        .filter_map(|n| {
+            if let SchemaElement::Sheet(sheet) = n {
+                Some(sheet)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    for sheet in sheets {
+
+    }
+
+    let image_type = if output.ends_with(".svg") {
+        ImageType::Svg
+    } else if output.ends_with(".png") {
+        ImageType::Png
+    } else {
+        ImageType::Pdf
+    };
+    let theme = if let Some(theme) = theme {
+        if theme == "kicad_2000" {
+            Theme::kicad_2000() //TODO:
+        } else {
+            Theme::kicad_2000()
+        }
+    } else {
+        Theme::kicad_2000()
+    };
+
+    let iter = iter.into_iter().plot(theme, border).flatten().collect();
+    let mut cairo = CairoPlotter::new(&iter);
+
+    check_directory(output)?;
+    let out: Box<dyn Write> = Box::new(File::create(output)?);
+    cairo.plot(out, border, scale, image_type)?;
+    Ok(())
+}
+
+pub fn search_library(key: &str, paths: Vec<String>) -> Result<Vec<(f32, String, String)>, Error> {
+    let mut results: Vec<(f32, String, String)> = Vec::new();
+    for path in paths {
+        for entry in std::fs::read_dir(path).unwrap() {
+            let dir = entry.unwrap();
+            if dir.path().is_file() {
+                let doc = SexpParser::load(dir.path().to_str().unwrap()).unwrap();
+                let mut iter = doc.iter();
+
+                if let Some(State::StartSymbol(name)) = &iter.next() {
+                    if *name == "kicad_symbol_lib" {
+                        iter.next(); //take first symbol
+                        while let Some(state) = iter.next_siebling() {
+                            if let State::StartSymbol(name) = state {
+                                if name == "symbol" {
+                                    if let Some(State::Text(id)) = iter.next() {
+                                        let score: f32 = fuzzy_compare(
+                                            &id.to_lowercase(),
+                                            &key.to_string().to_lowercase(),
+                                        );
+                                        if score > 0.4 {
+                                            while let Some(node) = iter.next() {
+                                                if let State::StartSymbol(name) = node {
+                                                    if name == "property" {
+                                                        if let Some(State::Text(name)) = iter.next()
+                                                        {
+                                                            if name == "ki_description" {
+                                                                if let Some(State::Text(desc)) =
+                                                                    iter.next()
+                                                                {
+                                                                    results.push((
+                                                                        score,
+                                                                        id.to_string(),
+                                                                        desc.to_string(),
+                                                                    ));
+                                                                    break;
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        panic!("file is not a symbol library")
+                    }
+                }
             }
         }
     }
-    bom(output, &parser, group).unwrap();
-    Ok(())
-}
-
-#[pyfunction]
-fn schema_plot(
-    filename: &str,
-    output: Option<&str>,
-    border: bool,
-    scale: f64,
-) -> Result<(), Error> {
-    let mut cairo = CairoPlotter::new();
-    let style = Style::new();
-    let parser = SexpParser::load(filename).unwrap();
-
-
-    if let Some(filename) = output {
-        let path = std::path::Path::new(filename);
-        let parent = path.parent();
-        if let Some(parent) = parent {
-            if parent.to_str().unwrap() != "" && !parent.exists() {
-                std::fs::create_dir_all(parent)?;
-            }
-        }
-
-        let out: Box<dyn Write> = Box::new(File::create(filename).unwrap());
-        plot(&mut cairo, out, &parser, border, scale, style, ImageType::Svg).unwrap();
-    } else {
-        let out: Box<dyn Write> = Box::new(std::io::stdout());
-        plot(&mut cairo, out, &parser, border, scale, style, ImageType::Svg).unwrap();
-    };
-    Ok(())
-}
-
-#[pyfunction]
-fn search(term: &str, path: Vec<String>) -> PyResult<Vec<SearchItem>> {
-    let mut libs: Libraries = Libraries::new(path);
-    let res = libs.search(term)?;
-    Ok(res)
-}
-
-#[pyfunction]
-fn schema_netlist(input: &str, output: Option<String>) -> PyResult<()> {
-    let out: Box<dyn Write> = if let Some(filename) = output {
-        Box::new(File::create(filename).unwrap())
-    } else {
-        Box::new(std::io::stdout())
-    };
-    let parser = SexpParser::load(input).unwrap();
-    let mut netlist = netlist::Netlist::from(&parser);
-    let mut circuit = Circuit::new(input.to_string(), Vec::new());
-    netlist.dump(&mut circuit)?;
-    //TODO println!("{}", circuit);
-    Ok(())
+    Ok(results)
 }
 
 /// A Python module implemented in Rust.
 #[pymodule]
 fn elektron(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(get_bom, m)?)?;
-    m.add_function(wrap_pyfunction!(schema_plot, m)?)?;
-    m.add_function(wrap_pyfunction!(search, m)?)?;
-    m.add_function(wrap_pyfunction!(schema_netlist, m)?)?;
     m.add_class::<draw::Draw>()?;
-    m.add_class::<libraries::SearchItem>()?;
     m.add_class::<circuit::Circuit>()?;
     m.add_class::<circuit::Simulation>()?;
     Ok(())

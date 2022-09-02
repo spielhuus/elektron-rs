@@ -1,317 +1,529 @@
-use memmap2::MmapOptions;
-use std::fs::File;
-use core::slice::Iter;
-use std::io::Write;
+use std::{fs, str::CharIndices};
 
-use crate::Error;
-use crate::sexp::Sexp;
+use crate::error::Error;
 
-#[derive(PartialEq)]
-enum State {
-    Symbol,
-    Values,
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum State<'a> {
+    StartSymbol(&'a str),
+    EndSymbol,
+    Values(&'a str),
+    Text(&'a str),
 }
 
-fn parser(iter: &mut Iter<u8>) -> Sexp {
-    let mut name = String::new();
-    let mut values = Vec::new();
-    let mut state = State::Symbol;
-    let mut s = String::new();
-    while let Some(ch) = iter.next() {
-        match *ch as char {
-            '(' => {
-                values.push(parser(iter));
-            }
-            ')' => {
-                if !s.is_empty() {
-                    if state == State::Symbol {
-                        name = s.to_string();
-                    } else {
-                        values.push(Sexp::Value(s.to_string()));
-                        s.clear();
-                    }
-                }
-                break;
-            }
-            '"' => {
-                let mut text = String::new();
-                let mut last_char = '\0';
-                loop {
-                    // collect the characters to the next quote
-                    if let Some(ch) = iter.next() {
-                        if *ch as char == '"' && last_char != '\\' {
-                            break;
-                        } else {
-                            text.push(*ch as char);
-                            last_char = *ch as char;
-                        }
-                    }
-                }
-                values.push(Sexp::Text(text));
-            }
-            ' ' | '\n' => {
-                if state == State::Symbol {
-                    name = s.to_string();
-                    s.clear();
-                    state = State::Values;
-                } else if state == State::Values {
-                    if !s.is_empty() {
-                        //println!("{} {}", s.to_string(), s.len());
-                        values.push(Sexp::Value(s.to_string()));
-                        s.clear();
-                    }
-                }
-            }
-            c => {
-                s.push(c);
-            }
-        };
+impl std::convert::From<State<'_>> for i32 {
+    fn from(state: State<'_>) -> Self {
+        if let State::Values(value) = state {
+            return value.parse::<i32>().unwrap();
+        } else if let State::Text(value) = state {
+            return value.parse::<i32>().unwrap();
+        }
+        panic!();
     }
-    Sexp::Node(name, values)
+}
+impl std::convert::From<State<'_>> for f64 {
+    fn from(state: State<'_>) -> Self {
+        if let State::Values(value) = state {
+            return value.parse::<f64>().unwrap();
+        }
+        panic!();
+    }
+}
+impl std::convert::From<State<'_>> for String {
+    fn from(state: State<'_>) -> Self {
+        if let State::Values(value) = state {
+            return value.to_string();
+        } else if let State::Text(value) = state {
+            return value.to_string();
+        }
+        panic!("Error Parsing to String: {:?}", state);
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+enum IntState {
+    NotStarted,
+    Symbol,
+    Values,
+    BeforeEndSymbol,
 }
 
 pub struct SexpParser {
-    nodes: Sexp,
+    content: String,
 }
 
 impl SexpParser {
-    pub fn new() -> Self {
-        Self { nodes: Sexp::Node(String::from("kicad_sch"), Vec::new()) }
+    pub fn from(content: String) -> Self {
+        Self { content }
     }
     pub fn load(filename: &str) -> Result<Self, Error> {
-        let file = File::open(filename)?;
-        let mmap = unsafe { MmapOptions::new().map(&file)? };
-        let iter = &mut mmap.iter();
-        iter.find(|c| **c as char == '(');
-        Ok(Self {
-            nodes: parser(iter),
-        })
+        Ok(Self::from(fs::read_to_string(filename)?))
     }
-    pub fn save(&self, filename: Option<String>) -> Result<(), Error> {
-    let mut out: Box<dyn Write> = if let Some(filename) = filename {
-        Box::new(File::create(filename).unwrap())
-    } else {
-        Box::new(std::io::stdout())
-    };
-        self.write_node(&self.nodes, &mut out, 0)
+    pub fn iter(&self) -> SexpIter<'_> {
+        SexpIter::new(&self.content)
     }
-    fn write_node(&self, node: &Sexp, writer: &mut dyn Write, indent: usize) -> Result<(), Error> {
-        let prefix = &String::from("  ").repeat(indent);
-        match node {
-            Sexp::Node(name, values) => {
-                if name == "on_schema" {
-                    return Ok(())
-                }
-                if indent == 0 {
-                    write!(writer, "({}", name)?;
-                } else {
-                    write!(writer, "\n{}({}", prefix, name)?;
-                }
-                for n in values.iter() {
-                    self.write_node(n, writer, indent + 1)?;
-                }
-                write!(writer, ")")?;
-            }
-            Sexp::Value(value) => {
-                write!(writer, " {}", value)?;
-            }
-            Sexp::Text(text) => {
-                write!(writer, " \"{}\"", text)?;
-            }
-            Sexp::Empty => {
-                return Err(Error::NotLoaded);
-            }
-        }
-        if indent == 0 {
-            write!(writer, "\n")?;
-        }
-        Ok(())
-    }
+}
 
-    pub fn iter(&self) -> impl Iterator<Item = &Sexp> {
-        if let Sexp::Node(_, values) = &self.nodes {
-            values.into_iter()
-        } else { panic!("nodes not set."); }
+pub struct SexpIter<'a> {
+    content: &'a String,
+    chars: CharIndices<'a>,
+    start_index: usize,
+    int_state: IntState,
+}
+
+impl<'a> SexpIter<'a> {
+    fn new(content: &'a String) -> Self {
+        Self {
+            content,
+            chars: content.char_indices(),
+            start_index: 0,
+            int_state: IntState::NotStarted,
+        }
     }
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Sexp> {
-        if let Sexp::Node(_, values) = &mut self.nodes {
-            values.into_iter()
-        } else { panic!("nodes not set."); }
+    pub fn next_siebling(&mut self) -> Option<State<'a>> {
+        let mut count: usize = 1;
+        loop {
+            if let Some(indice) = self.chars.next() {
+                match indice.1 {
+                    '(' => {
+                        count += 1;
+                    }
+                    ')' => {
+                        count -= 1;
+                        if count == 0 {
+                            self.int_state = IntState::NotStarted;
+                            return self.next();
+                        }
+                    }
+                    '\"' => {
+                        let mut last_char = '\0';
+                        loop {
+                            // collect the characters to the next quote
+                            if let Some(ch) = self.chars.next() {
+                                if ch.1 as char == '"' && last_char != '\\' {
+                                    break;
+                                } else {
+                                    last_char = ch.1;
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
     }
-    pub fn push(&mut self, node: Sexp) -> Result<(), Error> {
-        if let Sexp::Node(_, ref mut values) = &mut self.nodes {
-            values.push(node);
-        } else {
-            return Err(Error::ParseError);
-        }       
-        Ok(())
+}
+
+impl<'a> Iterator for SexpIter<'a> {
+    type Item = State<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.int_state == IntState::BeforeEndSymbol {
+            self.int_state = IntState::Values;
+            return Some(State::EndSymbol);
+        }
+        while let Some(indice) = self.chars.next() {
+            match self.int_state {
+                IntState::NotStarted => {
+                    if indice.1 == '(' {
+                        self.start_index = indice.0 + 1;
+                        self.int_state = IntState::Symbol;
+                    }
+                }
+                IntState::Symbol => {
+                    if indice.1 == ' ' || indice.1 == '\n' || indice.1 == ')' {
+                        let name = &self.content[self.start_index..indice.0];
+                        self.start_index = indice.0 + 1;
+                        self.int_state = if indice.1 == ')' {
+                            IntState::BeforeEndSymbol
+                        } else {
+                            IntState::Values
+                        };
+                        return Some(State::StartSymbol(name));
+                    }
+                }
+                IntState::Values => {
+                    if indice.1 == ' ' || indice.1 == '\n' || indice.1 == ')' {
+                        if indice.0 - self.start_index > 0 {
+                            let value = &self.content[self.start_index..indice.0];
+                            self.start_index = indice.0 + 1;
+                            self.int_state = if indice.1 == ')' {
+                                IntState::BeforeEndSymbol
+                            } else {
+                                IntState::Values
+                            };
+                            return Some(State::Values(value));
+                        } else {
+                            self.start_index = indice.0 + 1;
+                            if indice.1 == ')' {
+                                return Some(State::EndSymbol);
+                            }
+                        }
+                    } else if indice.1 == '(' {
+                        self.start_index = indice.0 + 1;
+                        self.int_state = IntState::Symbol;
+                    } else if indice.1 == '"' {
+                        let mut last_char = '\0';
+                        self.start_index = indice.0 + 1;
+                        loop {
+                            // collect the characters to the next quote
+                            if let Some(ch) = self.chars.next() {
+                                if ch.1 == '"' && last_char != '\\' {
+                                    let value = &self.content[self.start_index..ch.0];
+                                    self.start_index = ch.0 + 1;
+                                    self.int_state = if indice.1 == ')' {
+                                        IntState::BeforeEndSymbol
+                                    } else {
+                                        IntState::Values
+                                    };
+                                    return Some(State::Text(value));
+                                } else {
+                                    last_char = ch.1;
+                                }
+                            }
+                        }
+                    }
+                }
+                IntState::BeforeEndSymbol => {}
+            }
+        }
+        None
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::sexp::{get, Get, get_property, Test};
-    use ndarray::Array2;
+    use crate::sexp::parser::{SexpParser, State};
 
     #[test]
-    fn load_and_iterate() {
-        let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
+    fn check_index() {
+        let doc = SexpParser::from(String::from(
+            r#"(node value1 value2 "value 3" "value 4" "" "value \"four\"" endval)"#,
+        ));
+        let mut iter = doc.iter();
+        let state = iter.next();
+        assert_eq!(state, Some(State::StartSymbol("node")));
+
+        let state = iter.next();
+        assert_eq!(state, Some(State::Values("value1")));
+
+        let state = iter.next();
+        assert_eq!(state, Some(State::Values("value2")));
+
+        let state = iter.next();
+        assert_eq!(state, Some(State::Text("value 3")));
+
+        let state = iter.next();
+        assert_eq!(state, Some(State::Text("value 4")));
+
+        let state = iter.next();
+        assert_eq!(state, Some(State::Text("")));
+
+        let state = iter.next();
+        assert_eq!(state, Some(State::Text(r#"value \"four\""#)));
+
+        let state = iter.next();
+        assert_eq!(state, Some(State::Values("endval")));
+
+        let state = iter.next();
+        assert_eq!(state, Some(State::EndSymbol));
+    }
+
+    #[test]
+    fn simple_content() {
+        let doc = SexpParser::from(String::from(
+            r#"(node value1 value2 "value 3" "value 4" "" "value \"four\"" endval)"#,
+        ));
+        let mut node_name = String::new();
+        let mut values = String::new();
+        let mut texts = String::new();
         let mut count = 0;
-        for _ in doc.iter() {
+        for state in doc.iter() {
+            match state {
+                State::StartSymbol(name) => {
+                    node_name = name.to_string();
+                    count += 1;
+                }
+                State::EndSymbol => {
+                    count -= 1;
+                }
+                State::Values(value) => {
+                    values += value;
+                }
+                State::Text(value) => {
+                    texts += value;
+                }
+            }
+        }
+        assert_eq!("node", node_name);
+        assert_eq!(values, "value1value2endval");
+        assert_eq!(texts, r#"value 3value 4value \"four\""#);
+        assert_eq!(count, 0);
+    }
+    #[test]
+    fn next_sub_symbol() {
+        let doc = SexpParser::from(String::from("(node value1 (node2))"));
+        let mut iter = doc.iter();
+        let state = iter.next();
+        assert_eq!(state, Some(State::StartSymbol("node")));
+
+        let state = iter.next();
+        assert_eq!(state, Some(State::Values("value1")));
+
+        let state = iter.next();
+        assert_eq!(state, Some(State::StartSymbol("node2")));
+    }
+
+    #[test]
+    fn next_sub_symbol_values() {
+        let doc = SexpParser::from(String::from("(node value1 (node2 value2))"));
+        let mut count = 0;
+        let mut ends = 0;
+        let mut iter = doc.iter();
+        if let Some(State::StartSymbol(name)) = &iter.next() {
             count += 1;
+            ends += 1;
+            assert_eq!("node", *name);
         }
-        assert_eq!(count, 51);
+        if let Some(State::Values(value)) = &iter.next() {
+            count += 1;
+            assert_eq!("value1", *value);
+        }
+        if let Some(State::StartSymbol(name)) = &iter.next() {
+            count += 1;
+            ends += 1;
+            assert_eq!("node2", *name);
+        }
+        if let Some(State::Values(value)) = &iter.next() {
+            count += 1;
+            assert_eq!("value2", *value);
+        }
+        if let Some(State::EndSymbol) = &iter.next() {
+            ends -= 1;
+        }
+        if let Some(State::EndSymbol) = &iter.next() {
+            ends -= 1;
+        }
+        assert_eq!(count, 4);
+        assert_eq!(ends, 0);
     }
     #[test]
-    fn load_and_iterate_wires() {
-        let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
+    fn next_sub_symbol_text() {
+        let doc = SexpParser::from(String::from("(node value1 (node2 \"value 2\"))"));
         let mut count = 0;
-        for n in doc.iter() {
-            match n {
-                Sexp::Node(name, _values) if name == "wire" => {
-                    count += 1;
-                }
-                _ => {}
-            }
+        let mut ends = 0;
+        let mut iter = doc.iter();
+        if let Some(State::StartSymbol(name)) = &iter.next() {
+            count += 1;
+            ends += 1;
+            assert_eq!("node", *name);
         }
+        if let Some(State::Values(value)) = &iter.next() {
+            count += 1;
+            assert_eq!("value1", *value);
+        }
+        if let Some(State::StartSymbol(name)) = &iter.next() {
+            count += 1;
+            ends += 1;
+            assert_eq!("node2", *name);
+        }
+        if let Some(State::Text(value)) = &iter.next() {
+            count += 1;
+            assert_eq!("value 2", *value);
+        }
+        if let Some(State::EndSymbol) = &iter.next() {
+            ends -= 1;
+        }
+        if let Some(State::EndSymbol) = &iter.next() {
+            ends -= 1;
+        }
+        assert_eq!(count, 4);
+        assert_eq!(ends, 0);
+    }
+    #[test]
+    fn next_sub_symbol_text_escaped() {
+        let doc = SexpParser::from(String::from(r#"(node value1 (node2 "value \"2\""))"#));
+        let mut count = 0;
+        let mut iter = doc.iter();
+        if let Some(State::StartSymbol(name)) = &iter.next() {
+            count += 1;
+            assert_eq!("node", *name);
+        }
+        if let Some(State::Values(value)) = &iter.next() {
+            count += 1;
+            assert_eq!("value1", *value);
+        }
+        if let Some(State::StartSymbol(name)) = &iter.next() {
+            count += 1;
+            assert_eq!("node2", *name);
+        }
+        if let Some(State::Text(value)) = &iter.next() {
+            count += 1;
+            assert_eq!(r#"value \"2\""#, *value);
+        }
+        assert_eq!(count, 4);
+    }
+    #[test]
+    fn next_sub_symbol_line_breaks() {
+        let doc = SexpParser::from(String::from("(node value1\n(node2 \"value 2\"\n)\n)"));
+        let mut count = 0;
+        let mut iter = doc.iter();
+        if let Some(State::StartSymbol(name)) = &iter.next() {
+            count += 1;
+            assert_eq!("node", *name);
+        }
+        if let Some(State::Values(value)) = &iter.next() {
+            count += 1;
+            assert_eq!("value1", *value);
+        }
+        if let Some(State::StartSymbol(name)) = &iter.next() {
+            count += 1;
+            assert_eq!("node2", *name);
+        }
+        if let Some(State::Text(value)) = &iter.next() {
+            count += 1;
+            assert_eq!("value 2", *value);
+        }
+        assert_eq!(count, 4);
+    }
+    #[test]
+    fn parse_stroke() {
+        let doc = SexpParser::from(String::from(
+            "(stroke (width 0) (type default) (color 0 0 0 0))",
+        ));
+        let mut count = 0;
+        let mut ends = 0;
+        let mut iter = doc.iter();
+        if let Some(State::StartSymbol(name)) = &iter.next() {
+            count += 1;
+            ends += 1;
+            assert_eq!("stroke", *name);
+        }
+        if let Some(State::StartSymbol(name)) = &iter.next() {
+            count += 1;
+            ends += 1;
+            assert_eq!("width", *name);
+        }
+        if let Some(State::Values(value)) = &iter.next() {
+            count += 1;
+            assert_eq!("0", *value);
+        }
+        if let Some(State::EndSymbol) = &iter.next() {
+            count += 1;
+            ends -= 1;
+        }
+        if let Some(State::StartSymbol(name)) = &iter.next() {
+            count += 1;
+            ends += 1;
+            assert_eq!("type", *name);
+        }
+        if let Some(State::Values(value)) = &iter.next() {
+            count += 1;
+            assert_eq!("default", *value);
+        }
+        if let Some(State::EndSymbol) = &iter.next() {
+            count += 1;
+            ends -= 1;
+        }
+        if let Some(State::StartSymbol(name)) = &iter.next() {
+            count += 1;
+            ends += 1;
+            assert_eq!("color", *name);
+        }
+        if let Some(State::Values(value)) = &iter.next() {
+            count += 1;
+            assert_eq!("0", *value);
+        }
+        if let Some(State::Values(value)) = &iter.next() {
+            count += 1;
+            assert_eq!("0", *value);
+        }
+        if let Some(State::Values(value)) = &iter.next() {
+            count += 1;
+            assert_eq!("0", *value);
+        }
+        if let Some(State::Values(value)) = &iter.next() {
+            count += 1;
+            assert_eq!("0", *value);
+        }
+        if let Some(State::EndSymbol) = &iter.next() {
+            count += 1;
+            ends -= 1;
+        }
+        if let Some(State::EndSymbol) = &iter.next() {
+            count += 1;
+            ends -= 1;
+        }
+        assert_eq!(iter.next(), None);
         assert_eq!(count, 14);
+        assert_eq!(ends, 0);
     }
     #[test]
-    fn test_get_value() {
+    fn next_siebling() {
         let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
         let mut count = 0;
-        for n in doc.iter() {
-            match n {
-                Sexp::Node(ref name, ref _values) if name == "label" => {
-                    count += 1;
-                    let str: String = n.get(0).unwrap();
-                    assert_eq!(String::from("IN_1"), str);
-                    break;
-                }
-                _ => {}
-            }
-        }
-        assert_eq!(count, 1);
-    }
-    #[test]
-    fn test_get_properties() {
-        let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
-        let mut count = 0;
-        for n in doc.iter() {
-            match n {
-                Sexp::Node(ref name, ref _values) if name == "symbol" => {
-                    count += 1;
-                    let properties: Vec<&Sexp> = n.get("property").unwrap();
-                    assert_eq!(properties.len(), 5);
-                    break;
-                }
-                _ => {}
-            }
-        }
-        assert_eq!(count, 1);
-    }
-    #[test]
-    fn test_get_property_hide() {
-        let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
-        let mut count = 0;
-        for n in doc.iter() {
-            match n {
-                Sexp::Node(ref name, ref _values) if name == "symbol" => {
-                    let reference = get_property(n, "Reference").unwrap();
-                    if reference == "R5" {
-                        for val in _values {
-                            match val {
-                                Sexp::Node(name, _) if name == "property" => {
+        let mut iter = doc.iter();
 
-                                    let property_name: String = get!(val, 0).unwrap();
-                                    if property_name == "Footprint" {
-                                        let effects: Vec<&Sexp> = val.get("effects").unwrap();
-                                        assert_eq!(effects.len(), 1);
-                                        assert!(effects.get(0).unwrap().has("hide"));
-                                        count += 1;
-                                    }
+        if let Some(State::StartSymbol(name)) = &iter.next() {
+            count += 1;
+            assert_eq!("kicad_sch", *name);
+        }
+        if let Some(State::StartSymbol(name)) = &iter.next() {
+            count += 1;
+            assert_eq!("version", *name);
+        }
+        if let Some(State::StartSymbol(name)) = &iter.next_siebling() {
+            count += 1;
+            assert_eq!("generator", *name);
+        }
+        if let Some(State::StartSymbol(name)) = &iter.next_siebling() {
+            count += 1;
+            assert_eq!("uuid", *name);
+        }
+        if let Some(State::StartSymbol(name)) = &iter.next_siebling() {
+            count += 1;
+            assert_eq!("paper", *name);
+        }
+        if let Some(State::StartSymbol(name)) = &iter.next_siebling() {
+            count += 1;
+            assert_eq!("title_block", *name);
+        }
+        if let Some(State::StartSymbol(name)) = &iter.next_siebling() {
+            count += 1;
+            assert_eq!("lib_symbols", *name);
+        }
+        if let Some(State::StartSymbol(name)) = &iter.next_siebling() {
+            count += 1;
+            assert_eq!("junction", *name);
+        }
+        assert_eq!(count, 8);
+    }
+
+    #[test]
+    fn search() {
+        let doc =
+            SexpParser::load("samples/files/symbols/Amplifier_Operational.kicad_sym").unwrap();
+        let mut count = 0;
+        let mut iter = doc.iter();
+
+        if let Some(State::StartSymbol(name)) = &iter.next() {
+            if *name == "kicad_symbol_lib" {
+                iter.next(); //take first symbol
+                while let Some(state) = iter.next_siebling() {
+                    if let State::StartSymbol(name) = state {
+                        if name == "symbol" {
+                            if let Some(State::Text(id)) = iter.next() {
+                                if id == "TL072" {
+                                    count += 1;
                                 }
-                                _ => {}
                             }
                         }
                     }
                 }
-                _ => {}
+            } else {
+                panic!("file is not a symbol library")
             }
         }
         assert_eq!(count, 1);
     }
-    #[test]
-    fn test_quoted_string() {
-        let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
-        let mut count = 0;
-        for n in doc.iter() {
-            match n {
-                Sexp::Node(ref name, ref values) if name == "lib_symbols" => {
-                    for symbol in values {
-                        match &symbol {
-                            Sexp::Node(ref name, ref _values) if name == "symbol" => {
-                                let symbol_name: String = get!(symbol, 0).unwrap();
-                                if symbol_name == String::from("power:+15V") {
-                                    count += 1;
-                                    let properties: Vec<&Sexp> = symbol.get("property").unwrap();
-                                    for prop in properties {
-                                        let prop_name: String = get!(prop, 0).unwrap();
-                                        if prop_name == "ki_description" {
-                                            let prop_value: String = get!(prop, 1).unwrap();
-                                            assert_eq!(prop_value, "Power symbol creates a global label with name \\\"+15V\\\"");
-                                        }
-                                    }
-                                    break;
-                                }
-                            }
-                            _ => {}
-                        } 
-                    }
-                }
-                _ => {}
-            }
-        }
-        assert_eq!(count, 1);
-    }
-    #[test]
-    fn test_get_wire_pts() {
-        let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
-        let mut count = 0;
-        for n in doc.iter() {
-            match n {
-                Sexp::Node(ref name, ref _values) if name == "wire" => {
-                    count += 1;
-                    let coords: Array2<f64> = n.get("pts").unwrap();
-                    assert_eq!(coords.len(), 4);
-                    assert_eq!(coords[[0, 0]], 96.52);
-                    assert_eq!(coords[[0, 1]], 33.02);
-                    assert_eq!(coords[[1, 0]], 96.52);
-                    assert_eq!(coords[[1, 1]], 45.72);
-                    break;
-                }
-                _ => {}
-            }
-        }
-        assert_eq!(count, 1);
-    }
-    /* #[test]
-    fn test_get_macro() {
-        let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
-        let mut count = 0;
-        for n in doc.iter() {
-            match n {
-                Sexp::Node(ref name, ref _values) if name == "symbol" => {
-                    count += 1;
-                    let lib_id: String = get!(n, "lib_id", 0).unwrap();
-                    assert_eq!(lib_id, "Device:R");
-                    break;
-                }
-                _ => {}
-            }
-        }
-        assert_eq!(count, 1);
-
-    } */
 }

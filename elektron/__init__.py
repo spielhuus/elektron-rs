@@ -4,7 +4,7 @@ from IPython.display import display, SVG, Image, HTML
 from elektron.elektron import Draw  as RDraw # , ElementType
 from elektron.elektron import Simulation as Simulation # , ElementType
 from elektron.elektron import Circuit as Circuit
-from elektron.elektron import get_bom, schema_plot, schema_netlist, search
+#from elektron.elektron import get_bom, schema_plot, schema_netlist, search
 
 from base64 import standard_b64encode
 import sys
@@ -213,10 +213,11 @@ class Draw():
 
     def plot(self, filename, border: bool, scale: float):
         if filename is None and sys.stdout.isatty():
-            image = self.schema.plot(filename, border, scale, "png")
+            image = self.schema.plot(filename, border, scale)
             write_chunked(a='T', f=100, data=bytearray(image))
+
         elif filename is None:
-            image = self.schema.plot(filename, border, scale, "png")
+            image = self.schema.plot(filename, border, scale)
             display(Image(data=bytearray(image)))
             return ''.join(map(str,image))
         else:
@@ -229,7 +230,7 @@ class Draw():
                 filetype = "pdf"
             else:
                 raise TypeError(f"filetype not found {filename}")
-            self.schema.plot(filename, border, scale, filetype)
+            self.schema.plot(filename, border, scale)
 
         return self
 

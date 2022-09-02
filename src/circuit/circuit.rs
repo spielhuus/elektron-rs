@@ -1,4 +1,4 @@
-use crate::{Error, ngspice::{NgSpice, Callbacks, ComplexSlice}};
+use crate::{spice::{NgSpice, Callbacks, ComplexSlice}, error::Error};
 use std::{fs::{self, File}, io::Write, collections::HashMap};
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -16,7 +16,7 @@ struct Cb {
 }
 impl Callbacks for Cb {
     fn send_char(&mut self, s: &str) {
-        print!("{}\n", s);
+        println!("{}", s); //TODO: make console output optional
         self.strs.push(s.to_string())
     }
 }
@@ -44,7 +44,7 @@ impl Circuit {
     #[new]
     pub fn new(name: String, pathlist: Vec<String>) -> Self {
         Self {
-            name: name.to_string(),
+            name,
             pathlist,
             items: Vec::new(),
             subcircuits: HashMap::new(),
@@ -80,7 +80,7 @@ impl Circuit {
     pub fn voltage(&mut self, reference: String, n1: String, n2: String, value: String) {
         self.items.push(CircuitItem::V(reference, n1, n2, value));
     }
-    fn save(&self, filename: Option<String>) -> PyResult<()> {
+    pub fn save(&self, filename: Option<String>) -> Result<(), Error> {
 
         let mut out: Box<dyn Write> = if let Some(filename) = filename {
             Box::new(File::create(filename).unwrap())
@@ -124,7 +124,7 @@ impl Circuit {
                 },
             }
         }
-        Err(Error::ParseError) //TODO value not found error
+        Err(Error::UnknownCircuitElement(reference.to_string()))
     }
 }
 
@@ -140,16 +140,16 @@ impl Circuit {
                     if let Some(caps) = captures {
                         let text1 = caps.get(1).map_or("", |m| m.as_str());
                         if text1 == key {
-                            result.insert(key.clone(), dir.path().to_str().unwrap().to_string());
+                            result.insert(key, dir.path().to_str().unwrap().to_string());
                             let captures = RE_INCLUDE.captures(&content);
                             if let Some(caps) = captures {
                                 for cap in caps.iter().skip(1) {
                                     let text1 = cap.map_or("", |m| m.as_str());
-                                    if !text1.contains("/") { //when there is no slash i could be
+                                    if !text1.contains('/') { //when there is no slash i could be
                                                               //a relative path.
                                         let mut parent = dir.path().parent().unwrap().to_str().unwrap().to_string();
                                         parent += "/";
-                                        parent += &text1.to_string();
+                                        parent += text1;
                                         result.insert(text1.to_string(), parent.to_string());
                                     } else {
                                         result.insert(text1.to_string(), text1.to_string());
@@ -162,7 +162,7 @@ impl Circuit {
                 }
             }
         }
-        Err(Error::SpiceModelNotFound(key.to_string()))
+        Err(Error::SpiceModelNotFound(key))
     }
 
     fn includes(&self) -> Vec<String> {
@@ -280,7 +280,7 @@ impl Simulation {
                 let name = r.name;
                 let data1 = match r.data {
                     ComplexSlice::Real(list) => {
-                        list.iter().map(|i| i.clone()).collect()
+                        list.iter().map(|i| *i ).collect()
                     },
                     ComplexSlice::Complex(_list) => {
                         //list.into_iter().map(|f| f.parse::<f64>()).collect()

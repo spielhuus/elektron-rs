@@ -3,37 +3,40 @@ name = "elektron"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 name = "elektron"
 crate-type = ["rlib", "cdylib"]
 
+[profile.release]
+# or "z"
+opt-level = "s"
+lto = "fat"
+codegen-units = 1
+
 [dependencies]
 pyo3 = { version = "0.16.5", features = ["extension-module"] }
+thiserror = "1.0.32"
 lazy_static = "1.4.0"
-regex = "1.5.6"
+regex = "1.6.0"
+rust-fuzzy-search = "0.1.1"
+ndarray = "0.15.4"
+itertools = "0.10.3"
+comfy-table = "6.0.0"
 clap = { version = "3", features = ["derive"] }
 json = "0.12.4"
-itertools = "0.10.2"
 png = "0.17.5"
 svg = "0.10.0"
 pdf = "0.7.2"
 cairo-rs = { version = "0.15.11", features = ["svg", "png", "pdf"] }
-ndarray = "0.15.4"
-ngspice-sys = "0.2.1"
-libloading = "0.7.3"
-thiserror = "1.0.31"
-memmap2 = "0.5.4"
-plotly = { version = "0.7.0", features = ["kaleido"] }
 rand = "0.8.5"
 viuer = "0.6.1"
-rust-fuzzy-search = "0.1.1"
+libloading = "0.7.3"
+
+[build-dependencies]
+bindgen = "0.60.1"
 
 [build-system]
 requires = ["setuptools", "wheel", "setuptools-rust"]
-
-#[package.metadata.maturin]
-#python-source = "python"
 
 [features]
 default = ["pyo3/extension-module"]

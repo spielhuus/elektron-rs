@@ -27,14 +27,13 @@ draw.add(Element("U1", "4xxx:4069", value="U1", unit=7, Spice_Primitive="X", Spi
 draw.add(Element("GND", "power:GND", value="GND", unit=1, on_schema="no").at("U1", 14))
 draw.add(Element("GND", "power:+5V", value="+5V", unit=1, on_schema="no").at("U1", 7))
 res = draw.plot(None, False, 3)
-print(res)
 
 draw.write("draw.kicad_sch")
 
-circuit = draw.circuit(["samples/files/spice"])
-circuit.voltage("1", "+5V", "GND", "5V")
-circuit.voltage("2", "INPUT", "GND", "5V SIN(0, 2.5, 100)")
-circuit.save(None)
+# circuit = draw.circuit(["samples/files/spice"])
+# circuit.voltage("1", "+5V", "GND", "5V")
+# circuit.voltage("2", "INPUT", "GND", "5V SIN(0, 2.5, 100)")
+# circuit.save(None)
 
-simulation = Simulation(circuit)
-buffer = simulation.tran("0.02ms", "10ms", "0")
+# simulation = Simulation(circuit)
+# buffer = simulation.tran("0.02ms", "10ms", "0")

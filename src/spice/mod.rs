@@ -1,6 +1,6 @@
 #![warn(elided_lifetimes_in_paths)]
 
-use ngspice_sys::*;
+use crate::{ngspice, ngcomplex, simulation_types};
 use std::ffi::{CStr, CString, NulError};
 use std::os::raw::{c_char, c_int, c_void};
 use libloading::library_filename;
@@ -103,7 +103,7 @@ impl<C: Callbacks> NgSpice<C> {
     pub fn new(c: C) -> Result<std::sync::Arc<NgSpice<C>>, NgSpiceError> {
         unsafe{
             let spice = NgSpice {
-                ngspice: ngspice::new(library_filename("ngspice")).unwrap(),
+                ngspice: ngspice::new(library_filename("ngspice"))?,
                 callbacks: c,
                 exited: false,
             };
@@ -177,12 +177,12 @@ impl<C: Callbacks> NgSpice<C> {
             if let Ok(ptr) = ptr_res {
                 Ok(String::from(ptr))
             } else {
-                return Err(NgSpiceError::EncodingError);
+                Err(NgSpiceError::EncodingError)
             }
         }
     }
 
-    fn all_plots(&self) -> Result<Vec<String>, NgSpiceError> {
+    pub fn all_plots(&self) -> Result<Vec<String>, NgSpiceError> {
         unsafe {
             let ptrs = self.ngspice.ngSpice_AllPlots();
             let mut strs: Vec<String> = Vec::new();
@@ -197,7 +197,7 @@ impl<C: Callbacks> NgSpice<C> {
                 }
                 i+=1;
             }
-            return Ok(strs);
+            Ok(strs)
         }
     }
 
@@ -312,14 +312,14 @@ mod tests {
             "stdout hello"
         );
         spice.circuit(vec![
-                String::from(".title KiCad schematic"),
-                String::from(".MODEL FAKE_NMOS NMOS (LEVEL=3 VTO=0.75)"),
-                String::from(".save all @m1[gm] @m1[id] @m1[vgs] @m1[vds] @m1[vto]"),
-                String::from("R1 /vdd /drain 10k"),
-                String::from("M1 /drain /gate GND GND FAKE_NMOS W=10u L=1u"),
-                String::from("V1 /vdd GND dc(5)"),
-                String::from("V2 /gate GND dc(2)"),
-                String::from(".end"),
+                ".title KiCad schematic".to_string(),
+                ".MODEL FAKE_NMOS NMOS (LEVEL=3 VTO=0.75)".to_string(),
+                ".save all @m1[gm] @m1[id] @m1[vgs] @m1[vds] @m1[vto]".to_string(),
+                "R1 /vdd /drain 10k".to_string(),
+                "M1 /drain /gate GND GND FAKE_NMOS W=10u L=1u".to_string(),
+                "V1 /vdd GND dc(5)".to_string(),
+                "V2 /gate GND dc(2)".to_string(),
+                ".end".to_string(),
             ])
             .expect("circuit failed");
         {
