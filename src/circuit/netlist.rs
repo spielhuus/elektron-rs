@@ -322,12 +322,15 @@ impl<'a> Netlist<'a> {
                             nodes[1].clone(),
                             spice_value.unwrap(),
                         );
-                    } else {
-                        println!("->> {} {}{}", reference, seq_string, spice_value.unwrap());
+                    } else if std::env::var("ELEKTRON_DEBUG").is_ok() {
+                        println!(
+                            "Unkknwon Reference: {} {}{}",
+                            reference,
+                            seq_string,
+                            spice_value.unwrap()
+                        );
                     }
-                } /* _ => {
-                      spice_primitive.unwrap();
-                  } */
+                }
             }
         }
         Ok(())

@@ -134,6 +134,24 @@ impl Theme {
             "#;
         Theme::new(content.to_string())
     }
+    pub fn mono() -> Theme {
+        let content = r#"(theme
+            (wire (stroke (width 0.254) (type default) (color 1 1 1 1)))
+            (junction (stroke (width 0.254) (type default) (color 1 1 1 1)))
+            (no_connect (stroke (width 0.254) (type default) (color 1 1 1 1)))
+            (symbol (stroke (width 0.254) (type default) (color 1 1 1 1)))
+            (pin (stroke (width 0.254) (type default) (color 1 1 1 1)))
+            (border_stroke (stroke (width 0.254) (type default) (color 1 1 1 1)))
+            (label (effects (font (size 1.27 1.27))))
+            (property (effects (font (size 1.27 1.27))))
+            (pin_number (effects (font (size 1.27 1.27))))
+            (text (effects (font (size 5.0 5.0))))
+            (border_effects (effects (font (size 2.54 2.54))))
+            (subtitle_effects (effects (font (size 2.54 2.54))))
+            (title_effects (effects (font (size 5.0 5.0))))
+            "#;
+        Theme::new(content.to_string())
+    }
     pub fn stroke(&self, name: &str) -> Result<Stroke, Error> {
         if let Some(ThemeItems::Stroke(stroke)) = &self.items.get(name) {
             Ok(stroke.clone())

@@ -145,11 +145,11 @@ pub struct Dot {
 impl Dot {
     #[new]
     fn new() -> Self {
-            Dot {
-                pos: vec![0.0, 0.0],
-                atref: None,
-                atpin: None,
-            }
+        Dot {
+            pos: vec![0.0, 0.0],
+            atref: None,
+            atpin: None,
+        }
     }
     pub fn at<'py>(
         mut slf: PyRefMut<'py, Self>,
@@ -227,26 +227,22 @@ impl Element {
         } else {
             None
         };
-            Element {
-                reference,
-                library,
-                value,
-                unit,
-                args,
-                angle: 0.0,
-                pin: 1,
-                atref: None,
-                atpin: None,
-                atdot: None,
-                endpos: None,
-                mirror: None,
-            }
+        Element {
+            reference,
+            library,
+            value,
+            unit,
+            args,
+            angle: 0.0,
+            pin: 1,
+            atref: None,
+            atpin: None,
+            atdot: None,
+            endpos: None,
+            mirror: None,
+        }
     }
-    pub fn anchor<'py>(
-        mut slf: PyRefMut<'py, Self>,
-        _py: Python,
-        pin: u32,
-    ) -> PyRefMut<'py, Self> {
+    pub fn anchor<'py>(mut slf: PyRefMut<'py, Self>, _py: Python, pin: u32) -> PyRefMut<'py, Self> {
         slf.pin = pin;
         slf
     }

@@ -188,8 +188,8 @@ impl Schema {
         } else {
             ImageType::Pdf
         };
-        let theme = if theme == "kicad_2000" {
-            Theme::kicad_2000() //TODO:
+        let theme = if theme == "mono" {
+            Theme::mono()
         } else {
             Theme::kicad_2000()
         };
@@ -242,7 +242,6 @@ impl Schema {
                     wire.write(out, 1)?;
                 }
                 SchemaElement::Label(label) => {
-                    println!("found label {:?}", label);
                     label.write(out, 1)?;
                 }
                 SchemaElement::GlobalLabel(global_label) => {

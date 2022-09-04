@@ -82,31 +82,25 @@ impl Draw {
     fn add(&mut self, item: &'_ PyAny) -> PyResult<()> {
         let line: Result<model::Line, PyErr> = item.extract();
         if let Ok(line) = line {
-            println!("Add Item: {:?}", line);
             self.add_line(line)?;
             return Ok(());
         }
 
         let dot: PyResult<PyRefMut<model::Dot>> = item.extract();
         if let Ok(mut dot) = dot {
-            println!("Add Item: {:?}", dot);
             if dot.pos == vec![0.0, 0.0] {
-                println!("== set dot position: {:?}", self.last_pos);
                 dot.pos = vec![self.last_pos[0], self.last_pos[1]];
-                println!("==? set dot position: {:?}", dot);
             }
             self.add_dot(&dot)?;
             return Ok(());
         }
         let label: Result<model::Label, PyErr> = item.extract();
         if let Ok(label) = label {
-            println!("Add Item: {:?}", label);
             self.add_label(label)?;
             return Ok(());
         }
         let element: Result<model::Element, PyErr> = item.extract();
         if let Ok(element) = element {
-            println!("Add Item: {:?}", element);
             self.add_symbol(element)?;
             return Ok(());
         }
@@ -185,14 +179,11 @@ impl Draw {
         } else if let (Some(atpin), Some(atref)) = (line.atpin, line.atref) {
             self.pin_pos(atref, atpin)
         } else {
-            println!("++ Line from last_pos: {:?}", self.last_pos);
             self.last_pos.clone()
         };
         let end_pos = if let Some(end) = line.tox {
-            println!("++ Line to tox: {:?}", end);
             arr1(&[end[0], start_pos[1]])
         } else if let Some(end) = line.toy {
-            println!("++ Line to toy: {:?}", end);
             arr1(&[start_pos[0], end[1]])
         } else {
             match line.direction {
@@ -261,10 +252,6 @@ impl Draw {
                             Stroke::new(),
                             uuid!(),
                         )));
-                        println!(
-                            "!!! set last pos: {}",
-                            arr1(&[pos[0] + 2.0 * wire_len + sym_len, pos[1]])
-                        );
                         self.last_pos = arr1(&[pos[0] + 2.0 * wire_len + sym_len, pos[1]]);
                     }
                 }

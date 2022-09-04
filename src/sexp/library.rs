@@ -67,7 +67,6 @@ impl Library {
         let t: Vec<&str> = name.split(':').collect();
         for path in &self.pathlist {
             let filename = &format!("{}/{}.kicad_sym", path, t[0]);
-            println!("load library: {}->{}", name, filename);
             let doc = SexpParser::load(filename).unwrap();
 
             for symbol in doc.iter().node() {

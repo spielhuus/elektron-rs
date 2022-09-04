@@ -130,7 +130,7 @@ impl<C: Callbacks> NgSpice<C> {
             let raw = cs.into_raw();
             unsafe {
                 let ret = self.ngspice.ngSpice_Command(raw);
-            drop(CString::from_raw(raw));
+                drop(CString::from_raw(raw));
                 if ret == 0 {
                     Ok(())
                 } else {
@@ -155,7 +155,7 @@ impl<C: Callbacks> NgSpice<C> {
                 let res = self.ngspice.ngSpice_Circ(buf.as_mut_ptr());
                 for b in buf {
                     if !b.is_null() {
-            drop(CString::from_raw(b));
+                        drop(CString::from_raw(b));
                     }
                 }
                 if res == 1 {
@@ -206,7 +206,7 @@ impl<C: Callbacks> NgSpice<C> {
             let raw = cs.into_raw();
             unsafe {
                 let ptrs = self.ngspice.ngSpice_AllVecs(raw);
-            drop(CString::from_raw(raw));
+                drop(CString::from_raw(raw));
                 let mut strs: Vec<String> = Vec::new();
                 let mut i = 0;
                 while !(*ptrs.offset(i)).is_null() {

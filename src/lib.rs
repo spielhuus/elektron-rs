@@ -15,7 +15,7 @@ mod spice;
 pub use crate::error::Error;
 
 use rand::Rng;
-use std::{fs::File, io::Write};
+use std::fs::File;
 use viuer::{print_from_file, Config};
 
 use pyo3::prelude::*;

@@ -17,7 +17,7 @@ macro_rules! color {
     };
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum PaperSize {
     A5,
     A4,
