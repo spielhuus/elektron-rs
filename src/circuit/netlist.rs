@@ -1,19 +1,14 @@
-use crate::sexp::model::{LibrarySymbol, Pin, SchemaElement, Symbol};
-use crate::sexp::{Shape, Transform};
 use crate::error::Error;
+use crate::sexp::model::{LibrarySymbol, Pin, SchemaElement, Symbol};
+use crate::sexp::{Schema, Shape, Transform};
 
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
 use super::circuit::Circuit;
 
-fn pins<'a>(
-    lib_id: &str,
-    unit: i32,
-    libraries: &'a HashMap<String, LibrarySymbol>,
-) -> Vec<&'a Pin> {
+fn pins(unit: i32, library: &LibrarySymbol) -> Vec<&Pin> {
     let mut items: Vec<&Pin> = Vec::new();
-    let library = libraries.get(lib_id).unwrap();
     for _unit in &library.symbols {
         if unit == 0 || _unit.unit == 0 || _unit.unit == unit {
             for pin in &_unit.pin {
@@ -23,18 +18,12 @@ fn pins<'a>(
     }
     items
 }
-fn pin_names(
-    lib_id: &str,
-    libraries: &HashMap<String, LibrarySymbol>,
-) -> Result<HashMap<String, (Pin, i32)>, Error> {
+fn pin_names(library: &LibrarySymbol) -> Result<HashMap<String, (Pin, i32)>, Error> {
     let mut pins = HashMap::new();
-    if libraries.contains_key(lib_id) {
-        let lib = libraries.get(lib_id).unwrap();
-        for symbol in &lib.symbols {
-            //search the pins
-            for pin in &symbol.pin {
-                pins.insert(pin.number.0.clone(), (pin.clone(), symbol.unit));
-            }
+    for symbol in &library.symbols {
+        //search the pins
+        for pin in &symbol.pin {
+            pins.insert(pin.number.0.clone(), (pin.clone(), symbol.unit));
         }
     }
     Ok(pins)
@@ -60,8 +49,8 @@ impl Hash for Point {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.x.to_bits().hash(state);
         self.y.to_bits().hash(state);
-            /* std::mem::transmute::<f64, u64>(self.x).hash(state);
-            std::mem::transmute::<f64, u64>(self.y).hash(state); */
+        /* std::mem::transmute::<f64, u64>(self.x).hash(state);
+        std::mem::transmute::<f64, u64>(self.y).hash(state); */
     }
 }
 
@@ -86,50 +75,45 @@ impl NetlistItem {
 ///
 /// Create a netlist as a graph.
 ///
-pub struct Netlist {
-    libraries: std::collections::HashMap<String, LibrarySymbol>,
+pub struct Netlist<'a> {
+    schema: &'a Schema,
     symbols: HashMap<String, Vec<Symbol>>,
     pub netlists: Vec<NetlistItem>,
     pub nodes: HashMap<Point, usize>,
 }
 
-impl Netlist {
-    pub fn from<T: Iterator<Item = SchemaElement>>(document: &mut T) -> Result<Self, Error> {
-        let mut libraries: HashMap<String, LibrarySymbol> = HashMap::new();
+impl<'a> Netlist<'a> {
+    pub fn from(schema: &'a Schema) -> Result<Self, Error> {
         let mut nodes: HashMap<Point, usize> = std::collections::HashMap::new();
         let mut netlists: Vec<NetlistItem> = Vec::new();
         let mut symbols: HashMap<String, Vec<Symbol>> = HashMap::new();
 
-        for node in document {
-            if let SchemaElement::LibrarySymbols(symbols) = node {
-                libraries = symbols;
-            } else if let SchemaElement::Symbol(symbol) = node {
-                pins(&symbol.lib_id, symbol.unit, &libraries)
-                    .iter()
-                    .for_each(|el| {
-                        let library = libraries.get(&symbol.lib_id).unwrap();
-                        let identifier: Option<String> = if library.power {
-                            symbol.get_property("Value")
+        for node in schema.iter_all() {
+            if let SchemaElement::Symbol(symbol) = node {
+                let library = schema.get_library(&symbol.lib_id).unwrap();
+                pins(symbol.unit, library).iter().for_each(|el| {
+                    let identifier: Option<String> = if library.power {
+                        symbol.get_property("Value")
+                    } else {
+                        None
+                    };
+                    let pts = Shape::transform(symbol, &el.at);
+                    let p0 = Point::new(pts[0], pts[1]);
+                    if let std::collections::hash_map::Entry::Vacant(e) = nodes.entry(p0) {
+                        netlists.push(NetlistItem::new(identifier, el.pin_type.clone(), p0));
+                        e.insert(netlists.len() - 1);
+                    } else {
+                        let id = if identifier.is_some() {
+                            identifier
                         } else {
-                            None
+                            let nl: usize = *nodes.get_mut(&p0).unwrap();
+                            netlists[nl].identifier.clone()
                         };
-                        let pts = Shape::transform(&symbol, &el.at);
-                        let p0 = Point::new(pts[0], pts[1]);
-                         if let std::collections::hash_map::Entry::Vacant(e) = nodes.entry(p0) {
-                             netlists.push(NetlistItem::new(identifier, el.pin_type.clone(), p0));
-                             e.insert(netlists.len() - 1);
-                         } else {
-                             let id = if identifier.is_some() {
-                                 identifier
-                             } else {
-                                 let nl: usize = *nodes.get_mut(&p0).unwrap();
-                                 netlists[nl].identifier.clone()
-                             };
-                             let nl: usize = *nodes.get_mut(&p0).unwrap();
-                             netlists[nl].netlist_type = el.pin_type.clone();
-                             netlists[nl].identifier = id;
-                         }
-                    });
+                        let nl: usize = *nodes.get_mut(&p0).unwrap();
+                        netlists[nl].netlist_type = el.pin_type.clone();
+                        netlists[nl].identifier = id;
+                    }
+                });
                 let reference: String = symbol.get_property("Reference").unwrap();
                 symbols
                     .entry(reference)
@@ -159,49 +143,49 @@ impl Netlist {
                 }
             } else if let SchemaElement::Label(label) = node {
                 let p0 = Point::new(label.at[0], label.at[1]);
-                 if let std::collections::hash_map::Entry::Vacant(e) = nodes.entry(p0) {
-                     netlists.push(NetlistItem::new(
-                         Option::from(label.text),
-                         "".to_string(),
-                         p0,
-                     ));
-                     e.insert(netlists.len() - 1);
-                 } else {
-                     let nl: usize = *nodes.get_mut(&p0).unwrap();
-                     netlists[nl].identifier = Option::from(label.text);
-                 }
+                if let std::collections::hash_map::Entry::Vacant(e) = nodes.entry(p0) {
+                    netlists.push(NetlistItem::new(
+                        Option::from(label.text.clone()),
+                        "".to_string(),
+                        p0,
+                    ));
+                    e.insert(netlists.len() - 1);
+                } else {
+                    let nl: usize = *nodes.get_mut(&p0).unwrap();
+                    netlists[nl].identifier = Option::from(label.text.clone());
+                }
             } else if let SchemaElement::GlobalLabel(label) = node {
                 let p0 = Point::new(label.at[0], label.at[1]);
-                 if let std::collections::hash_map::Entry::Vacant(e) = nodes.entry(p0) {
-                     netlists.push(NetlistItem::new(
-                         Option::from(label.text),
-                         "global_label".to_string(),
-                         p0,
-                     ));
-                     e.insert(netlists.len() - 1);
-                 } else {
-                     let nl: usize = *nodes.get(&p0).unwrap();
-                     netlists[nl].identifier = Option::from(label.text);
-                 }
+                if let std::collections::hash_map::Entry::Vacant(e) = nodes.entry(p0) {
+                    netlists.push(NetlistItem::new(
+                        Option::from(label.text.clone()),
+                        "global_label".to_string(),
+                        p0,
+                    ));
+                    e.insert(netlists.len() - 1);
+                } else {
+                    let nl: usize = *nodes.get(&p0).unwrap();
+                    netlists[nl].identifier = Option::from(label.text.clone());
+                }
             } else if let SchemaElement::NoConnect(nc) = node {
                 let p0 = Point::new(nc.at[0], nc.at[1]);
-                 if let std::collections::hash_map::Entry::Vacant(e) = nodes.entry(p0) {
-                     netlists.push(NetlistItem::new(
-                         Option::from("NC".to_string()),
-                         "no_connect".to_string(),
-                         p0,
-                     ));
-                     e.insert(netlists.len() - 1);
-                 } else {
-                     let nl: usize = *nodes.get_mut(&p0).unwrap();
-                     netlists[nl].identifier = Option::from("NC".to_string());
-                     netlists[nl].netlist_type = "no_connect".to_string();
-                 }
+                if let std::collections::hash_map::Entry::Vacant(e) = nodes.entry(p0) {
+                    netlists.push(NetlistItem::new(
+                        Option::from("NC".to_string()),
+                        "no_connect".to_string(),
+                        p0,
+                    ));
+                    e.insert(netlists.len() - 1);
+                } else {
+                    let nl: usize = *nodes.get_mut(&p0).unwrap();
+                    netlists[nl].identifier = Option::from("NC".to_string());
+                    netlists[nl].netlist_type = "no_connect".to_string();
+                }
             }
         }
 
         Ok(Netlist {
-            libraries,
+            schema,
             symbols,
             netlists,
             nodes,
@@ -236,7 +220,8 @@ impl Netlist {
             }
 
             //create the pin order
-            let my_pins = pin_names(&first_symbol.lib_id, &self.libraries).unwrap();
+            let my_pins =
+                pin_names(self.schema.get_library(&first_symbol.lib_id).unwrap()).unwrap();
             let mut pin_sequence: Vec<usize> = (0..my_pins.len()).collect();
 
             //when Node_Sequence is defined, use it
@@ -340,10 +325,9 @@ impl Netlist {
                     } else {
                         println!("->> {} {}{}", reference, seq_string, spice_value.unwrap());
                     }
-                }
-                /* _ => {
-                    spice_primitive.unwrap();
-                } */
+                } /* _ => {
+                      spice_primitive.unwrap();
+                  } */
             }
         }
         Ok(())

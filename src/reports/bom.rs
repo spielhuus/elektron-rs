@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{sexp::model::SchemaElement, error::Error};
+use crate::{error::Error, sexp::model::SchemaElement};
 
 #[derive(Debug, Clone)]
 pub struct BomItem {
@@ -25,12 +25,18 @@ fn reference(value: &str) -> String {
     format!("{}{:0>4}", reference_characters, reference_numbers)
 }
 
-pub fn bom<T: Iterator<Item = SchemaElement>>(document: &mut T, group: bool) -> Result<Vec<BomItem>, Error> {
+pub fn bom<'a, T: Iterator<Item = &'a SchemaElement>>(
+    document: &'a mut T,
+    group: bool,
+) -> Result<Vec<BomItem>, Error> {
     let mut bom_items: Vec<BomItem> = Vec::new();
     loop {
         match document.next() {
             Some(SchemaElement::Symbol(symbol)) => {
-                if symbol.unit == 1 && !symbol.lib_id.starts_with("power:") && !symbol.lib_id.starts_with("Mechanical:") {
+                if symbol.unit == 1
+                    && !symbol.lib_id.starts_with("power:")
+                    && !symbol.lib_id.starts_with("Mechanical:")
+                {
                     bom_items.push(BomItem {
                         amount: 1,
                         references: vec![symbol.get_property("Reference").unwrap()],
@@ -39,11 +45,15 @@ pub fn bom<T: Iterator<Item = SchemaElement>>(document: &mut T, group: bool) -> 
                         datasheet: symbol.get_property("Datasheet").unwrap(),
                         description: if let Some(description) = symbol.get_property("Description") {
                             description
-                        } else { String::new() },
+                        } else {
+                            String::new()
+                        },
                     });
                 }
             }
-            None => { break; },
+            None => {
+                break;
+            }
             _ => {}
         }
     }
@@ -53,11 +63,6 @@ pub fn bom<T: Iterator<Item = SchemaElement>>(document: &mut T, group: bool) -> 
         for item in &bom_items {
             let key = format!("{}:{}", item.value, item.footprint);
             map.entry(key).or_insert(Vec::new()).push(item);
-            /* if map.contains_key(&key) {
-                map.get_mut(&key).unwrap().push(item);
-            } else {
-                map.insert(key, vec![item]);
-            } */
         }
         bom_items = map
             .iter()
@@ -90,13 +95,12 @@ pub fn bom<T: Iterator<Item = SchemaElement>>(document: &mut T, group: bool) -> 
 #[cfg(test)]
 mod tests {
     use super::bom;
-    use crate::sexp::SexpParser;
-    use crate::sexp::SchemaIterator;
+    use crate::sexp::Schema;
 
     #[test]
     fn test_bom() {
-        let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
-        let result = bom(&mut doc.iter().node(), true).unwrap();
+        let schema = Schema::load("samples/files/summe/summe.kicad_sch").unwrap();
+        let result = bom(&mut schema.iter(0), true).unwrap();
         assert_eq!(4, result.len());
     }
 }

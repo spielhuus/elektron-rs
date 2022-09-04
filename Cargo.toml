@@ -7,11 +7,11 @@ edition = "2021"
 name = "elektron"
 crate-type = ["rlib", "cdylib"]
 
-[profile.release]
-# or "z"
-opt-level = "s"
-lto = "fat"
-codegen-units = 1
+# [profile.release]
+# # or "z"
+# opt-level = "s"
+# lto = "fat"
+# codegen-units = 1
 
 [dependencies]
 pyo3 = { version = "0.16.5", features = ["extension-module"] }

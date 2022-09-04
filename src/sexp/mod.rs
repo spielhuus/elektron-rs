@@ -5,8 +5,7 @@ pub mod schema;
 mod shape;
 mod write;
 
-pub use self::parser::{SexpParser, State};
-pub use self::schema::SchemaIterator;
-pub use self::shape::{Shape, Transform, Bounds};
-pub use self::write::write;
 pub use self::library::Library;
+pub use self::parser::{SexpParser, State};
+pub use self::schema::Schema;
+pub use self::shape::{Bounds, Shape, Transform};

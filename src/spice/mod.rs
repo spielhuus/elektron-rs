@@ -1,12 +1,12 @@
 #![warn(elided_lifetimes_in_paths)]
 
-use crate::{ngspice, ngcomplex, simulation_types};
+//use crate::{ngspice, ngcomplex, simulation_types};
+use crate::{ngcomplex, ngspice, simulation_types};
+use libloading::library_filename;
+use std::collections::HashMap;
+use std::convert::TryInto;
 use std::ffi::{CStr, CString, NulError};
 use std::os::raw::{c_char, c_int, c_void};
-use libloading::library_filename;
-use std::convert::TryInto;
-use std::collections::HashMap;
-
 
 #[derive(Debug)]
 pub enum NgSpiceError {
@@ -25,7 +25,7 @@ pub struct NgSpice<C> {
 #[derive(Debug)]
 pub enum ComplexSlice<'a> {
     Real(&'a [f64]),
-    Complex(&'a [ngcomplex])
+    Complex(&'a [ngcomplex]),
 }
 
 #[derive(Debug)]
@@ -41,10 +41,12 @@ pub struct SimulationResult<'a, C: Callbacks> {
     sim: std::sync::Arc<NgSpice<C>>,
 }
 
-impl <'a, C: Callbacks> Drop for SimulationResult<'a, C> {
+impl<'a, C: Callbacks> Drop for SimulationResult<'a, C> {
     fn drop(&mut self) {
         let cmd = format!("destroy {}", self.name.as_str());
-        self.sim.command(cmd.as_str()).expect("Failed to free simulation");
+        self.sim
+            .command(cmd.as_str())
+            .expect("Failed to free simulation");
     }
 }
 
@@ -101,9 +103,9 @@ impl From<libloading::Error> for NgSpiceError {
 
 impl<C: Callbacks> NgSpice<C> {
     pub fn new(c: C) -> Result<std::sync::Arc<NgSpice<C>>, NgSpiceError> {
-        unsafe{
+        unsafe {
             let spice = NgSpice {
-                ngspice: ngspice::new(library_filename("ngspice"))?,
+                ngspice: ngspice::new(library_filename("ngspice")).unwrap(),
                 callbacks: c,
                 exited: false,
             };
@@ -195,7 +197,7 @@ impl<C: Callbacks> NgSpice<C> {
                 } else {
                     return Err(NgSpiceError::EncodingError);
                 }
-                i+=1;
+                i += 1;
             }
             Ok(strs)
         }
@@ -218,7 +220,7 @@ impl<C: Callbacks> NgSpice<C> {
                     } else {
                         return Err(NgSpiceError::EncodingError);
                     }
-                    i+=1;
+                    i += 1;
                 }
                 Ok(strs)
             }
@@ -243,16 +245,16 @@ impl<C: Callbacks> NgSpice<C> {
                     name: s,
                     dtype: typ,
                     data: ComplexSlice::Real(real_slice),
-                })
-            }else if !vecinfo.v_compdata.is_null() {
+                });
+            } else if !vecinfo.v_compdata.is_null() {
                 let comp_slice = std::slice::from_raw_parts_mut(vecinfo.v_compdata, len);
                 return Ok(VectorInfo {
                     name: s,
                     dtype: typ,
                     data: ComplexSlice::Complex(comp_slice),
-                })
+                });
             } else {
-                return Err(NgSpiceError::EncodingError)
+                return Err(NgSpiceError::EncodingError);
             }
         }
     }
@@ -311,7 +313,8 @@ mod tests {
             spice.callbacks.strs.last().unwrap_or(&String::new()),
             "stdout hello"
         );
-        spice.circuit(vec![
+        spice
+            .circuit(vec![
                 ".title KiCad schematic".to_string(),
                 ".MODEL FAKE_NMOS NMOS (LEVEL=3 VTO=0.75)".to_string(),
                 ".save all @m1[gm] @m1[id] @m1[vgs] @m1[vds] @m1[vto]".to_string(),

@@ -1,3 +1,3 @@
 mod bom;
 
-pub use bom::{bom, BomItem};
+pub use self::bom::{bom, BomItem};

@@ -1,8 +1,15 @@
-use crate::{spice::{NgSpice, Callbacks, ComplexSlice}, error::Error};
-use std::{fs::{self, File}, io::Write, collections::HashMap};
+use crate::{
+    error::Error,
+    spice::{Callbacks, ComplexSlice, NgSpice},
+};
 use lazy_static::lazy_static;
-use regex::Regex;
 use pyo3::prelude::*;
+use regex::Regex;
+use std::{
+    collections::HashMap,
+    fs::{self, File},
+    io::Write,
+};
 
 lazy_static! {
     pub static ref RE_SUBCKT: regex::Regex =
@@ -68,12 +75,22 @@ impl Circuit {
             .push(CircuitItem::Q(reference, n0, n1, n2, value));
     }
 
-    pub fn circuit(&mut self, reference: String, n: Vec<String>, value: String) -> Result<(), Error>{
+    pub fn circuit(
+        &mut self,
+        reference: String,
+        n: Vec<String>,
+        value: String,
+    ) -> Result<(), Error> {
         //TODO self.get_includes(&value)?;
         self.items.push(CircuitItem::X(reference, n, value));
         Ok(())
     }
-    pub fn subcircuit(&mut self, name: String, n: Vec<String>, circuit: Circuit) -> Result<(), Error>{
+    pub fn subcircuit(
+        &mut self,
+        name: String,
+        n: Vec<String>,
+        circuit: Circuit,
+    ) -> Result<(), Error> {
         self.subcircuits.insert(name, (n, circuit));
         Ok(())
     }
@@ -81,7 +98,6 @@ impl Circuit {
         self.items.push(CircuitItem::V(reference, n1, n2, value));
     }
     pub fn save(&self, filename: Option<String>) -> Result<(), Error> {
-
         let mut out: Box<dyn Write> = if let Some(filename) = filename {
             Box::new(File::create(filename).unwrap())
         } else {
@@ -93,7 +109,7 @@ impl Circuit {
         out.flush()?;
         Ok(())
     }
-    pub fn set_value(&mut self, reference: &str, value: &str) -> Result<(), Error>{
+    pub fn set_value(&mut self, reference: &str, value: &str) -> Result<(), Error> {
         for item in &mut self.items.iter_mut() {
             match item {
                 CircuitItem::R(r, _, _, ref mut v) => {
@@ -101,27 +117,27 @@ impl Circuit {
                         *v = value.to_string();
                         return Ok(());
                     }
-                },
+                }
                 CircuitItem::C(r, _, _, ref mut v) => {
                     if reference == r {
                         *v = value.to_string();
                         return Ok(());
                     }
-                },
+                }
                 CircuitItem::D(r, _, _, ref mut v) => {
                     if reference == r {
                         *v = value.to_string();
                         return Ok(());
                     }
-                },
-                CircuitItem::Q(_, _, _, _, _) => {},
+                }
+                CircuitItem::Q(_, _, _, _, _) => {}
                 CircuitItem::X(_, _, _) => {}
                 CircuitItem::V(r, _, _, ref mut v) => {
                     if reference == r {
                         *v = value.to_string();
                         return Ok(());
                     }
-                },
+                }
             }
         }
         Err(Error::UnknownCircuitElement(reference.to_string()))
@@ -145,9 +161,16 @@ impl Circuit {
                             if let Some(caps) = captures {
                                 for cap in caps.iter().skip(1) {
                                     let text1 = cap.map_or("", |m| m.as_str());
-                                    if !text1.contains('/') { //when there is no slash i could be
-                                                              //a relative path.
-                                        let mut parent = dir.path().parent().unwrap().to_str().unwrap().to_string();
+                                    if !text1.contains('/') {
+                                        //when there is no slash i could be
+                                        //a relative path.
+                                        let mut parent = dir
+                                            .path()
+                                            .parent()
+                                            .unwrap()
+                                            .to_str()
+                                            .unwrap()
+                                            .to_string();
                                         parent += "/";
                                         parent += text1;
                                         result.insert(text1.to_string(), parent.to_string());
@@ -169,7 +192,7 @@ impl Circuit {
         let mut includes: HashMap<String, String> = HashMap::new();
         for item in &self.items {
             if let CircuitItem::X(_, _, value) = item {
-                if !includes.contains_key(value) && !self.subcircuits.contains_key(value){
+                if !includes.contains_key(value) && !self.subcircuits.contains_key(value) {
                     let incs = self.get_includes(value.to_string()).unwrap();
                     for (key, value) in incs {
                         if !includes.contains_key(&key) {
@@ -200,27 +223,27 @@ impl Circuit {
             match item {
                 CircuitItem::R(reference, n0, n1, value) => {
                     res.push(format!("R{} {} {} {}", reference, n0, n1, value));
-                },
+                }
                 CircuitItem::C(reference, n0, n1, value) => {
                     res.push(format!("C{} {} {} {}", reference, n0, n1, value));
-                },
+                }
                 CircuitItem::D(reference, n0, n1, value) => {
                     res.push(format!("{} {} {} {}", reference, n0, n1, value));
-                },
+                }
                 CircuitItem::Q(reference, n0, n1, n2, value) => {
                     res.push(format!("Q{} {} {} {} {}", reference, n0, n1, n2, value));
-                },
+                }
                 CircuitItem::X(reference, n, value) => {
                     let mut nodes: String = String::new();
                     for _n in n {
                         nodes += _n;
                         nodes += " ";
-                    };
+                    }
                     res.push(format!("X{} {}{}", reference, nodes, value));
-                },
+                }
                 CircuitItem::V(reference, n0, n1, value) => {
                     res.push(format!("V{} {} {} {}", reference, n0, n1, value));
-                },
+                }
             }
         }
         //TODO add options
@@ -242,7 +265,6 @@ pub struct Simulation {
 /// TODO create simulatio file
 #[pymethods]
 impl Simulation {
-
     /* fn subcircuit(&mut self, circuit: SubCircuit) -> None:
     """
     Add a subcircuit.
@@ -257,11 +279,9 @@ impl Simulation {
         self.subcircuit.insert(name.to_string(), circuit);
     } */
 
-
     #[new]
     pub fn new(circuit: Circuit) -> Self {
-
-        let c =  Cb { strs: Vec::new() };
+        let c = Cb { strs: Vec::new() };
         Self {
             circuit,
             ngspice: NgSpice::new(c).unwrap(),
@@ -270,7 +290,9 @@ impl Simulation {
     fn tran(&self, step: &str, stop: &str, start: &str) -> HashMap<String, Vec<f64>> {
         let circ = self.circuit.to_str(true).unwrap();
         self.ngspice.circuit(circ).unwrap();
-        self.ngspice.command(format!("tran {} {} {}", step, stop, start).as_str()).unwrap(); //TODO
+        self.ngspice
+            .command(format!("tran {} {} {}", step, stop, start).as_str())
+            .unwrap(); //TODO
         let plot = self.ngspice.current_plot().unwrap();
         let res = self.ngspice.all_vecs(plot.as_str()).unwrap();
         let mut map: HashMap<String, Vec<f64>> = HashMap::new();
@@ -279,9 +301,7 @@ impl Simulation {
             for r in re {
                 let name = r.name;
                 let data1 = match r.data {
-                    ComplexSlice::Real(list) => {
-                        list.iter().map(|i| *i ).collect()
-                    },
+                    ComplexSlice::Real(list) => list.iter().map(|i| *i).collect(),
                     ComplexSlice::Complex(_list) => {
                         //list.into_iter().map(|f| f.parse::<f64>()).collect()
                         println!("found complex list"); //TODO use this result

@@ -1,5 +1,5 @@
-mod netlist;
 mod circuit;
+mod netlist;
 
-pub use self::netlist::Netlist;
 pub use self::circuit::{Circuit, Simulation};
+pub use self::netlist::Netlist;

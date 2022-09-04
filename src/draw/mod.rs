@@ -1,28 +1,22 @@
-use crate::circuit::Circuit;
-use crate::plot::Theme;
-use crate::plot::{PlotIterator, Plotter};
+use crate::circuit::{Circuit, Netlist};
+use crate::error::Error;
 use crate::sexp::model::{
-    Effects, Junction, Label, LibrarySymbol, Pin, Property, SchemaElement, SheetInstance, Stroke,
-    Symbol, SymbolInstance, TitleBlock, Wire,
+    Effects, Junction, Label, LibrarySymbol, Pin, Property, SchemaElement, Stroke, Symbol, Wire,
 };
-use crate::sexp::{self, Bounds, Library, Shape, Transform};
-use crate::Error;
-use crate::{CairoPlotter, ImageType};
+use crate::sexp::{Bounds, Library, Schema, Shape, Transform};
 use itertools::Itertools;
 use pyo3::prelude::*;
-use std::collections::HashMap;
 use std::env::temp_dir;
-use std::fs::{self, File};
-use std::io::{Read, Write};
+use std::fs::File;
+use viuer::{print_from_file, Config};
 
 use ndarray::{arr1, arr2, Array1};
 use rand::Rng;
 use uuid::Uuid;
 
-mod model;
+pub mod model;
 
 const LABEL_BORDER: f64 = 2.54;
-const LABEL_MIN_BORDER: f64 = 5.06;
 
 macro_rules! uuid {
     () => {
@@ -32,13 +26,11 @@ macro_rules! uuid {
 
 macro_rules! round {
     ($val: expr) => {
-        $val.iter()
-            .map(|v| format!("{:.2}", v).parse::<f64>().unwrap())
-            .collect()
+        $val.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap())
     };
 }
 
-pub fn get_pin(symbol: &LibrarySymbol, number: i32) -> Result<&Pin, Error> {
+pub fn get_pin(symbol: &LibrarySymbol, number: u32) -> Result<&Pin, Error> {
     for s in &symbol.symbols {
         for p in &s.pin {
             if p.number.0 == number.to_string() {
@@ -71,16 +63,9 @@ fn sort_properties(a: &&mut Property, b: &&mut Property) -> std::cmp::Ordering {
 
 #[pyclass]
 pub struct Draw {
-    version: String,
-    generator: String,
-    uuid: String,
-    paper: String,
-    title_block: TitleBlock,
-    pub elements: Vec<SchemaElement>,
-    libraries: HashMap<String, LibrarySymbol>,
-    sheet_instance: Vec<SheetInstance>,
-    symbol_instance: Vec<SymbolInstance>,
+    schema: Schema,
     libs: Library,
+    last_pos: Array1<f64>,
 }
 
 #[pymethods]
@@ -88,169 +73,54 @@ impl Draw {
     #[new]
     pub fn new(library_path: Vec<String>) -> Self {
         Self {
-            version: String::from("20211123"),
-            generator: String::from("elektron"),
-            uuid: uuid!(),
-            paper: String::from("A4"),
-            title_block: TitleBlock::new(),
-            elements: Vec::<SchemaElement>::new(),
-            libraries: HashMap::<String, LibrarySymbol>::new(),
-            sheet_instance: vec![SheetInstance::new("/", 1)],
-            symbol_instance: Vec::<SymbolInstance>::new(),
+            schema: Schema::new(),
             libs: Library::new(library_path),
+            last_pos: arr1(&[10.0, 10.0]),
         }
     }
 
-    fn pin_pos(&mut self, reference: &str, number: usize) -> Vec<f64> {
-        let symbol = self.get_symbol(reference, 1).unwrap();
-        let library = self.get_library(&symbol.lib_id).unwrap();
-        for subsymbol in library.symbols {
-            for pin in subsymbol.pin {
-                if pin.number.0 == number.to_string() {
-                    //TODO: Type
-                    let real_symbol = self.get_symbol(reference, subsymbol.unit).unwrap();
-                    let at: Array1<f64> = Shape::transform(&real_symbol, &pin.at);
-                    return vec![at[0], at[1]];
-                }
+    fn add(&mut self, item: &'_ PyAny) -> PyResult<()> {
+        let line: Result<model::Line, PyErr> = item.extract();
+        if let Ok(line) = line {
+            println!("Add Item: {:?}", line);
+            self.add_line(line)?;
+            return Ok(());
+        }
+
+        let dot: PyResult<PyRefMut<model::Dot>> = item.extract();
+        if let Ok(mut dot) = dot {
+            println!("Add Item: {:?}", dot);
+            if dot.pos == vec![0.0, 0.0] {
+                println!("== set dot position: {:?}", self.last_pos);
+                dot.pos = vec![self.last_pos[0], self.last_pos[1]];
+                println!("==? set dot position: {:?}", dot);
             }
+            self.add_dot(&dot)?;
+            return Ok(());
         }
-        panic!("pin not found {}:{}", reference, number); //TODO return error
-    }
-    fn wire(&mut self, start: Vec<f64>, end: Vec<f64>) {
-        let pts: Vec<f64> = round!(start);
-        let end: Vec<f64> = round!(end);
-        self.elements.push(SchemaElement::Wire(Wire::new(
-            arr2(&[[pts[0], pts[1]], [end[0], end[1]]]),
-            Stroke::new(),
-            uuid!(),
-        )));
-    }
-    fn junction(&mut self, pos: Vec<f64>) {
-        let pos: Vec<f64> = round!(pos);
-        self.elements.push(SchemaElement::Junction(Junction::new(
-            arr1(&[pos[0], pos[1]]),
-            uuid!(),
-        )));
-    }
-    fn label(&mut self, name: &str, pos: Vec<f64>, angle: f64) {
-        let pos: Vec<f64> = round!(pos);
-        self.elements.push(SchemaElement::Label(Label::new(
-            arr1(&[pos[0], pos[1]]),
-            angle,
-            name,
-            uuid!(),
-        )));
-    }
-    fn symbol(
-        &mut self,
-        reference: &str,
-        value: &str,
-        library: &str,
-        unit: i32,
-        pos: Vec<f64>,
-        pin: usize,
-        angle: f64,
-        mirror: String,
-        end_pos: Option<f64>,
-        properties: HashMap<String, String>,
-    ) {
-        let pos: Vec<f64> = round!(pos);
-        let lib_symbol = self.get_library(library).unwrap();
-        let sym_pin = get_pin(&lib_symbol, pin as i32).unwrap(); //TODO: remove cast
-
-        // transform pin pos
-        let theta = -angle.to_radians();
-        let rot = arr2(&[[theta.cos(), -theta.sin()], [theta.sin(), theta.cos()]]);
-        let mut verts: Array1<f64> = sym_pin.at.dot(&rot);
-        verts = verts.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
-        verts = arr1(&[pos[0], pos[1]]) - &verts;
-
-        if let Some(end_pos) = end_pos {
-            let pins = get_pins(&lib_symbol, unit).unwrap();
-            if pins.len() == 2 {
-                for p in pins {
-                    if p.number.0 != unit.to_string() {
-                        //TODO: What is that?
-                        let mut verts2: Array1<f64> = p.at.dot(&rot);
-                        verts2 = verts2.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
-                        //TODO verts = verts.dot(sexp::MIRROR.get(mirror.as_str()).unwrap());
-                        verts2 = arr1(&[pos[0], pos[1]]) - &verts2;
-                        let sym_len = verts[0] - verts2[0];
-                        let wire_len = ((end_pos - pos[0]) - sym_len) / 2.0;
-                        verts = verts + arr1(&[wire_len, 0.0]);
-                        let mut wire1 = arr2(&[[pos[0], pos[1]], [pos[0] + wire_len, pos[1]]]);
-                        wire1 = wire1.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
-                        let mut wire2 = arr2(&[
-                            [pos[0] + wire_len + sym_len, pos[1]],
-                            [pos[0] + 2.0 * wire_len + sym_len, pos[1]],
-                        ]);
-                        wire2 = wire2.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
-                        self.elements.push(SchemaElement::Wire(Wire::new(
-                            wire1,
-                            Stroke::new(),
-                            uuid!(),
-                        )));
-                        self.elements.push(SchemaElement::Wire(Wire::new(
-                            wire2,
-                            Stroke::new(),
-                            uuid!(),
-                        )));
-                    }
-                }
-            }
+        let label: Result<model::Label, PyErr> = item.extract();
+        if let Ok(label) = label {
+            println!("Add Item: {:?}", label);
+            self.add_label(label)?;
+            return Ok(());
         }
-
-        verts = verts.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
-        let mut symbol = Symbol::from_library(
-            &lib_symbol,
-            verts.clone(),
-            angle,
-            unit,
-            reference.to_string(),
-            value.to_string(),
-        );
-        symbol.on_schema = if let Some(on_schema) = properties.get("on_schema") {
-            on_schema == "yes"
-        } else {
-            true
-        };
-        // add the extra properties
-        for (k, v) in properties.into_iter() {
-            if k != "on_schema" {
-                symbol
-                    .property
-                    .push(Property::new(k, v, 0, verts.clone(), 0.0, Effects::hidden()));
-            }
+        let element: Result<model::Element, PyErr> = item.extract();
+        if let Ok(element) = element {
+            println!("Add Item: {:?}", element);
+            self.add_symbol(element)?;
+            return Ok(());
         }
-        self.place_property(&mut symbol).unwrap();
-        self.symbol_instance.push(SymbolInstance::new(
-            symbol.uuid.clone(),
-            reference.to_string(),
-            unit,
-            value.to_string(),
-            String::new(), /* TODO footprint.to_string()*/
-        ));
-        self.elements.push(SchemaElement::Symbol(symbol));
+        panic!("Item not found {:?}", item);
     }
 
     pub fn write(&mut self, filename: Option<String>) -> Result<(), Error> {
-        match self._write() {
-            Ok(doc) => {
-                if let Some(output) = filename {
-                    //check_directory(&output)?;
-                    let mut out = File::create(output)?;
-                    let iter = doc.into_iter();
-                    sexp::write(&mut out, iter)?;
-                } else {
-                    let iter = doc.into_iter();
-                    sexp::write(&mut std::io::stdout(), iter)?;
-                }
-            }
-            Err(err) => {
-                println!("{:?}", err);
-            }
+        if let Some(output) = filename {
+            //TODO: check_directory(&output)?;
+            let mut out = File::create(output)?;
+            self.schema.write(&mut out)
+        } else {
+            self.schema.write(&mut std::io::stdout())
         }
-        Ok(())
     }
 
     pub fn plot(
@@ -259,104 +129,221 @@ impl Draw {
         border: bool,
         scale: f64,
     ) -> Result<Vec<u8>, Error> {
-        let doc = self._write().unwrap();
-
-        let theme = Theme::kicad_2000();
-        let iter = doc.into_iter().plot(theme, border).flatten().collect();
-
         if let Some(filename) = filename {
-            let image_type = if filename.ends_with(".svg") {
-                ImageType::Svg
-            } else if filename.ends_with(".png") {
-                ImageType::Png
-            } else {
-                ImageType::Pdf
-            };
-
-            let mut cairo = CairoPlotter::new(&iter);
-            let out: Box<dyn Write> = Box::new(File::create(filename)?);
-            cairo.plot(out, border, scale, image_type)?;
-            Ok(Vec::new())
+            self.schema.plot(filename, scale, border, "kicad_2000")?;
         } else {
             let mut rng = rand::thread_rng();
             let num: u32 = rng.gen();
             let filename =
                 String::new() + temp_dir().to_str().unwrap() + "/" + &num.to_string() + ".png";
-            let mut cairo = CairoPlotter::new(&iter);
-            let out: Box<dyn Write> = Box::new(File::create(filename.clone())?);
-            cairo.plot(out, border, scale, ImageType::Png)?;
-            let mut f = File::open(&filename).expect("no file found");
-            let metadata = fs::metadata(&filename).expect("unable to read metadata");
-            let mut buffer = vec![0; metadata.len() as usize];
-            f.read_exact(&mut buffer).expect("buffer overflow");
-            Ok(buffer)
-            // print_from_file(&filename, &Config::default()).expect("Image printing failed.");
-        }
-        /* let theme = if let Some(theme) = theme {
-            if theme == "kicad_2000" {
-                Theme::kicad_2000() //TODO:
-            } else {
-                Theme::kicad_2000()
-            }
-        } else {
-            Theme::kicad_2000()
-        }; */
+            self.schema
+                .plot(filename.as_str(), scale, border, "kicad_2000")?;
+            print_from_file(&filename, &Config::default()).unwrap();
+        };
+        Ok(vec![0])
     }
     pub fn circuit(&mut self, pathlist: Vec<String>) -> Circuit {
-        /* let mut circuit: Circuit = Circuit::new("circuit from draw".to_string(), pathlist);
-        match self._write() {
-            Ok(doc) => {
-                let mut netlist = Box::new(Netlist::from(&doc));
-                netlist.dump(&mut circuit).unwrap();
-                return circuit;
-            }
-            Err(err) => {
-                println!("{:?}", err);
-            }
-        } */
-        panic!();
+        let mut netlist = Netlist::from(&self.schema).unwrap();
+        let mut circuit = Circuit::new(String::from("draw circuit"), pathlist);
+        netlist.dump(&mut circuit).unwrap();
+        circuit
     }
 }
 
 impl Draw {
-    /// return a library symbol when it exists or load it from the libraries.
-    fn get_library(&mut self, name: &str) -> Result<LibrarySymbol, Error> {
-        Ok(self
-            .libraries
-            .entry(name.to_string())
-            .or_insert_with(|| {
-                let mut lib = self.libs.get(name).unwrap();
-                lib.lib_id = name.to_string();
-                lib
-            })
-            .clone())
+    fn add_dot(&mut self, dot: &model::Dot) -> Result<(), Error> {
+        self.schema.push(SchemaElement::Junction(Junction::new(
+            round!(arr1(&[dot.pos[0], dot.pos[1]])),
+            uuid!(),
+        )));
+        Ok(())
     }
+    fn add_label(&mut self, label: model::Label) -> Result<(), Error> {
+        /* let start_pos = if let (Some(atpin), Some(atref)) = (label.atpin, label.atref) {
+            self.pin_pos(atref, atpin)
+        } else {
+            self.last_pos.clone()
+        }; */
+        let pos = self.last_pos.clone();
+        let mut new_label = Label::new(
+            round!(arr1(&[pos[0], pos[1]])),
+            label.angle,
+            label.name.as_str(),
+            uuid!(),
+        );
+        if label.angle == 180.0 {
+            new_label.effects.justify.push("right".to_string());
+        } else {
+            new_label.effects.justify.push("left".to_string());
+        }
+        self.schema.push(SchemaElement::Label(new_label));
+        Ok(())
+    }
+    fn add_line(&mut self, line: model::Line) -> Result<(), Error> {
+        let start_pos = if let Some(atdot) = line.atdot {
+            arr1(&[atdot.pos[0], atdot.pos[1]])
+        } else if let (Some(atpin), Some(atref)) = (line.atpin, line.atref) {
+            self.pin_pos(atref, atpin)
+        } else {
+            println!("++ Line from last_pos: {:?}", self.last_pos);
+            self.last_pos.clone()
+        };
+        let end_pos = if let Some(end) = line.tox {
+            println!("++ Line to tox: {:?}", end);
+            arr1(&[end[0], start_pos[1]])
+        } else if let Some(end) = line.toy {
+            println!("++ Line to toy: {:?}", end);
+            arr1(&[start_pos[0], end[1]])
+        } else {
+            match line.direction {
+                model::Direction::Up => arr1(&[start_pos[0], start_pos[1] - line.length]),
+                model::Direction::Down => arr1(&[start_pos[0], start_pos[1] + line.length]),
+                model::Direction::Left => arr1(&[start_pos[0] - line.length, start_pos[1]]),
+                model::Direction::Right => arr1(&[start_pos[0] + line.length, start_pos[1]]),
+            }
+        };
+        self.schema.push(SchemaElement::Wire(Wire::new(
+            round!(arr2(&[
+                [start_pos[0], start_pos[1]],
+                [end_pos[0], end_pos[1]]
+            ])),
+            Stroke::new(),
+            uuid!(),
+        )));
+        self.last_pos = end_pos;
+        Ok(())
+    }
+    fn add_symbol(&mut self, element: model::Element) -> Result<(), Error> {
+        let lib_symbol = self.get_library(element.library.as_str()).unwrap();
+        let sym_pin = get_pin(&lib_symbol, element.pin).unwrap(); //TODO: remove cast
 
-    /// get the symbol by reference and unit from this schema.
-    fn get_symbol(&mut self, reference: &str, unit: i32) -> Result<Symbol, Error> {
-        for l in &self.elements {
-            if let SchemaElement::Symbol(symbol) = l {
-                let _ref = symbol.get_property("Reference").unwrap();
-                if reference == _ref && unit == symbol.unit {
-                    return Ok(symbol.clone());
+        let pos = if let (Some(atref), Some(atpin)) = (element.atref, element.atpin) {
+            self.pin_pos(atref, atpin)
+        } else if let Some(dot) = element.atdot {
+            arr1(&[dot.pos[0], dot.pos[1]])
+        } else {
+            self.last_pos.clone()
+        };
+        // transform pin pos
+        let theta = -element.angle.to_radians();
+        let rot = arr2(&[[theta.cos(), -theta.sin()], [theta.sin(), theta.cos()]]);
+        let mut verts: Array1<f64> = sym_pin.at.dot(&rot);
+        verts = verts.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
+        verts = arr1(&[pos[0], pos[1]]) - &verts;
+
+        if let Some(end_pos) = element.endpos {
+            let pins = get_pins(&lib_symbol, element.unit as i32).unwrap(); //TODO:
+            if pins.len() == 2 {
+                for p in pins {
+                    if p.number.0 != element.unit.to_string() {
+                        //TODO: What is that?
+                        let mut verts2: Array1<f64> = p.at.dot(&rot);
+                        verts2 = verts2.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
+                        //TODO verts = verts.dot(sexp::MIRROR.get(mirror.as_str()).unwrap());
+                        verts2 = arr1(&[pos[0], pos[1]]) - &verts2;
+                        let sym_len = verts[0] - verts2[0];
+                        let wire_len = ((end_pos[0] - pos[0]) - sym_len) / 2.0;
+                        verts = verts + arr1(&[wire_len, 0.0]);
+                        let mut wire1 = arr2(&[[pos[0], pos[1]], [pos[0] + wire_len, pos[1]]]);
+                        wire1 = wire1.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
+                        let mut wire2 = arr2(&[
+                            [pos[0] + wire_len + sym_len, pos[1]],
+                            [pos[0] + 2.0 * wire_len + sym_len, pos[1]],
+                        ]);
+                        wire2 = wire2.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
+                        self.schema.push(SchemaElement::Wire(Wire::new(
+                            wire1,
+                            Stroke::new(),
+                            uuid!(),
+                        )));
+                        self.schema.push(SchemaElement::Wire(Wire::new(
+                            wire2,
+                            Stroke::new(),
+                            uuid!(),
+                        )));
+                        println!(
+                            "!!! set last pos: {}",
+                            arr1(&[pos[0] + 2.0 * wire_len + sym_len, pos[1]])
+                        );
+                        self.last_pos = arr1(&[pos[0] + 2.0 * wire_len + sym_len, pos[1]]);
+                    }
                 }
             }
         }
-        Err(Error::SymbolNotFound(reference.to_string()))
+
+        let mut symbol = Symbol::from_library(
+            &lib_symbol,
+            round!(verts.clone()),
+            element.angle,
+            element.unit as i32, //TODO:
+            element.reference.to_string(),
+            element.value.to_string(),
+        );
+        if let Some(properties) = element.args {
+            symbol.on_schema = if let Some(on_schema) = properties.get("on_schema") {
+                on_schema == "yes"
+            } else {
+                true
+            };
+            // add the extra properties
+            for (k, v) in properties.into_iter() {
+                if k != "on_schema" {
+                    symbol.property.push(Property::new(
+                        k,
+                        v,
+                        0,
+                        round!(verts.clone()),
+                        0.0,
+                        Effects::hidden(),
+                    ));
+                }
+            }
+        }
+        self.place_property(&mut symbol).unwrap();
+        /* self.symbol_instance.push(SymbolInstance::new(
+            symbol.uuid.clone(),
+            reference.to_string(),
+            unit,
+            value.to_string(),
+            String::new(), /* TODO footprint.to_string()*/
+        )); */
+        self.schema.push(SchemaElement::Symbol(symbol));
+        self.get_library(&element.library)?;
+
+        Ok(())
     }
 
-    fn _write(&mut self) -> Result<Vec<SchemaElement>, Error> {
-        let mut doc = Vec::new();
-        doc.push(SchemaElement::Version(self.version.clone()));
-        doc.push(SchemaElement::Generator(self.generator.clone()));
-        doc.push(SchemaElement::Uuid(self.uuid.clone()));
-        doc.push(SchemaElement::Paper(self.paper.clone()));
-        doc.push(SchemaElement::TitleBlock(self.title_block.clone()));
-        doc.push(SchemaElement::LibrarySymbols(self.libraries.clone()));
-        doc.append(&mut self.elements.clone());
-        doc.push(SchemaElement::SheetInstance(self.sheet_instance.clone()));
-        doc.push(SchemaElement::SymbolInstance(self.symbol_instance.clone()));
-        Ok(doc)
+    fn pin_pos(&self, reference: String, number: String) -> Array1<f64> {
+        let symbol = self.schema.get_symbol(reference.as_str(), 1).unwrap();
+        let library = self.schema.get_library(symbol.lib_id.as_str()).unwrap();
+        for subsymbol in &library.symbols {
+            for pin in &subsymbol.pin {
+                if pin.number.0 == number {
+                    //TODO: Type
+                    let real_symbol = self
+                        .get_symbol(reference.as_str(), subsymbol.unit as u32)
+                        .unwrap();
+                    return Shape::transform(real_symbol, &pin.at);
+                }
+            }
+        }
+        panic!("pin not found {}:{}", reference, number); //TODO return error
+    }
+    /// return a library symbol when it exists or load it from the libraries.
+    fn get_library(&mut self, name: &str) -> Result<LibrarySymbol, Error> {
+        if let Some(lib) = self.schema.get_library(name) {
+            Ok(lib.clone())
+        } else {
+            let mut lib = self.libs.get(name).unwrap();
+            lib.lib_id = name.to_string();
+            self.schema.libraries.push(lib.clone());
+            Ok(lib)
+        }
+    }
+
+    /// get the symbol by reference and unit from this schema.
+    fn get_symbol(&self, reference: &str, unit: u32) -> Option<&Symbol> {
+        self.schema.get_symbol(reference, unit)
     }
 
     fn place_property(&mut self, symbol: &mut Symbol) -> Result<(), Error> {
@@ -520,7 +507,12 @@ impl Draw {
         let mut position: Vec<usize> = vec![0; 4];
         let symbol_shift: usize = (symbol.angle / 90.0).round() as usize;
 
-        for pin in get_pins(self.libraries.get(&symbol.lib_id).unwrap(), symbol.unit).unwrap() {
+        for pin in get_pins(
+            self.schema.get_library(&symbol.lib_id).unwrap(),
+            symbol.unit,
+        )
+        .unwrap()
+        {
             let lib_pos: usize = (pin.angle / 90.0).round() as usize;
             position[lib_pos] += 1;
         }

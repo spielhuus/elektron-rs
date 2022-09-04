@@ -2,7 +2,7 @@ use lazy_static::lazy_static;
 use ndarray::{arr2, s, Array, Array1, Array2};
 use std::collections::HashMap;
 
-use crate::Error;
+use crate::error::Error;
 
 use super::model::{Graph, LibrarySymbol, Symbol};
 

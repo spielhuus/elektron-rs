@@ -1,11 +1,10 @@
-
+mod border;
 mod cairo_plotter;
 mod schema;
 mod theme;
-mod border;
 
-pub use self::schema::{SchemaPlot, PlotIterator};
-pub use self::cairo_plotter::{ImageType, Plotter, PlotItem, CairoPlotter};
+pub use self::cairo_plotter::{CairoPlotter, ImageType, PlotItem, Plotter};
+pub use self::schema::{PlotIterator, SchemaPlot};
 pub use self::theme::{Theme, Themer};
 
 macro_rules! text {

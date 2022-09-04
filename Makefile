@@ -31,6 +31,8 @@ clean:
 	rm -rf elektron.egg-info
 	rm -rf target
 	rm -rf $(VENV)
+	rm -rf elektron/elektron.cpython-310-x86_64-linux-gnu.so
+	rm -rf elektron/__pycache__
 
 $(VENV)/bin/elektron: $(VENV)/bin/activate $(SOURCES)
 	$(PYTHON) setup.py $(release)

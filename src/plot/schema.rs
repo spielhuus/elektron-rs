@@ -1,42 +1,33 @@
-use std::collections::HashMap;
-
-use itertools::Itertools;
 use ndarray::{arr1, arr2, Array1, Array2};
 
-use super::border::{draw_border, paper};
 use super::cairo_plotter::{Circle, Line, PlotItem, Text};
 use super::theme::{Theme, Themer, ThemerMerge};
 use crate::plot::cairo_plotter::{Arc, Polyline, Rectangle};
 use crate::plot::text;
-use crate::sexp::model::{Graph, LibrarySymbol, Property, SchemaElement};
-use crate::sexp::{Shape, Transform};
+use crate::sexp::model::{Graph, SchemaElement};
+use crate::sexp::{Schema, Shape, Transform};
 
-pub struct SchemaPlot<I> {
+pub struct SchemaPlot<'a, I> {
     iter: I,
     theme: Theme,
     border: bool,
-    paper: String,
-    libraries: HashMap<String, LibrarySymbol>,
+    schema: &'a Schema,
 }
 
-impl<I> Iterator for SchemaPlot<I>
+impl<'a, I> Iterator for SchemaPlot<'a, I>
 where
-    I: Iterator<Item = SchemaElement>,
+    I: Iterator<Item = &'a SchemaElement>,
 {
     type Item = Vec<PlotItem>;
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             match self.iter.next() {
-                Some(SchemaElement::Version(_))
-                | Some(SchemaElement::Generator(_))
-                | Some(SchemaElement::Uuid(_))
-                | Some(SchemaElement::SymbolInstance(_)) => {}
+                Some(SchemaElement::SymbolInstance(_)) => {}
                 Some(SchemaElement::Sheet(sheet)) => {
                     let prop = sheet
                         .property
                         .iter()
-                        .filter(|p| p.key == "Sheet name")
-                        .next()
+                        .find(|p| p.key == "Sheet name")
                         .unwrap();
                     let effects = Themer::get(&prop.effects, &self.theme.effects("text").unwrap());
                     let stroke = Themer::get(&sheet.stroke, &self.theme.stroke("symbol").unwrap());
@@ -69,22 +60,7 @@ where
                     ]);
                 }
                 Some(SchemaElement::SheetInstance(sheet_instance)) => {
-                    return Some(vec![PlotItem::SheetInstance(sheet_instance)]);
-                }
-                Some(SchemaElement::Paper(paper)) => {
-                    return Some(vec![PlotItem::Paper(paper)]);
-                }
-                Some(SchemaElement::TitleBlock(title_block)) => {
-                    if self.border {
-                        return Some(
-                            draw_border(
-                                Some(&title_block),
-                                paper::A4,
-                                /*self.paper.clone(),*/ &self.theme,
-                            )
-                            .unwrap(),
-                        );
-                    }
+                    // return Some(vec![PlotItem::SheetInstance(sheet_instance)]); //TODO:
                 }
                 Some(SchemaElement::Wire(wire)) => {
                     let stroke = self.theme.stroke("wire").unwrap();
@@ -92,7 +68,7 @@ where
                         (PlotItem::LineItem(
                             10,
                             Line::new(
-                                wire.pts,
+                                wire.pts.clone(),
                                 stroke.width,
                                 stroke.linetype.clone(),
                                 stroke.color,
@@ -102,7 +78,7 @@ where
                 }
                 Some(SchemaElement::Text(text)) => {
                     let effects = Themer::get(&text.effects, &self.theme.effects("text").unwrap());
-                    let pos: Array1<f64> = text.at;
+                    let pos: Array1<f64> = text.at.clone();
                     let mut angle: f64 = text.angle;
                     if angle >= 180.0 {
                         //dont know why this is possible
@@ -113,7 +89,7 @@ where
                         Text::new(
                             pos,
                             angle,
-                            text.text,
+                            text.text.clone(),
                             effects.color,
                             effects.font_size.0,
                             effects.font.as_str(),
@@ -121,12 +97,9 @@ where
                         ),
                     )]);
                 }
-                Some(SchemaElement::LibrarySymbols(libraries)) => {
-                    self.libraries = libraries;
-                }
                 Some(SchemaElement::NoConnect(no_connect)) => {
                     let stroke = self.theme.stroke("no_connect").unwrap();
-                    let pos: Array1<f64> = no_connect.at;
+                    let pos: Array1<f64> = no_connect.at.clone();
                     let lines1 = arr2(&[[-0.8, 0.8], [0.8, -0.8]]) + &pos;
                     let lines2 = arr2(&[[0.8, 0.8], [-0.8, -0.8]]) + &pos;
 
@@ -142,22 +115,23 @@ where
                     ]);
                 }
                 Some(SchemaElement::Junction(junction)) => {
+                    let stroke = self.theme.stroke("junction").unwrap();
                     return Some(vec![PlotItem::CircleItem(
                         99,
                         Circle::new(
-                            junction.at,
+                            junction.at.clone(),
                             0.35,
-                            0.1,
-                            String::from("default"),
-                            junction.color,
-                            Option::from(junction.color),
+                            stroke.width,
+                            stroke.linetype,
+                            stroke.color,
+                            Option::from(stroke.color),
                         ),
                     )]);
                 }
                 Some(SchemaElement::Label(label)) => {
                     let effects =
                         Themer::get(&label.effects, &self.theme.effects("label").unwrap());
-                    let pos: Array1<f64> = label.at;
+                    let pos: Array1<f64> = label.at.clone();
                     let mut angle: f64 = label.angle;
                     if angle >= 180.0 {
                         //dont know why this is possible
@@ -168,7 +142,7 @@ where
                         Text::new(
                             pos,
                             angle,
-                            label.text,
+                            label.text.clone(),
                             effects.color,
                             effects.font_size.0,
                             effects.font.as_str(),
@@ -178,7 +152,7 @@ where
                 }
                 Some(SchemaElement::GlobalLabel(label)) => {
                     let effects = self.theme.effects("label").unwrap();
-                    let pos: Array1<f64> = label.at;
+                    let pos: Array1<f64> = label.at.clone();
                     let mut angle: f64 = label.angle;
                     if angle >= 180.0 {
                         //TODO: dont know why this is possible
@@ -189,7 +163,7 @@ where
                         Text::new(
                             pos,
                             angle,
-                            label.text,
+                            label.text.clone(),
                             effects.color,
                             effects.font_size.0,
                             effects.font.as_str(),
@@ -237,8 +211,8 @@ where
                             }
                         }
 
-                        if let Some(lib) = self.libraries.get(&symbol.lib_id) {
-                            for _unit in &self.libraries.get(&symbol.lib_id).unwrap().symbols {
+                        if let Some(lib) = self.schema.get_library(&symbol.lib_id) {
+                            for _unit in &self.schema.get_library(&symbol.lib_id).unwrap().symbols {
                                 if _unit.unit == 0 || _unit.unit == symbol.unit {
                                     for graph in &_unit.graph {
                                         match graph {
@@ -251,7 +225,7 @@ where
                                                 items.push(PlotItem::PolylineItem(
                                                     1,
                                                     Polyline::new(
-                                                        Shape::transform(&symbol, &polyline.pts),
+                                                        Shape::transform(symbol, &polyline.pts),
                                                         stroke.color,
                                                         stroke.width,
                                                         stroke.linetype,
@@ -272,7 +246,7 @@ where
                                                 items.push(PlotItem::RectangleItem(
                                                     1,
                                                     Rectangle::new(
-                                                        Shape::transform(&symbol, &pts),
+                                                        Shape::transform(symbol, &pts),
                                                         stroke.color,
                                                         stroke.width,
                                                         stroke.linetype,
@@ -289,7 +263,7 @@ where
                                                 items.push(PlotItem::CircleItem(
                                                     1,
                                                     Circle::new(
-                                                        Shape::transform(&symbol, &circle.center),
+                                                        Shape::transform(symbol, &circle.center),
                                                         circle.radius,
                                                         stroke.width,
                                                         stroke.linetype,
@@ -307,7 +281,7 @@ where
                                                 items.push(PlotItem::ArcItem(
                                                     1,
                                                     Arc::new(
-                                                        Shape::transform(&symbol, &arc.start),
+                                                        Shape::transform(symbol, &arc.start),
                                                         arc.mid.clone(),
                                                         arc.end.clone(),
                                                         stroke.width,
@@ -324,7 +298,7 @@ where
                                                 );
                                                 // let z: usize = if let None = _fill_color { 10 } else { 1 };
                                                 items.push(text!(
-                                                    Shape::transform(&symbol, &text.at),
+                                                    Shape::transform(symbol, &text.at),
                                                     text.angle,
                                                     text.text.clone(),
                                                     effects
@@ -350,7 +324,7 @@ where
                                         items.push(PlotItem::LineItem(
                                             10,
                                             Line::new(
-                                                Shape::transform(&symbol, &pin_line),
+                                                Shape::transform(symbol, &pin_line),
                                                 stroke.width,
                                                 stroke.linetype,
                                                 stroke.color,
@@ -376,7 +350,7 @@ where
 
                                             let effects = self.theme.effects("pin_number").unwrap();
                                             items.push(text!(
-                                                Shape::transform(&symbol, &npos),
+                                                Shape::transform(symbol, &npos),
                                                 0.0,
                                                 pin.number.0.clone(),
                                                 effects
@@ -395,7 +369,7 @@ where
                                             items.push(PlotItem::TextItem(
                                                 99,
                                                 Text::new(
-                                                    Shape::transform(&symbol, &name_pos),
+                                                    Shape::transform(symbol, &name_pos),
                                                     0.0,
                                                     pin.name.0.clone(),
                                                     (1.0, 0.0, 0.0, 1.0),
@@ -413,7 +387,7 @@ where
                             items.push(PlotItem::RectangleItem(
                                 10,
                                 Rectangle::new(
-                                    Shape::transform(&symbol, &pts),
+                                    Shape::transform(symbol, &pts),
                                     (1.0, 0.0, 0.0, 1.0),
                                     0.35,
                                     String::from("default"),
@@ -444,21 +418,20 @@ where
     }
 }
 
-impl<I> SchemaPlot<I> {
-    pub fn new(iter: I, theme: Theme, border: bool) -> Self {
+impl<'a, I> SchemaPlot<'a, I> {
+    pub fn new(iter: I, schema: &'a Schema, theme: Theme, border: bool) -> Self {
         Self {
             iter,
             theme,
             border,
-            paper: String::new(),
-            libraries: HashMap::new(),
+            schema,
         }
     }
 }
 
 pub trait PlotIterator<T>: Iterator<Item = T> + Sized {
-    fn plot(self, theme: Theme, border: bool) -> SchemaPlot<Self> {
-        SchemaPlot::new(self, theme, border)
+    fn plot(self, schema: &'_ Schema, theme: Theme, border: bool) -> SchemaPlot<Self> {
+        SchemaPlot::new(self, schema, theme, border)
     }
 }
 impl<T, I: Iterator<Item = T>> PlotIterator<T> for I {}
@@ -467,15 +440,13 @@ impl<T, I: Iterator<Item = T>> PlotIterator<T> for I {}
 mod tests {
     use super::PlotIterator;
     use crate::plot::theme::Theme;
-    use crate::sexp::SchemaIterator;
+    use crate::sexp::Schema;
     use crate::sexp::SexpParser;
     use itertools::Itertools;
 
     #[test]
     fn bom() {
-        let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
-        /* TODO:  doc.iter().node().plot(Theme::kicad_2000()).flattten().for_each(|n| {
-            println!("{:?}", n);
-        }); */
+        let doc = Schema::load("samples/files/summe/summe.kicad_sch").unwrap();
+        doc.plot("/tmp/summe.svg", 1.0, true, "kicad_2000");
     }
 }

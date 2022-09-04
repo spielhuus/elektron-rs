@@ -1,5 +1,4 @@
-git+https://github.com/PyO3/setuptools-rust@main
+#git+https://github.com/PyO3/setuptools-rust@main
+setuptools-rust
 setuptools
 wheel
-numpy
-ipython

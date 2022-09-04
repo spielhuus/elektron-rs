@@ -1,11 +1,11 @@
 #!/usr/bin/env python
-import sys
-
 from setuptools import setup
 from setuptools_rust import RustBin
-from setuptools_rust import RustExtension
-
+from setuptools_rust import Binding, RustExtension
 setup(
+    name="elektron",
+    version="0.1",
+    packages=["elektron"],
     rust_extensions=[
         RustExtension("elektron.elektron"),
         RustBin("elektron"),

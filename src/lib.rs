@@ -4,30 +4,28 @@
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
-pub mod circuit;
-pub mod draw;
-pub mod error;
-pub mod plot;
-pub mod reports;
+mod circuit;
+mod draw;
+mod error;
+mod plot;
+mod reports;
 pub mod sexp;
-pub mod spice;
+mod spice;
 
 pub use crate::error::Error;
 
+use rand::Rng;
 use std::{fs::File, io::Write};
+use viuer::{print_from_file, Config};
 
 use pyo3::prelude::*;
 use rust_fuzzy_search::fuzzy_compare;
-
-use crate::{
-    plot::{CairoPlotter, ImageType, Theme},
-    sexp::model::{SchemaElement, Sheet},
-};
+use std::env::temp_dir;
 
 use self::{
     circuit::{Circuit, Netlist},
     reports::BomItem,
-    sexp::{model::LibrarySymbol, SchemaIterator, SexpParser, State},
+    sexp::{model::LibrarySymbol, Schema, SexpParser, State},
 };
 
 pub fn check_directory(filename: &str) -> Result<(), Error> {
@@ -42,8 +40,8 @@ pub fn check_directory(filename: &str) -> Result<(), Error> {
 }
 
 pub fn bom(filename: &str, group: bool) -> Result<Vec<BomItem>, Error> {
-    let doc = SexpParser::load(filename)?;
-    reports::bom(&mut doc.iter().node(), group)
+    let schema = Schema::load(filename)?;
+    reports::bom(&mut schema.iter_all(), group)
 }
 
 pub fn netlist(
@@ -51,26 +49,22 @@ pub fn netlist(
     output: Option<String>,
     spice_models: Vec<String>,
 ) -> Result<(), Error> {
-    let doc = SexpParser::load(input)?; //.iter().node();
-    let mut iter = doc.iter().node();
-    let mut netlist = Netlist::from(&mut iter)?;
+    let schema = Schema::load(input)?;
+    let mut netlist = Netlist::from(&schema)?;
     let mut circuit = Circuit::new(input.to_string(), spice_models);
     netlist.dump(&mut circuit)?;
-    circuit.save(output)?;
-    Ok(())
+    circuit.save(output)
 }
 
 pub fn dump(input: &str, output: Option<String>) -> Result<(), Error> {
-    let doc = SexpParser::load(input)?; //.iter().node();
-    let iter = doc.iter().node();
+    let schema = Schema::load(input)?;
     if let Some(output) = output {
         check_directory(&output)?;
         let mut out = File::create(output)?;
-        sexp::write(&mut out, iter)?;
+        schema.write(&mut out)
     } else {
-        sexp::write(&mut std::io::stdout(), iter)?;
+        schema.write(&mut std::io::stdout())
     }
-    Ok(())
 }
 
 pub fn get_library(key: &str, path: Vec<String>) -> Result<LibrarySymbol, Error> {
@@ -80,54 +74,28 @@ pub fn get_library(key: &str, path: Vec<String>) -> Result<LibrarySymbol, Error>
 
 pub fn plot(
     input: &str,
-    output: &str,
+    output: Option<String>,
     scale: Option<f64>,
     border: bool,
     theme: Option<String>,
 ) -> Result<(), Error> {
-    use crate::plot::{PlotIterator, Plotter};
-    let scale: f64 = if let Some(scale) = scale { scale } else { 1.0 };
-    let doc = SexpParser::load(input).unwrap();
-
-    let iter: Vec<SchemaElement> = doc.iter().node().collect();
-    let sheets: Vec<&Sheet> = iter
-        .iter()
-        .filter_map(|n| {
-            if let SchemaElement::Sheet(sheet) = n {
-                Some(sheet)
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    for sheet in sheets {
-
-    }
-
-    let image_type = if output.ends_with(".svg") {
-        ImageType::Svg
-    } else if output.ends_with(".png") {
-        ImageType::Png
-    } else {
-        ImageType::Pdf
-    };
+    let scale = if let Some(scale) = scale { scale } else { 1.0 };
     let theme = if let Some(theme) = theme {
-        if theme == "kicad_2000" {
-            Theme::kicad_2000() //TODO:
-        } else {
-            Theme::kicad_2000()
-        }
+        theme
     } else {
-        Theme::kicad_2000()
+        "kicad_2000".to_string()
     };
-
-    let iter = iter.into_iter().plot(theme, border).flatten().collect();
-    let mut cairo = CairoPlotter::new(&iter);
-
-    check_directory(output)?;
-    let out: Box<dyn Write> = Box::new(File::create(output)?);
-    cairo.plot(out, border, scale, image_type)?;
+    let schema = Schema::load(input)?;
+    if let Some(filename) = &output {
+        schema.plot(filename.as_str(), scale, border, theme.as_str())?;
+    } else {
+        let mut rng = rand::thread_rng();
+        let num: u32 = rng.gen();
+        let filename =
+            String::new() + temp_dir().to_str().unwrap() + "/" + &num.to_string() + ".png";
+        schema.plot(filename.as_str(), scale, border, theme.as_str())?;
+        print_from_file(&filename, &Config::default()).expect("Image printing failed.");
+    };
     Ok(())
 }
 
@@ -192,6 +160,10 @@ pub fn search_library(key: &str, paths: Vec<String>) -> Result<Vec<(f32, String,
 #[pymodule]
 fn elektron(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<draw::Draw>()?;
+    m.add_class::<draw::model::Line>()?;
+    m.add_class::<draw::model::Dot>()?;
+    m.add_class::<draw::model::Label>()?;
+    m.add_class::<draw::model::Element>()?;
     m.add_class::<circuit::Circuit>()?;
     m.add_class::<circuit::Simulation>()?;
     Ok(())

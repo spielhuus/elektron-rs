@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use crate::sexp::model::{Stroke, Effects, color};
-use crate::sexp::{SexpParser,State};
 use crate::error::Error;
+use crate::sexp::model::{color, Effects, Stroke};
+use crate::sexp::{SexpParser, State};
 
 #[derive(Debug)]
 enum ThemeItems {
@@ -18,26 +18,24 @@ pub trait ThemerMerge<T> {
 }
 impl ThemerMerge<Stroke> for Themer {
     fn get(a: &Stroke, b: &Stroke) -> Stroke {
-            Stroke {
-                width: if a.width != 0.0 {
-                    a.width * 1.4
-                } else {
-                    b.width
-                },
-                linetype: a.linetype.clone(),
-                color: if a.color != (0.0, 0.0, 0.0, 0.0) {
-                    a.color
-                } else {
-                    b.color
-                },
-                filltype: a.filltype.clone(),
-            }
-
+        Stroke {
+            width: if a.width != 0.0 {
+                a.width * 1.4
+            } else {
+                b.width
+            },
+            linetype: a.linetype.clone(),
+            color: if a.color != (0.0, 0.0, 0.0, 0.0) {
+                a.color
+            } else {
+                b.color
+            },
+            filltype: a.filltype.clone(),
+        }
     }
 }
 impl ThemerMerge<Effects> for Themer {
     fn get(a: &Effects, b: &Effects) -> Effects {
-
         let font = if !a.font.is_empty() {
             a.font.clone()
         } else {
@@ -77,7 +75,6 @@ impl ThemerMerge<Effects> for Themer {
     }
 }
 
-
 pub struct Theme {
     items: HashMap<String, ThemeItems>,
 }
@@ -94,22 +91,27 @@ impl Theme {
                         let next = iter.next();
                         if let Some(State::StartSymbol(element)) = next {
                             if element == "stroke" {
-                                items.insert(name.to_string(), ThemeItems::Stroke(Stroke::from(&mut iter)));
+                                items.insert(
+                                    name.to_string(),
+                                    ThemeItems::Stroke(Stroke::from(&mut iter)),
+                                );
                             } else if element == "effects" {
-                                items.insert(name.to_string(), ThemeItems::Effects(Effects::from(&mut iter)));
+                                items.insert(
+                                    name.to_string(),
+                                    ThemeItems::Effects(Effects::from(&mut iter)),
+                                );
                             } else if element == "color" {
                                 items.insert(name.to_string(), ThemeItems::Color(color!(iter)));
-
                             } else {
                                 todo!("symbol item not implemented: {}", name);
                             }
-
                         }
                     }
-
-                },
-                None => { break; },
-                _ => {},
+                }
+                None => {
+                    break;
+                }
+                _ => {}
             }
         }
         Theme { items }
@@ -117,6 +119,7 @@ impl Theme {
     pub fn kicad_2000() -> Theme {
         let content = r#"(theme
             (wire (stroke (width 0.254) (type default) (color 1 0 0 1)))
+            (junction (stroke (width 0.254) (type default) (color 1 0 0 1)))
             (no_connect (stroke (width 0.254) (type default) (color 1 0 0 1)))
             (symbol (stroke (width 0.254) (type default) (color 1 0 0 1)))
             (pin (stroke (width 0.254) (type default) (color 1 0 0 1)))
@@ -154,7 +157,6 @@ impl Theme {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
 
@@ -162,13 +164,17 @@ mod tests {
 
     #[test]
     fn themes() {
-        let theme = Theme::new(String::from(r#"(theme
+        let theme = Theme::new(String::from(
+            r#"(theme
             (no_connect (stroke (width 0.254) (type default) (color 0 0 0 0)))
 
-            )"#));
+            )"#,
+        ));
 
         assert_eq!(0.254, theme.stroke("no_connect").unwrap().width);
-        assert_eq!(String::from("default"), theme.stroke("no_connect").unwrap().linetype);
+        assert_eq!(
+            String::from("default"),
+            theme.stroke("no_connect").unwrap().linetype
+        );
     }
 }
-

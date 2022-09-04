@@ -1,6 +1,6 @@
 use crate::{
-    sexp::model::{SheetInstance, TitleBlock},
     error::Error,
+    sexp::model::{SheetInstance, TitleBlock},
 };
 use itertools::Itertools;
 use ndarray::{arr1, arr2, s, Array1, Array2};
@@ -495,12 +495,13 @@ impl<'a> Plotter for CairoPlotter<'a> {
             .for_each(|item| {
                 //for item in &self.items {
                 match item {
-                    PlotItem::Paper(_) => {}         //TODO: },
+                    PlotItem::Paper(_) => {} //TODO: },
                     PlotItem::TitleBlock(title_block) => {
-                        for item in draw_border(Some(title_block), self.paper_size, &Theme::kicad_2000()).unwrap() {
-
-                        }
-                    }    //TODO: },
+                        for item in
+                            draw_border(Some(title_block), self.paper_size, &Theme::kicad_2000())
+                                .unwrap()
+                        {}
+                    } //TODO: },
                     PlotItem::SheetInstance(_) => {} //TODO: },
                     PlotItem::LineItem(_, line) => {
                         stroke!(context, line);

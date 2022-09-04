@@ -17,6 +17,7 @@ macro_rules! color {
     };
 }
 
+#[derive(Debug, PartialEq, Clone)]
 pub enum PaperSize {
     A5,
     A4,
@@ -24,6 +25,12 @@ pub enum PaperSize {
     A2,
     A1,
     A0,
+}
+
+impl std::fmt::Display for PaperSize {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 impl std::convert::From<State<'_>> for PaperSize {
@@ -996,6 +1003,7 @@ pub struct Pin {
     pub at: Array1<f64>,
     pub angle: f64,
     pub length: f64,
+    pub hide: bool,
     pub name: (String, Effects),
     pub number: (String, Effects),
 }
@@ -1006,6 +1014,7 @@ impl Pin {
         let mut at: Array1<f64> = arr1(&[0.0, 0.0]);
         let mut angle: f64 = 0.0;
         let mut length: f64 = 0.0;
+        let mut hide: bool = false;
         let mut pin_name = (String::new(), Effects::new());
         let mut number = (String::new(), Effects::new());
         let mut count = 1;
@@ -1039,6 +1048,11 @@ impl Pin {
                         todo!("unknown: {}", name);
                     }
                 }
+                Some(State::Values(value)) => {
+                    if value == "hide" {
+                        hide = true;
+                    }
+                }
                 None => {
                     break;
                 }
@@ -1051,6 +1065,7 @@ impl Pin {
                             at,
                             angle,
                             length,
+                            hide,
                             name: pin_name,
                             number,
                         };
@@ -1562,12 +1577,6 @@ impl Sheet {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum SchemaElement {
-    Version(String),
-    Generator(String),
-    Uuid(String),
-    Paper(String),
-    TitleBlock(TitleBlock),
-    LibrarySymbol(LibrarySymbol),
     Symbol(Symbol),
     NoConnect(NoConnect),
     Text(Text),

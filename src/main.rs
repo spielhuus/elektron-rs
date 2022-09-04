@@ -5,13 +5,15 @@ use clap::{Parser, Subcommand};
 use comfy_table::{
     modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Cell, ContentArrangement, Table,
 };
-use elektron::Error;
 
-use elektron::sexp::{SexpParser, State};
 use itertools::Itertools;
 use rand::Rng;
 use rust_fuzzy_search::fuzzy_compare;
 use viuer::{print_from_file, Config};
+
+use elektron::sexp;
+use elektron::sexp::{SexpParser, State};
+use elektron::Error;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -139,7 +141,7 @@ fn main() -> Result<(), Error> {
             output,
             spice,
         } => {
-            elektron::netlist(input.as_str(), output, spice)?;
+            elektron::netlist(input.as_str(), output, spice);
         }
         Command::Dump { input, output } => {
             elektron::dump(input.as_str(), output)?;
@@ -151,19 +153,11 @@ fn main() -> Result<(), Error> {
             theme,
             scale,
         } => {
-            if let Some(filename) = &output {
-                elektron::plot(input.as_str(), filename.as_str(), scale, border, theme).unwrap();
-            } else {
-                let mut rng = rand::thread_rng();
-                let num: u32 = rng.gen();
-                let filename =
-                    String::new() + temp_dir().to_str().unwrap() + "/" + &num.to_string() + ".png";
-                elektron::plot(input.as_str(), filename.as_str(), scale, border, theme).unwrap();
-                print_from_file(&filename, &Config::default()).expect("Image printing failed.");
-            };
+            elektron::plot(input.as_str(), output, scale, border, theme)?;
         }
         Command::Symbol { key, path } => {
-            let symbol = elektron::get_library(&key, path)?;
+            let mut library = sexp::Library::new(path);
+            let symbol = library.get(key.as_str())?;
             let mut table = Table::new();
             table
                 .load_preset(UTF8_FULL)

@@ -1,15 +1,8 @@
-use super::cairo_plotter::{
-    Arc, Circle, ImageType, Line, PlotItem, Plotter, Polyline, Rectangle, Text,
-};
+use super::cairo_plotter::{Line, PlotItem, Rectangle, Text};
 use super::{text, Theme};
 use crate::error::Error;
-use crate::sexp::model::{TitleBlock, Stroke, Effects};
-use crate::sexp::{Shape, Transform};
-use ndarray::{arr1, arr2, Array1, Array2};
-
-pub mod paper {
-    pub const A4: (f64, f64) = (297.0, 210.0);
-}
+use crate::sexp::model::{Effects, Stroke, TitleBlock};
+use ndarray::{arr1, arr2, Array2};
 
 const BORDER_RASTER: i32 = 60;
 
@@ -43,13 +36,7 @@ pub fn draw_border(
             ]);
             plotter.push(PlotItem::RectangleItem(
                 99,
-                Rectangle::new(
-                    pts,
-                    stroke.color,
-                    0.1,
-                    stroke.linetype.clone(),
-                    None,
-                ),
+                Rectangle::new(pts, stroke.color, 0.1, stroke.linetype.clone(), None),
             ));
         }
         for i in 0..(paper_size.0 as i32 / BORDER_RASTER + 1) {
@@ -78,13 +65,7 @@ pub fn draw_border(
             ]);
             plotter.push(PlotItem::RectangleItem(
                 99,
-                Rectangle::new(
-                    pts,
-                    stroke.color,
-                    0.1,
-                    stroke.linetype.clone(),
-                    None,
-                ),
+                Rectangle::new(pts, stroke.color, 0.1, stroke.linetype.clone(), None),
             ));
         }
         for i in 0..(paper_size.0 as i32 / BORDER_RASTER + 1) {
@@ -154,42 +135,41 @@ pub fn draw_border(
 
     if let Some(title_block) = title_block {
         let left = paper_size.0 - 118.0;
-            let effects: Effects = theme.effects("subtitle_effects").unwrap();
-            for (key, comment) in &title_block.comment {
-
-                    if *key == 1 {
-                        plotter.push(text!(
-                            arr1(&[left, paper_size.1 - 30.0]),
-                            0.0,
-                            comment.to_string(),
-                            effects
-                        ));
-                    } else if *key == 2 {
-                        plotter.push(text!(
-                            arr1(&[left, paper_size.1 - 35.0]),
-                            0.0,
-                            comment.to_string(),
-                            effects
-                        ));
-                    } else if *key == 3 {
-                        plotter.push(text!(
-                            arr1(&[left, paper_size.1 - 40.0]),
-                            0.0,
-                            comment.to_string(),
-                            effects
-                        ));
-                    } else if *key == 4 {
-                        plotter.push(text!(
-                            arr1(&[left, paper_size.1 - 45.0]),
-                            0.0,
-                            comment.to_string(),
-                            effects
-                        ));
-                    }
-                }
-            /* let effects: Effects = style.schema_title_effects();
-            let title: String = get!(node, "title", 0);
-            plotter.push(text!(arr1(&[left, paper_size.1 - 15.0]), 0.0, title, effects)); */
+        let effects: Effects = theme.effects("subtitle_effects").unwrap();
+        for (key, comment) in &title_block.comment {
+            if *key == 1 {
+                plotter.push(text!(
+                    arr1(&[left, paper_size.1 - 30.0]),
+                    0.0,
+                    comment.to_string(),
+                    effects
+                ));
+            } else if *key == 2 {
+                plotter.push(text!(
+                    arr1(&[left, paper_size.1 - 35.0]),
+                    0.0,
+                    comment.to_string(),
+                    effects
+                ));
+            } else if *key == 3 {
+                plotter.push(text!(
+                    arr1(&[left, paper_size.1 - 40.0]),
+                    0.0,
+                    comment.to_string(),
+                    effects
+                ));
+            } else if *key == 4 {
+                plotter.push(text!(
+                    arr1(&[left, paper_size.1 - 45.0]),
+                    0.0,
+                    comment.to_string(),
+                    effects
+                ));
+            }
+        }
+        /* let effects: Effects = style.schema_title_effects();
+        let title: String = get!(node, "title", 0);
+        plotter.push(text!(arr1(&[left, paper_size.1 - 15.0]), 0.0, title, effects)); */
         if !title_block.company.is_empty() {
             let effects: Effects = theme.effects("title_effects").unwrap();
             plotter.push(text!(
@@ -208,7 +188,7 @@ pub fn draw_border(
                 effects
             ));
         }
-            let effects: Effects = theme.effects("title_effects").unwrap();
+        let effects: Effects = theme.effects("title_effects").unwrap();
         plotter.push(text!(
             arr1(&[left, paper_size.1 - 8.0]),
             0.0,
