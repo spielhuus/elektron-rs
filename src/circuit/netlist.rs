@@ -88,98 +88,100 @@ impl<'a> Netlist<'a> {
         let mut netlists: Vec<NetlistItem> = Vec::new();
         let mut symbols: HashMap<String, Vec<Symbol>> = HashMap::new();
 
-        for node in schema.iter_all() {
-            if let SchemaElement::Symbol(symbol) = node {
-                let library = schema.get_library(&symbol.lib_id).unwrap();
-                pins(symbol.unit, library).iter().for_each(|el| {
-                    let identifier: Option<String> = if library.power {
-                        symbol.get_property("Value")
+        for page in 0..schema.pages() {
+            for node in schema.iter(page).unwrap() {
+                if let SchemaElement::Symbol(symbol) = node {
+                    let library = schema.get_library(page, &symbol.lib_id).unwrap();
+                    pins(symbol.unit, library).iter().for_each(|el| {
+                        let identifier: Option<String> = if library.power {
+                            symbol.get_property("Value")
+                        } else {
+                            None
+                        };
+                        let pts = Shape::transform(symbol, &el.at);
+                        let p0 = Point::new(pts[0], pts[1]);
+                        if let std::collections::hash_map::Entry::Vacant(e) = nodes.entry(p0) {
+                            netlists.push(NetlistItem::new(identifier, el.pin_type.clone(), p0));
+                            e.insert(netlists.len() - 1);
+                        } else {
+                            let id = if identifier.is_some() {
+                                identifier
+                            } else {
+                                let nl: usize = *nodes.get_mut(&p0).unwrap();
+                                netlists[nl].identifier.clone()
+                            };
+                            let nl: usize = *nodes.get_mut(&p0).unwrap();
+                            netlists[nl].netlist_type = el.pin_type.clone();
+                            netlists[nl].identifier = id;
+                        }
+                    });
+                    let reference: String = symbol.get_property("Reference").unwrap();
+                    symbols
+                        .entry(reference)
+                        .or_insert(Vec::new())
+                        .push(symbol.clone());
+                } else if let SchemaElement::Wire(wire) = node {
+                    let p0 = Point::new(wire.pts.row(0)[0], wire.pts.row(0)[1]);
+                    let p1 = Point::new(wire.pts.row(1)[0], wire.pts.row(1)[1]);
+                    if nodes.contains_key(&p0) && nodes.contains_key(&p1) {
+                        let n1: usize = *nodes.get_mut(&p0).unwrap();
+                        let n2: usize = *nodes.get_mut(&p1).unwrap();
+                        for node in &mut nodes {
+                            if node.1 == &n1 {
+                                *node.1 = n2;
+                            }
+                        }
+                    } else if nodes.contains_key(&p0) {
+                        let nl: usize = *nodes.get_mut(&p0).unwrap();
+                        nodes.insert(p1, nl);
+                    } else if nodes.contains_key(&p1) {
+                        let nl: usize = *nodes.get_mut(&p1).unwrap();
+                        nodes.insert(p0, nl);
                     } else {
-                        None
-                    };
-                    let pts = Shape::transform(symbol, &el.at);
-                    let p0 = Point::new(pts[0], pts[1]);
+                        netlists.push(NetlistItem::new(None, "".to_string(), p0));
+                        nodes.insert(p0, netlists.len() - 1);
+                        nodes.insert(p1, netlists.len() - 1);
+                    }
+                } else if let SchemaElement::Label(label) = node {
+                    let p0 = Point::new(label.at[0], label.at[1]);
                     if let std::collections::hash_map::Entry::Vacant(e) = nodes.entry(p0) {
-                        netlists.push(NetlistItem::new(identifier, el.pin_type.clone(), p0));
+                        netlists.push(NetlistItem::new(
+                            Option::from(label.text.clone()),
+                            "".to_string(),
+                            p0,
+                        ));
                         e.insert(netlists.len() - 1);
                     } else {
-                        let id = if identifier.is_some() {
-                            identifier
-                        } else {
-                            let nl: usize = *nodes.get_mut(&p0).unwrap();
-                            netlists[nl].identifier.clone()
-                        };
                         let nl: usize = *nodes.get_mut(&p0).unwrap();
-                        netlists[nl].netlist_type = el.pin_type.clone();
-                        netlists[nl].identifier = id;
+                        netlists[nl].identifier = Option::from(label.text.clone());
                     }
-                });
-                let reference: String = symbol.get_property("Reference").unwrap();
-                symbols
-                    .entry(reference)
-                    .or_insert(Vec::new())
-                    .push(symbol.clone());
-            } else if let SchemaElement::Wire(wire) = node {
-                let p0 = Point::new(wire.pts.row(0)[0], wire.pts.row(0)[1]);
-                let p1 = Point::new(wire.pts.row(1)[0], wire.pts.row(1)[1]);
-                if nodes.contains_key(&p0) && nodes.contains_key(&p1) {
-                    let n1: usize = *nodes.get_mut(&p0).unwrap();
-                    let n2: usize = *nodes.get_mut(&p1).unwrap();
-                    for node in &mut nodes {
-                        if node.1 == &n1 {
-                            *node.1 = n2;
-                        }
+                } else if let SchemaElement::GlobalLabel(label) = node {
+                    let p0 = Point::new(label.at[0], label.at[1]);
+                    if let std::collections::hash_map::Entry::Vacant(e) = nodes.entry(p0) {
+                        netlists.push(NetlistItem::new(
+                            Option::from(label.text.clone()),
+                            "global_label".to_string(),
+                            p0,
+                        ));
+                        e.insert(netlists.len() - 1);
+                    } else {
+                        let nl: usize = *nodes.get(&p0).unwrap();
+                        netlists[nl].identifier = Option::from(label.text.clone());
                     }
-                } else if nodes.contains_key(&p0) {
-                    let nl: usize = *nodes.get_mut(&p0).unwrap();
-                    nodes.insert(p1, nl);
-                } else if nodes.contains_key(&p1) {
-                    let nl: usize = *nodes.get_mut(&p1).unwrap();
-                    nodes.insert(p0, nl);
-                } else {
-                    netlists.push(NetlistItem::new(None, "".to_string(), p0));
-                    nodes.insert(p0, netlists.len() - 1);
-                    nodes.insert(p1, netlists.len() - 1);
-                }
-            } else if let SchemaElement::Label(label) = node {
-                let p0 = Point::new(label.at[0], label.at[1]);
-                if let std::collections::hash_map::Entry::Vacant(e) = nodes.entry(p0) {
-                    netlists.push(NetlistItem::new(
-                        Option::from(label.text.clone()),
-                        "".to_string(),
-                        p0,
-                    ));
-                    e.insert(netlists.len() - 1);
-                } else {
-                    let nl: usize = *nodes.get_mut(&p0).unwrap();
-                    netlists[nl].identifier = Option::from(label.text.clone());
-                }
-            } else if let SchemaElement::GlobalLabel(label) = node {
-                let p0 = Point::new(label.at[0], label.at[1]);
-                if let std::collections::hash_map::Entry::Vacant(e) = nodes.entry(p0) {
-                    netlists.push(NetlistItem::new(
-                        Option::from(label.text.clone()),
-                        "global_label".to_string(),
-                        p0,
-                    ));
-                    e.insert(netlists.len() - 1);
-                } else {
-                    let nl: usize = *nodes.get(&p0).unwrap();
-                    netlists[nl].identifier = Option::from(label.text.clone());
-                }
-            } else if let SchemaElement::NoConnect(nc) = node {
-                let p0 = Point::new(nc.at[0], nc.at[1]);
-                if let std::collections::hash_map::Entry::Vacant(e) = nodes.entry(p0) {
-                    netlists.push(NetlistItem::new(
-                        Option::from("NC".to_string()),
-                        "no_connect".to_string(),
-                        p0,
-                    ));
-                    e.insert(netlists.len() - 1);
-                } else {
-                    let nl: usize = *nodes.get_mut(&p0).unwrap();
-                    netlists[nl].identifier = Option::from("NC".to_string());
-                    netlists[nl].netlist_type = "no_connect".to_string();
+                } else if let SchemaElement::NoConnect(nc) = node {
+                    let p0 = Point::new(nc.at[0], nc.at[1]);
+                    if let std::collections::hash_map::Entry::Vacant(e) = nodes.entry(p0) {
+                        netlists.push(NetlistItem::new(
+                            Option::from("NC".to_string()),
+                            "no_connect".to_string(),
+                            p0,
+                        ));
+                        e.insert(netlists.len() - 1);
+                    } else {
+                        let nl: usize = *nodes.get_mut(&p0).unwrap();
+                        netlists[nl].identifier = Option::from("NC".to_string());
+                        netlists[nl].netlist_type = "no_connect".to_string();
+                    }
                 }
             }
         }

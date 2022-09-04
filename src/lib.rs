@@ -41,7 +41,7 @@ pub fn check_directory(filename: &str) -> Result<(), Error> {
 
 pub fn bom(filename: &str, group: bool) -> Result<Vec<BomItem>, Error> {
     let schema = Schema::load(filename)?;
-    reports::bom(&mut schema.iter_all(), group)
+    reports::bom(&schema, group)
 }
 
 pub fn netlist(

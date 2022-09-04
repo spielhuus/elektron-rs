@@ -8,7 +8,6 @@ use crate::sexp::{Bounds, Library, Schema, Shape, Transform};
 use itertools::Itertools;
 use pyo3::prelude::*;
 use std::env::temp_dir;
-use std::fs::File;
 use viuer::{print_from_file, Config};
 
 use ndarray::{arr1, arr2, Array1};
@@ -108,14 +107,8 @@ impl Draw {
         panic!("Item not found {:?}", item);
     }
 
-    pub fn write(&mut self, filename: Option<String>) -> Result<(), Error> {
-        if let Some(output) = filename {
-            //TODO: check_directory(&output)?;
-            let mut out = File::create(output)?;
-            self.schema.write(&mut out)
-        } else {
-            self.schema.write(&mut std::io::stdout())
-        }
+    pub fn write(&mut self, filename: &str) -> Result<(), Error> {
+        self.schema.write(filename)
     }
 
     pub fn plot(
@@ -152,7 +145,7 @@ impl Draw {
 
 impl Draw {
     fn add_dot(&mut self, dot: &model::Dot) -> Result<(), Error> {
-        self.schema.push(SchemaElement::Junction(Junction::new(
+        self.schema.push(0, SchemaElement::Junction(Junction::new(
             round!(arr1(&[dot.pos[0], dot.pos[1]])),
             uuid!(),
         )));
@@ -171,7 +164,7 @@ impl Draw {
         } else {
             new_label.effects.justify.push("left".to_string());
         }
-        self.schema.push(SchemaElement::Label(new_label));
+        self.schema.push(0, SchemaElement::Label(new_label));
         Ok(())
     }
     fn add_line(&mut self, line: model::Line) -> Result<(), Error> {
@@ -194,7 +187,7 @@ impl Draw {
                 model::Direction::Right => arr1(&[start_pos[0] + line.length, start_pos[1]]),
             }
         };
-        self.schema.push(SchemaElement::Wire(Wire::new(
+        self.schema.push(0, SchemaElement::Wire(Wire::new(
             round!(arr2(&[
                 [start_pos[0], start_pos[1]],
                 [end_pos[0], end_pos[1]]
@@ -243,12 +236,12 @@ impl Draw {
                             [pos[0] + 2.0 * wire_len + sym_len, pos[1]],
                         ]);
                         wire2 = wire2.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
-                        self.schema.push(SchemaElement::Wire(Wire::new(
+                        self.schema.push(0, SchemaElement::Wire(Wire::new(
                             wire1,
                             Stroke::new(),
                             uuid!(),
                         )));
-                        self.schema.push(SchemaElement::Wire(Wire::new(
+                        self.schema.push(0, SchemaElement::Wire(Wire::new(
                             wire2,
                             Stroke::new(),
                             uuid!(),
@@ -300,7 +293,7 @@ impl Draw {
             value.to_string(),
             String::new(), /* TODO footprint.to_string()*/
         )); */
-        self.schema.push(SchemaElement::Symbol(symbol));
+        self.schema.push(0, SchemaElement::Symbol(symbol));
         self.get_library(&element.library)?;
 
         Ok(())
@@ -308,7 +301,7 @@ impl Draw {
 
     fn pin_pos(&self, reference: String, number: String) -> Array1<f64> {
         let symbol = self.schema.get_symbol(reference.as_str(), 1).unwrap();
-        let library = self.schema.get_library(symbol.lib_id.as_str()).unwrap();
+        let library = self.schema.get_library(0, symbol.lib_id.as_str()).unwrap();
         for subsymbol in &library.symbols {
             for pin in &subsymbol.pin {
                 if pin.number.0 == number {
@@ -324,12 +317,12 @@ impl Draw {
     }
     /// return a library symbol when it exists or load it from the libraries.
     fn get_library(&mut self, name: &str) -> Result<LibrarySymbol, Error> {
-        if let Some(lib) = self.schema.get_library(name) {
+        if let Some(lib) = self.schema.get_library(0, name) {
             Ok(lib.clone())
         } else {
             let mut lib = self.libs.get(name).unwrap();
             lib.lib_id = name.to_string();
-            self.schema.libraries.push(lib.clone());
+            self.schema.libraries.push(0, lib.clone());
             Ok(lib)
         }
     }
@@ -501,7 +494,7 @@ impl Draw {
         let symbol_shift: usize = (symbol.angle / 90.0).round() as usize;
 
         for pin in get_pins(
-            self.schema.get_library(&symbol.lib_id).unwrap(),
+            self.schema.get_library(0, &symbol.lib_id).unwrap(),
             symbol.unit,
         )
         .unwrap()

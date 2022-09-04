@@ -1,3 +1,5 @@
+use crate::Error;
+
 use super::State;
 use std::collections::HashMap;
 
@@ -1573,6 +1575,22 @@ impl Sheet {
         }
         panic!();
     }
+    pub fn sheet_name(&self) -> Result<String, Error> {
+        for p in &self.property {
+            if p.key == "Sheet name" {
+                return Ok(p.value.clone());
+            }
+        }
+        Err(Error::ParseError)
+    }
+    pub fn sheet_filename(&self) -> Result<String, Error> {
+        for p in &self.property {
+            if p.key == "Sheet file" {
+                return Ok(p.value.clone());
+            }
+        }
+        Err(Error::ParseError)
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -1588,3 +1606,5 @@ pub enum SchemaElement {
     SheetInstance(Vec<SheetInstance>),
     SymbolInstance(Vec<SymbolInstance>),
 }
+
+

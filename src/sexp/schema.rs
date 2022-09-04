@@ -1,4 +1,4 @@
-use std::{fs::File, io::Write};
+use std::{fs::File, io::Write, path::Path};
 
 use crate::{
     check_directory,
@@ -16,6 +16,112 @@ use crate::{
 };
 
 pub struct Schema {
+    pages: Vec<Page>,
+}
+impl Schema {
+    pub fn new() -> Self {
+        Self { pages: Vec::new() }
+    }
+    ///load the schema from a file.
+    pub fn load(filename: &str) -> Result<Self, Error> {
+
+        let doc = Page::load(filename)?;
+        let mut sheets = Vec::new();
+        for sheet in &doc.elements {
+            if let SchemaElement::Sheet(sheet) = sheet {
+                let path = Path::new(&filename).parent().unwrap();
+                let filename = format!("{}/{}", path.to_str().unwrap(), sheet.sheet_filename().unwrap());
+                println!("sheet: {:#?}", filename);
+                sheets.push(Page::load(filename.as_str())?);
+            }
+        }
+        let pages = vec![doc];
+        pages.extend(sheets);
+        Ok(Self{ pages })
+    }
+    ///push element to page. will also create the SymbolInstace if required.
+    pub fn push(&mut self, page: usize, element: SchemaElement) -> Result<(), Error> {
+        if let Some(page) = self.pages.get(page) {
+            page.elements.push(element);
+            Ok(())
+        } else {
+            Err(Error::ParseError)
+        }
+    }
+    ///get the library symbol from a page.
+    pub fn get_library(&self, page: usize, key: &str) -> Option<&LibrarySymbol> {
+        if let Some(page) = self.pages.get(page) {
+            for lib in &page.libraries {
+                if lib.lib_id == key {
+                    return Some(lib);
+                }
+            }
+        }
+        None
+    }
+    ///search symbol from all pages
+    pub fn get_symbol(&self, reference: &str, unit: u32) -> Option<&Symbol> {
+        for page in &self.pages {
+        for lib in &page.elements {
+            if let SchemaElement::Symbol(symbol) = lib {
+                if let Some(r) = symbol.get_property("Reference") {
+                    if symbol.unit as u32 == unit && reference == r {
+                        return Some(symbol);
+                    }
+                }
+            }
+        }
+        }
+        None
+    }
+    /// return the number of pages.
+    pub fn pages(&self) -> usize {
+        self.pages.len()
+    }
+    ///iterate over the elements in a page.
+    pub fn iter(&self, page: usize) -> Result<std::slice::Iter<SchemaElement>, Error> {
+        if let Some(page) = self.pages.get(page) {
+            Ok(page.elements.iter())
+        } else {
+            Err(Error::ParseError)
+        }
+    }
+    ///iterate the elements in all pages.
+    pub fn iter_all(&self) -> impl Iterator<Item=&SchemaElement> {
+        self.pages.iter().map(|el| el.elements.iter()).flatten()
+    }
+    pub fn write(&self, filename: &str) -> Result<(), Error> {
+        Ok(())
+    }
+    ///plot the schema.
+    /// TODO:
+    pub fn plot(&self, filename: &str, scale: f64, border: bool, theme: &str) -> Result<(), Error> {
+        let image_type = if filename.ends_with(".svg") {
+            ImageType::Svg
+        } else if filename.ends_with(".png") {
+            ImageType::Png
+        } else {
+            ImageType::Pdf
+        };
+        let theme = if theme == "mono" {
+            Theme::mono()
+        } else {
+            Theme::kicad_2000()
+        };
+
+        use crate::plot::{PlotIterator, Plotter};
+        let iter = self.iter(0)?.plot(self, theme, border).flatten().collect(); //TODO: plot all
+                                                                                //pages
+        let mut cairo = CairoPlotter::new(&iter);
+
+        check_directory(filename)?;
+        let out: Box<dyn Write> = Box::new(File::create(filename)?);
+        cairo.plot(out, border, scale, image_type)?;
+        Ok(())
+    }
+}
+
+pub struct Page {
     uuid: String,
     paper_size: PaperSize,
     title_block: TitleBlock,
@@ -26,7 +132,7 @@ pub struct Schema {
     pages: Vec<Schema>,
 }
 
-impl Schema {
+impl Page {
     pub fn new() -> Self {
         Self {
             uuid: String::new(),
@@ -41,7 +147,8 @@ impl Schema {
     }
     pub fn load(filename: &str) -> Result<Self, Error> {
         let doc = SexpParser::load(filename)?;
-        Self::parse(doc.iter())
+        let mut root_sheet = Self::parse(doc.iter())?;
+        Ok(root_sheet)
     }
     fn parse<'a, I>(mut iter: I) -> Result<Self, Error>
     where
@@ -150,59 +257,6 @@ impl Schema {
         }
     }
 
-    pub fn get_library(&self, key: &str) -> Option<&LibrarySymbol> {
-        for lib in &self.libraries {
-            if lib.lib_id == key {
-                return Some(lib);
-            }
-        }
-        None
-    }
-    pub fn get_symbol(&self, reference: &str, unit: u32) -> Option<&Symbol> {
-        for lib in &self.elements {
-            if let SchemaElement::Symbol(symbol) = lib {
-                if let Some(r) = symbol.get_property("Reference") {
-                    if symbol.unit as u32 == unit && reference == r {
-                        return Some(symbol);
-                    }
-                }
-            }
-        }
-        None
-    }
-
-    pub fn pages() -> usize {
-        0
-    }
-    pub fn iter(&self, page: usize) -> std::slice::Iter<SchemaElement> {
-        self.elements.iter()
-    }
-    pub fn iter_all(&self) -> std::slice::Iter<SchemaElement> {
-        self.elements.iter()
-    }
-    pub fn plot(&self, filename: &str, scale: f64, border: bool, theme: &str) -> Result<(), Error> {
-        let image_type = if filename.ends_with(".svg") {
-            ImageType::Svg
-        } else if filename.ends_with(".png") {
-            ImageType::Png
-        } else {
-            ImageType::Pdf
-        };
-        let theme = if theme == "mono" {
-            Theme::mono()
-        } else {
-            Theme::kicad_2000()
-        };
-
-        use crate::plot::{PlotIterator, Plotter};
-        let iter = self.iter(0).plot(self, theme, border).flatten().collect();
-        let mut cairo = CairoPlotter::new(&iter);
-
-        check_directory(filename)?;
-        let out: Box<dyn Write> = Box::new(File::create(filename)?);
-        cairo.plot(out, border, scale, image_type)?;
-        Ok(())
-    }
     pub fn write(&self, out: &mut dyn Write) -> Result<(), Error> {
         out.write_all(b"(kicad_sch ")?;
 
@@ -227,7 +281,7 @@ impl Schema {
         }
         out.write_all(b"  )\n")?;
 
-        for item in self.iter(0) {
+        for item in self.elements.iter() {
             match item {
                 SchemaElement::Symbol(symbol) => {
                     symbol.write(out, 1)?;
@@ -272,27 +326,47 @@ impl Schema {
         out.write_all(b")\n")?;
         Ok(())
     }
-    pub fn push(&mut self, element: SchemaElement) {
-        self.elements.push(element);
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use ndarray::arr1;
 
-    use crate::sexp::Schema;
+    use crate::sexp::{Schema, model::{SchemaElement, Sheet}};
 
     #[test]
     fn nodes_iter() {
         let doc = Schema::load("samples/files/summe/summe.kicad_sch").unwrap();
-        assert_eq!(43, doc.iter(0).count());
+        assert_eq!(43, doc.iter(0).unwrap().count());
     }
     #[test]
     fn get_library() {
         let doc = Schema::load("samples/files/summe/summe.kicad_sch").unwrap();
-        let library = doc.get_library("Amplifier_Operational:TL072").unwrap();
+        let library = doc.get_library(0, "Amplifier_Operational:TL072").unwrap();
         assert_eq!("Amplifier_Operational:TL072", library.lib_id);
         assert_eq!(arr1(&[0.0, 5.08]), library.property[0].at);
+    }
+    #[test]
+    fn sheet_names() {
+        let doc = Schema::load("samples/files/multipage/multipage.kicad_sch").unwrap();
+        let res: Vec<&Sheet> = doc.iter(0).unwrap().filter_map(|el| {
+            if let SchemaElement::Sheet(sheet) = el {
+                Some(sheet)
+            } else { None }
+        }).collect();
+        assert_eq!(1, res.len());
+        assert_eq!("subsheet", res[0].sheet_name().unwrap());
+        assert_eq!("subsheet.kicad_sch", res[0].sheet_filename().unwrap());
+    }
+    #[test]
+    fn parse_multipage() {
+        let doc = Schema::load("samples/files/multipage/multipage.kicad_sch").unwrap();
+        assert_eq!(2, doc.pages());
+    }
+    #[test]
+    fn iter_multipage() {
+        let doc = Schema::load("samples/files/multipage/multipage.kicad_sch").unwrap();
+        let count = doc.iter_all().count();
+        assert_eq!(2, count);
     }
 }

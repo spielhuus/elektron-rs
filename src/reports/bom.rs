@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{error::Error, sexp::model::SchemaElement};
+use crate::{error::Error, sexp::{model::SchemaElement, Schema}};
 
 #[derive(Debug, Clone)]
 pub struct BomItem {
@@ -25,14 +25,10 @@ fn reference(value: &str) -> String {
     format!("{}{:0>4}", reference_characters, reference_numbers)
 }
 
-pub fn bom<'a, T: Iterator<Item = &'a SchemaElement>>(
-    document: &'a mut T,
-    group: bool,
-) -> Result<Vec<BomItem>, Error> {
+pub fn bom(document: &Schema, group: bool) -> Result<Vec<BomItem>, Error> {
     let mut bom_items: Vec<BomItem> = Vec::new();
-    loop {
-        match document.next() {
-            Some(SchemaElement::Symbol(symbol)) => {
+    for item in document.iter_all() {
+        if let SchemaElement::Symbol(symbol) = item {
                 if symbol.unit == 1
                     && !symbol.lib_id.starts_with("power:")
                     && !symbol.lib_id.starts_with("Mechanical:")
@@ -50,11 +46,6 @@ pub fn bom<'a, T: Iterator<Item = &'a SchemaElement>>(
                         },
                     });
                 }
-            }
-            None => {
-                break;
-            }
-            _ => {}
         }
     }
 
@@ -100,7 +91,7 @@ mod tests {
     #[test]
     fn test_bom() {
         let schema = Schema::load("samples/files/summe/summe.kicad_sch").unwrap();
-        let result = bom(&mut schema.iter(0), true).unwrap();
+        let result = bom(&schema, true).unwrap();
         assert_eq!(4, result.len());
     }
 }
