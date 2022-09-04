@@ -1,9 +1,9 @@
+#![allow(clippy::borrow_deref_ref)]
 use std::collections::HashMap;
 
-use ndarray::{arr1, Array1};
-use pyo3::exceptions::PyTypeError;
+use ndarray::Array1;
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyTuple};
+use pyo3::types::PyDict;
 
 #[derive(Debug, Clone)]
 pub enum Direction {
@@ -11,42 +11,6 @@ pub enum Direction {
     Down,
     Left,
     Right,
-}
-
-#[pyclass(subclass)]
-#[derive(Debug, Clone)]
-pub struct DrawBase {
-    pub atref: Option<String>,
-    pub atpin: Option<String>,
-}
-#[pymethods]
-impl DrawBase {
-    #[new]
-    fn new() -> Self {
-        DrawBase {
-            atref: None,
-            atpin: None,
-        }
-    }
-    pub fn at<'py>(
-        mut slf: PyRefMut<'py, Self>,
-        py: Python,
-        reference: &'_ PyAny,
-        pin: &'_ PyAny,
-    ) -> PyRefMut<'py, Self> {
-        let dot: Result<Dot, PyErr> = reference.extract();
-        if let Ok(dot) = dot {
-            return slf;
-        }
-        let reference: Result<String, PyErr> = reference.extract();
-        let pin: Result<String, PyErr> = pin.extract();
-        if let (Ok(reference), Ok(pin)) = (&reference, pin) {
-            slf.atref = Some(reference.to_string());
-            slf.atpin = Some(pin);
-            return slf;
-        }
-        panic!("unknown type for at: {:?}", reference);
-    }
 }
 
 #[pyclass]
@@ -170,32 +134,42 @@ impl Line {
     } */
 }
 
-#[pyclass(extends=DrawBase)]
+#[pyclass]
 #[derive(Debug, Clone)]
 pub struct Dot {
     pub pos: Vec<f64>,
+    pub atref: Option<String>,
+    pub atpin: Option<String>,
 }
 #[pymethods]
 impl Dot {
     #[new]
-    fn new() -> (Self, DrawBase) {
-        (
+    fn new() -> Self {
             Dot {
                 pos: vec![0.0, 0.0],
-            },
-            DrawBase::new(),
-        )
+                atref: None,
+                atpin: None,
+            }
     }
     pub fn at<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
-        pos: Vec<f64>,
+        reference: &'_ PyAny,
+        pin: Option<&'_ PyAny>,
     ) -> PyRefMut<'py, Self> {
-        slf.pos = pos;
-        slf
+        if let Some(pin) = pin {
+            let reference: Result<String, PyErr> = reference.extract();
+            let pin: Result<String, PyErr> = pin.extract();
+            if let (Ok(reference), Ok(pin)) = (&reference, pin) {
+                slf.atref = Some(reference.to_string());
+                slf.atpin = Some(pin);
+                return slf;
+            }
+        }
+        panic!("unknown type for at: {:?}", reference);
     }
 }
-#[pyclass(extends=DrawBase)]
+#[pyclass]
 #[derive(Debug, Clone)]
 pub struct Label {
     pub name: String,
@@ -204,8 +178,8 @@ pub struct Label {
 #[pymethods]
 impl Label {
     #[new]
-    pub fn new(name: String) -> (Self, DrawBase) {
-        (Label { name, angle: 0.0 }, DrawBase::new())
+    pub fn new(name: String) -> Self {
+        Label { name, angle: 0.0 }
     }
     pub fn rotate<'py>(
         mut slf: PyRefMut<'py, Self>,
@@ -217,7 +191,7 @@ impl Label {
     }
 }
 
-#[pyclass(extends=DrawBase)]
+#[pyclass]
 #[derive(Debug, Clone)]
 pub struct Element {
     pub reference: String,
@@ -231,6 +205,7 @@ pub struct Element {
     pub atpin: Option<String>,
     pub atdot: Option<Dot>,
     pub endpos: Option<Array1<f64>>,
+    pub mirror: Option<String>,
 }
 #[pymethods]
 impl Element {
@@ -242,7 +217,7 @@ impl Element {
         value: String,
         unit: u32,
         kwargs: Option<&PyDict>,
-    ) -> (Self, DrawBase) {
+    ) -> Self {
         let args = if let Some(args) = kwargs {
             let mut myargs: HashMap<String, String> = HashMap::new();
             for (k, v) in args {
@@ -252,7 +227,6 @@ impl Element {
         } else {
             None
         };
-        (
             Element {
                 reference,
                 library,
@@ -265,9 +239,16 @@ impl Element {
                 atpin: None,
                 atdot: None,
                 endpos: None,
-            },
-            DrawBase::new(),
-        )
+                mirror: None,
+            }
+    }
+    pub fn anchor<'py>(
+        mut slf: PyRefMut<'py, Self>,
+        _py: Python,
+        pin: u32,
+    ) -> PyRefMut<'py, Self> {
+        slf.pin = pin;
+        slf
     }
     pub fn rotate<'py>(
         mut slf: PyRefMut<'py, Self>,
@@ -340,5 +321,13 @@ impl Element {
         }
         } */
         panic!("unknown type for at: {:?}", element);
+    }
+    pub fn mirror<'py>(
+        mut slf: PyRefMut<'py, Self>,
+        _py: Python,
+        mirror: String,
+    ) -> PyRefMut<'py, Self> {
+        slf.mirror = Some(mirror);
+        slf
     }
 }

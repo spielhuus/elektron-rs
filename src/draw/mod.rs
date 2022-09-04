@@ -279,6 +279,9 @@ impl Draw {
             element.reference.to_string(),
             element.value.to_string(),
         );
+        if let Some(mirror) = element.mirror {
+            symbol.mirror = vec![mirror];
+        }
         if let Some(properties) = element.args {
             symbol.on_schema = if let Some(on_schema) = properties.get("on_schema") {
                 on_schema == "yes"
