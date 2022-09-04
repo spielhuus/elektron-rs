@@ -23,7 +23,9 @@ struct Cb {
 }
 impl Callbacks for Cb {
     fn send_char(&mut self, s: &str) {
-        println!("{}", s); //TODO: make console output optional
+        if std::env::var("ELEKTRON_DEBUG").is_ok() {
+            println!("{}", s);
+        }
         self.strs.push(s.to_string())
     }
 }

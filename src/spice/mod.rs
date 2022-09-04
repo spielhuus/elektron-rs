@@ -1,6 +1,3 @@
-#![warn(elided_lifetimes_in_paths)]
-
-//use crate::{ngspice, ngcomplex, simulation_types};
 use crate::{ngcomplex, ngspice, simulation_types};
 use libloading::library_filename;
 use std::collections::HashMap;
@@ -120,7 +117,7 @@ impl<C: Callbacks> NgSpice<C> {
                 None,
                 rawptr as _,
             );
-            return Ok(ptr);
+            Ok(ptr)
         }
     }
 
@@ -133,7 +130,7 @@ impl<C: Callbacks> NgSpice<C> {
             let raw = cs.into_raw();
             unsafe {
                 let ret = self.ngspice.ngSpice_Command(raw);
-                CString::from_raw(raw);
+            drop(CString::from_raw(raw));
                 if ret == 0 {
                     Ok(())
                 } else {
@@ -158,7 +155,7 @@ impl<C: Callbacks> NgSpice<C> {
                 let res = self.ngspice.ngSpice_Circ(buf.as_mut_ptr());
                 for b in buf {
                     if !b.is_null() {
-                        CString::from_raw(b); // drop strings
+            drop(CString::from_raw(b));
                     }
                 }
                 if res == 1 {
@@ -209,7 +206,7 @@ impl<C: Callbacks> NgSpice<C> {
             let raw = cs.into_raw();
             unsafe {
                 let ptrs = self.ngspice.ngSpice_AllVecs(raw);
-                CString::from_raw(raw);
+            drop(CString::from_raw(raw));
                 let mut strs: Vec<String> = Vec::new();
                 let mut i = 0;
                 while !(*ptrs.offset(i)).is_null() {
@@ -234,27 +231,27 @@ impl<C: Callbacks> NgSpice<C> {
         let raw = cs.into_raw();
         unsafe {
             let vecinfo = *self.ngspice.ngGet_Vec_Info(raw);
-            CString::from_raw(raw);
+            drop(CString::from_raw(raw));
             let ptr = CStr::from_ptr(vecinfo.v_name).to_str()?;
             let len = vecinfo.v_length.try_into()?;
             let s = String::from(ptr);
             let typ: simulation_types = std::mem::transmute(vecinfo.v_type);
             if !vecinfo.v_realdata.is_null() {
                 let real_slice = std::slice::from_raw_parts_mut(vecinfo.v_realdata, len);
-                return Ok(VectorInfo {
+                Ok(VectorInfo {
                     name: s,
                     dtype: typ,
                     data: ComplexSlice::Real(real_slice),
-                });
+                })
             } else if !vecinfo.v_compdata.is_null() {
                 let comp_slice = std::slice::from_raw_parts_mut(vecinfo.v_compdata, len);
-                return Ok(VectorInfo {
+                Ok(VectorInfo {
                     name: s,
                     dtype: typ,
                     data: ComplexSlice::Complex(comp_slice),
-                });
+                })
             } else {
-                return Err(NgSpiceError::EncodingError);
+                Err(NgSpiceError::EncodingError)
             }
         }
     }
@@ -299,7 +296,7 @@ mod tests {
 
     impl Callbacks for Cb {
         fn send_char(&mut self, s: &str) {
-            print!("{}\n", s);
+            println!("{}", s);
             self.strs.push(s.to_string())
         }
     }
