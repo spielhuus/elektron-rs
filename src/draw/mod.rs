@@ -1,3 +1,4 @@
+#![allow(clippy::borrow_deref_ref)]
 use crate::circuit::{Circuit, Netlist};
 use crate::error::Error;
 use crate::sexp::model::{
@@ -123,15 +124,20 @@ impl Draw {
         border: bool,
         scale: f64,
     ) -> Result<Vec<u8>, Error> {
+        let theme = if let Ok(theme) = std::env::var("ELEKTRON_THEME") {
+            theme
+        } else {
+            String::from("kicad_2000")
+        };
         if let Some(filename) = filename {
-            self.schema.plot(filename, scale, border, "kicad_2000")?;
+            self.schema.plot(filename, scale, border, theme.as_str())?;
         } else {
             let mut rng = rand::thread_rng();
             let num: u32 = rng.gen();
             let filename =
                 String::new() + temp_dir().to_str().unwrap() + "/" + &num.to_string() + ".png";
             self.schema
-                .plot(filename.as_str(), scale, border, "kicad_2000")?;
+                .plot(filename.as_str(), scale, border, theme.as_str())?;
             print_from_file(&filename, &Config::default()).unwrap();
         };
         Ok(vec![0])
@@ -153,11 +159,6 @@ impl Draw {
         Ok(())
     }
     fn add_label(&mut self, label: model::Label) -> Result<(), Error> {
-        /* let start_pos = if let (Some(atpin), Some(atref)) = (label.atpin, label.atref) {
-            self.pin_pos(atref, atpin)
-        } else {
-            self.last_pos.clone()
-        }; */
         let pos = self.last_pos.clone();
         let mut new_label = Label::new(
             round!(arr1(&[pos[0], pos[1]])),
@@ -253,6 +254,8 @@ impl Draw {
                             uuid!(),
                         )));
                         self.last_pos = arr1(&[pos[0] + 2.0 * wire_len + sym_len, pos[1]]);
+                    } else {
+                        println!("this realy happens"); //TODO:
                     }
                 }
             }

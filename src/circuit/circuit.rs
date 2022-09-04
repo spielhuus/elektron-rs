@@ -1,3 +1,4 @@
+#![allow(clippy::borrow_deref_ref)]
 use crate::{
     error::Error,
     spice::{Callbacks, ComplexSlice, NgSpice},
@@ -197,9 +198,7 @@ impl Circuit {
                 if !includes.contains_key(value) && !self.subcircuits.contains_key(value) {
                     let incs = self.get_includes(value.to_string()).unwrap();
                     for (key, value) in incs {
-                        if !includes.contains_key(&key) {
-                            includes.insert(key, value);
-                        }
+                        includes.entry(key).or_insert(value);
                     }
                 }
             }
@@ -300,7 +299,7 @@ impl Simulation {
         let mut map: HashMap<String, Vec<f64>> = HashMap::new();
         for name in res {
             let re = self.ngspice.vector_info(name.as_str());
-            for r in re {
+            if let Ok(r) = re {
                 let name = r.name;
                 let data1 = match r.data {
                     ComplexSlice::Real(list) => list.iter().map(|i| *i).collect(),
@@ -311,6 +310,8 @@ impl Simulation {
                     }
                 };
                 map.insert(name, data1);
+            } else {
+                panic!("Can not run tran with schema.");
             }
         }
         map

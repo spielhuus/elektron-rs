@@ -7,9 +7,9 @@ use std::os::raw::{c_char, c_int, c_void};
 
 #[derive(Debug)]
 pub enum NgSpiceError {
-    InitError,
-    CommandError,
-    EncodingError,
+    Init,
+    Command,
+    Encoding,
 }
 
 // #[derive(Debug)]
@@ -76,25 +76,25 @@ unsafe extern "C" fn controlled_exit<C: Callbacks>(
 
 impl From<NulError> for NgSpiceError {
     fn from(_e: NulError) -> NgSpiceError {
-        NgSpiceError::EncodingError
+        NgSpiceError::Encoding
     }
 }
 
 impl From<std::str::Utf8Error> for NgSpiceError {
     fn from(_e: std::str::Utf8Error) -> NgSpiceError {
-        NgSpiceError::EncodingError
+        NgSpiceError::Encoding
     }
 }
 
 impl From<std::num::TryFromIntError> for NgSpiceError {
     fn from(_e: std::num::TryFromIntError) -> NgSpiceError {
-        NgSpiceError::EncodingError
+        NgSpiceError::Encoding
     }
 }
 
 impl From<libloading::Error> for NgSpiceError {
     fn from(_e: libloading::Error) -> NgSpiceError {
-        NgSpiceError::InitError
+        NgSpiceError::Init
     }
 }
 
@@ -134,11 +134,11 @@ impl<C: Callbacks> NgSpice<C> {
                 if ret == 0 {
                     Ok(())
                 } else {
-                    Err(NgSpiceError::CommandError)
+                    Err(NgSpiceError::Command)
                 }
             }
         } else {
-            Err(NgSpiceError::EncodingError)
+            Err(NgSpiceError::Encoding)
         }
     }
 
@@ -159,13 +159,13 @@ impl<C: Callbacks> NgSpice<C> {
                     }
                 }
                 if res == 1 {
-                    Err(NgSpiceError::CommandError)
+                    Err(NgSpiceError::Command)
                 } else {
                     Ok(())
                 }
             }
         } else {
-            Err(NgSpiceError::EncodingError)
+            Err(NgSpiceError::Encoding)
         }
     }
 
@@ -176,7 +176,7 @@ impl<C: Callbacks> NgSpice<C> {
             if let Ok(ptr) = ptr_res {
                 Ok(String::from(ptr))
             } else {
-                Err(NgSpiceError::EncodingError)
+                Err(NgSpiceError::Encoding)
             }
         }
     }
@@ -192,7 +192,7 @@ impl<C: Callbacks> NgSpice<C> {
                     let s = String::from(ptr);
                     strs.push(s);
                 } else {
-                    return Err(NgSpiceError::EncodingError);
+                    return Err(NgSpiceError::Encoding);
                 }
                 i += 1;
             }
@@ -215,14 +215,14 @@ impl<C: Callbacks> NgSpice<C> {
                         let s = String::from(ptr);
                         strs.push(s);
                     } else {
-                        return Err(NgSpiceError::EncodingError);
+                        return Err(NgSpiceError::Encoding);
                     }
                     i += 1;
                 }
                 Ok(strs)
             }
         } else {
-            Err(NgSpiceError::EncodingError)
+            Err(NgSpiceError::Encoding)
         }
     }
 
@@ -251,7 +251,7 @@ impl<C: Callbacks> NgSpice<C> {
                     data: ComplexSlice::Complex(comp_slice),
                 })
             } else {
-                Err(NgSpiceError::EncodingError)
+                Err(NgSpiceError::Encoding)
             }
         }
     }

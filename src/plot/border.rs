@@ -16,7 +16,7 @@ pub fn draw_border(
     let effects: Effects = theme.effects("border_effects")?;
     //outline
     let pts: Array2<f64> = arr2(&[[5.0, 5.0], [paper_size.0 - 5.0, paper_size.1 - 5.0]]);
-    plotter.push(PlotItem::RectangleItem(
+    plotter.push(PlotItem::Rectangle(
         99,
         Rectangle::new(
             pts,
@@ -34,7 +34,7 @@ pub fn draw_border(
                 [(i as f64 + 1.0) * BORDER_RASTER as f64, j.0],
                 [(i as f64 + 1.0) * BORDER_RASTER as f64, j.1],
             ]);
-            plotter.push(PlotItem::RectangleItem(
+            plotter.push(PlotItem::Rectangle(
                 99,
                 Rectangle::new(pts, stroke.color, 0.1, stroke.linetype.clone(), None),
             ));
@@ -63,7 +63,7 @@ pub fn draw_border(
                 [j.0, (i as f64 + 1.0) * BORDER_RASTER as f64],
                 [j.1, (i as f64 + 1.0) * BORDER_RASTER as f64],
             ]);
-            plotter.push(PlotItem::RectangleItem(
+            plotter.push(PlotItem::Rectangle(
                 99,
                 Rectangle::new(pts, stroke.color, 0.1, stroke.linetype.clone(), None),
             ));
@@ -86,7 +86,7 @@ pub fn draw_border(
         [paper_size.0 - 120.0, paper_size.1 - 40.0],
         [paper_size.0 - 5.0, paper_size.1 - 5.0],
     ]);
-    plotter.push(PlotItem::RectangleItem(
+    plotter.push(PlotItem::Rectangle(
         99,
         Rectangle::new(
             pts,
@@ -96,7 +96,7 @@ pub fn draw_border(
             None,
         ),
     ));
-    plotter.push(PlotItem::LineItem(
+    plotter.push(PlotItem::Line(
         99,
         Line::new(
             arr2(&[
@@ -108,7 +108,7 @@ pub fn draw_border(
             stroke.color,
         ),
     ));
-    plotter.push(PlotItem::LineItem(
+    plotter.push(PlotItem::Line(
         99,
         Line::new(
             arr2(&[
@@ -120,7 +120,7 @@ pub fn draw_border(
             stroke.color,
         ),
     ));
-    plotter.push(PlotItem::LineItem(
+    plotter.push(PlotItem::Line(
         99,
         Line::new(
             arr2(&[

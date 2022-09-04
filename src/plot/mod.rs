@@ -9,7 +9,7 @@ pub use self::theme::{Theme, Themer};
 
 macro_rules! text {
     ($pos:expr, $angle:expr, $content:expr, $effects:expr) => {
-        PlotItem::TextItem(
+        PlotItem::Text(
             99,
             Text::new(
                 $pos,

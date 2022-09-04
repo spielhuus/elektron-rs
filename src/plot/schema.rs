@@ -32,7 +32,7 @@ where
                     let effects = Themer::get(&prop.effects, &self.theme.effects("text").unwrap());
                     let stroke = Themer::get(&sheet.stroke, &self.theme.stroke("symbol").unwrap());
                     return Some(vec![
-                        PlotItem::TextItem(
+                        PlotItem::Text(
                             10,
                             Text::new(
                                 sheet.at.clone(),
@@ -44,7 +44,7 @@ where
                                 effects.justify,
                             ),
                         ),
-                        PlotItem::RectangleItem(
+                        PlotItem::Rectangle(
                             1,
                             Rectangle::new(
                                 arr2(&[
@@ -65,7 +65,7 @@ where
                 Some(SchemaElement::Wire(wire)) => {
                     let stroke = self.theme.stroke("wire").unwrap();
                     return Some(vec![
-                        (PlotItem::LineItem(
+                        (PlotItem::Line(
                             10,
                             Line::new(
                                 wire.pts.clone(),
@@ -84,7 +84,7 @@ where
                         //dont know why this is possible
                         angle -= 180.0;
                     }
-                    return Some(vec![PlotItem::TextItem(
+                    return Some(vec![PlotItem::Text(
                         10,
                         Text::new(
                             pos,
@@ -104,11 +104,11 @@ where
                     let lines2 = arr2(&[[0.8, 0.8], [-0.8, -0.8]]) + &pos;
 
                     return Some(vec![
-                        (PlotItem::LineItem(
+                        (PlotItem::Line(
                             10,
                             Line::new(lines1, stroke.width, stroke.linetype.clone(), stroke.color),
                         )),
-                        PlotItem::LineItem(
+                        PlotItem::Line(
                             10,
                             Line::new(lines2, stroke.width, stroke.linetype, stroke.color),
                         ),
@@ -116,7 +116,7 @@ where
                 }
                 Some(SchemaElement::Junction(junction)) => {
                     let stroke = self.theme.stroke("junction").unwrap();
-                    return Some(vec![PlotItem::CircleItem(
+                    return Some(vec![PlotItem::Circle(
                         99,
                         Circle::new(
                             junction.at.clone(),
@@ -137,7 +137,7 @@ where
                         //dont know why this is possible
                         angle -= 180.0;
                     }
-                    return Some(vec![PlotItem::TextItem(
+                    return Some(vec![PlotItem::Text(
                         10,
                         Text::new(
                             pos,
@@ -158,7 +158,7 @@ where
                         //TODO: dont know why this is possible
                         angle -= 180.0;
                     }
-                    return Some(vec![PlotItem::TextItem(
+                    return Some(vec![PlotItem::Text(
                         10,
                         Text::new(
                             pos,
@@ -222,7 +222,7 @@ where
                                                     &self.theme.stroke("symbol").unwrap(),
                                                 );
                                                 // let z: usize = if let None = fill_color { 10 } else { 1 };
-                                                items.push(PlotItem::PolylineItem(
+                                                items.push(PlotItem::Polyline(
                                                     1,
                                                     Polyline::new(
                                                         Shape::transform(symbol, &polyline.pts),
@@ -243,7 +243,7 @@ where
                                                 let pts: Array2<f64> =
                                                     arr2(&[[start[0], start[1]], [end[0], end[1]]]);
                                                 // let z: usize = if let None = fill_color { 10 } else { 1 };
-                                                items.push(PlotItem::RectangleItem(
+                                                items.push(PlotItem::Rectangle(
                                                     1,
                                                     Rectangle::new(
                                                         Shape::transform(symbol, &pts),
@@ -260,7 +260,7 @@ where
                                                     &self.theme.stroke("symbol").unwrap(),
                                                 );
                                                 // let z: usize = if let None = fill_color { 10 } else { 1 };
-                                                items.push(PlotItem::CircleItem(
+                                                items.push(PlotItem::Circle(
                                                     1,
                                                     Circle::new(
                                                         Shape::transform(symbol, &circle.center),
@@ -278,7 +278,7 @@ where
                                                     &self.theme.stroke("symbol").unwrap(),
                                                 );
                                                 // let z: usize = if let None = _fill_color { 10 } else { 1 };
-                                                items.push(PlotItem::ArcItem(
+                                                items.push(PlotItem::Arc(
                                                     1,
                                                     Arc::new(
                                                         Shape::transform(symbol, &arc.start),
@@ -321,7 +321,7 @@ where
                                                     + pin.angle.to_radians().sin() * pin.length,
                                             ],
                                         ]);
-                                        items.push(PlotItem::LineItem(
+                                        items.push(PlotItem::Line(
                                             10,
                                             Line::new(
                                                 Shape::transform(symbol, &pin_line),
@@ -366,7 +366,7 @@ where
                                                     + pin.angle.to_radians().sin()
                                                         * (pin.length + lib.pin_names_offset * 4.0),
                                             ]);
-                                            items.push(PlotItem::TextItem(
+                                            items.push(PlotItem::Text(
                                                 99,
                                                 Text::new(
                                                     Shape::transform(symbol, &name_pos),
@@ -384,7 +384,7 @@ where
                             }
                         } else {
                             let pts = arr2(&[[0.0, 0.0], [10.0, 10.0]]);
-                            items.push(PlotItem::RectangleItem(
+                            items.push(PlotItem::Rectangle(
                                 10,
                                 Rectangle::new(
                                     Shape::transform(symbol, &pts),
@@ -438,15 +438,14 @@ impl<T, I: Iterator<Item = T>> PlotIterator<T> for I {}
 
 #[cfg(test)]
 mod tests {
-    use super::PlotIterator;
-    use crate::plot::theme::Theme;
+    use std::path::Path;
     use crate::sexp::Schema;
-    use crate::sexp::SexpParser;
-    use itertools::Itertools;
 
     #[test]
     fn bom() {
         let doc = Schema::load("samples/files/summe/summe.kicad_sch").unwrap();
-        doc.plot("/tmp/summe.svg", 1.0, true, "kicad_2000");
+        doc.plot("/tmp/summe.svg", 1.0, true, "kicad_2000").unwrap();
+        assert!(Path::new("/tmp/summe.svg").exists());
+        assert!(Path::new("/tmp/summe.svg").metadata().unwrap().len() > 0);
     }
 }

@@ -1,14 +1,9 @@
-use crate::{
-    error::Error,
-    sexp::model::{SheetInstance, TitleBlock},
-};
+use crate::error::Error;
 use itertools::Itertools;
 use ndarray::{arr1, arr2, s, Array1, Array2};
 use std::io::Write;
 extern crate cairo;
 use cairo::{Context, FontFace, FontSlant, FontWeight, Format, ImageSurface, SvgSurface};
-
-use super::{border::draw_border, Theme};
 
 pub mod paper {
     pub const A4: (f64, f64) = (297.0, 210.0);
@@ -192,15 +187,12 @@ impl Text {
 
 #[derive(Debug)]
 pub enum PlotItem {
-    Paper(String),
-    TitleBlock(TitleBlock),
-    SheetInstance(Vec<SheetInstance>),
-    ArcItem(usize, Arc),
-    CircleItem(usize, Circle),
-    LineItem(usize, Line),
-    RectangleItem(usize, Rectangle),
-    PolylineItem(usize, Polyline),
-    TextItem(usize, Text),
+    Arc(usize, Arc),
+    Circle(usize, Circle),
+    Line(usize, Line),
+    Rectangle(usize, Rectangle),
+    Polyline(usize, Polyline),
+    Text(usize, Text),
 }
 
 macro_rules! stroke {
@@ -314,24 +306,15 @@ impl<'a> Plotter for CairoPlotter<'a> {
         let mut __bounds: Array2<f64> = Array2::default((0, 2));
         self.items.iter().for_each(|item| {
             let arr: Option<Array2<f64>> = match item {
-                PlotItem::Paper(_) => {
-                    return;
-                }
-                PlotItem::TitleBlock(_) => {
-                    return;
-                }
-                PlotItem::SheetInstance(_) => {
-                    return;
-                }
-                PlotItem::ArcItem(_, arc) => Option::from(arr2(&[
+                PlotItem::Arc(_, arc) => Option::from(arr2(&[
                     [arc.start[0], arc.start[1]],
                     [arc.end[0], arc.end[1]],
                 ])),
-                PlotItem::LineItem(_, line) => Option::from(arr2(&[
+                PlotItem::Line(_, line) => Option::from(arr2(&[
                     [line.pts[[0, 0]], line.pts[[0, 1]]],
                     [line.pts[[1, 0]], line.pts[[1, 1]]],
                 ])),
-                PlotItem::TextItem(_, text) => {
+                PlotItem::Text(_, text) => {
                     let outline = self.text_size(text);
                     let mut x = text.pos[0];
                     let mut y = text.pos[1];
@@ -347,14 +330,14 @@ impl<'a> Plotter for CairoPlotter<'a> {
                     }
                     Option::from(arr2(&[[x, y], [x + outline[0], y + outline[1]]]))
                 }
-                PlotItem::CircleItem(_, circle) => Option::from(arr2(&[
+                PlotItem::Circle(_, circle) => Option::from(arr2(&[
                     [circle.pos[0] - circle.radius, circle.pos[1] - circle.radius],
                     [circle.pos[0] + circle.radius, circle.pos[1] + circle.radius],
                 ])),
-                PlotItem::PolylineItem(_, polyline) => {
+                PlotItem::Polyline(_, polyline) => {
                     Option::from(self.arr_outline(&polyline.pts))
                 }
-                PlotItem::RectangleItem(_, rect) => Option::from(arr2(&[
+                PlotItem::Rectangle(_, rect) => Option::from(arr2(&[
                     [rect.pts[[0, 0]], rect.pts[[0, 1]]],
                     [rect.pts[[1, 0]], rect.pts[[1, 1]]],
                 ])),
@@ -468,26 +451,20 @@ impl<'a> Plotter for CairoPlotter<'a> {
             .iter()
             .sorted_by(|a, b| {
                 let za = match a {
-                    PlotItem::Paper(_) => &0,
-                    PlotItem::TitleBlock(_) => &0,
-                    PlotItem::SheetInstance(_) => &0,
-                    PlotItem::ArcItem(z, _) => z,
-                    PlotItem::LineItem(z, _) => z,
-                    PlotItem::TextItem(z, _) => z,
-                    PlotItem::CircleItem(z, _) => z,
-                    PlotItem::PolylineItem(z, _) => z,
-                    PlotItem::RectangleItem(z, _) => z,
+                    PlotItem::Arc(z, _) => z,
+                    PlotItem::Line(z, _) => z,
+                    PlotItem::Text(z, _) => z,
+                    PlotItem::Circle(z, _) => z,
+                    PlotItem::Polyline(z, _) => z,
+                    PlotItem::Rectangle(z, _) => z,
                 };
                 let zb = match b {
-                    PlotItem::Paper(_) => &0,
-                    PlotItem::TitleBlock(_) => &0,
-                    PlotItem::SheetInstance(_) => &0,
-                    PlotItem::ArcItem(z, _) => z,
-                    PlotItem::LineItem(z, _) => z,
-                    PlotItem::TextItem(z, _) => z,
-                    PlotItem::CircleItem(z, _) => z,
-                    PlotItem::PolylineItem(z, _) => z,
-                    PlotItem::RectangleItem(z, _) => z,
+                    PlotItem::Arc(z, _) => z,
+                    PlotItem::Line(z, _) => z,
+                    PlotItem::Text(z, _) => z,
+                    PlotItem::Circle(z, _) => z,
+                    PlotItem::Polyline(z, _) => z,
+                    PlotItem::Rectangle(z, _) => z,
                 };
 
                 Ord::cmp(&za, &zb)
@@ -495,21 +472,19 @@ impl<'a> Plotter for CairoPlotter<'a> {
             .for_each(|item| {
                 //for item in &self.items {
                 match item {
-                    PlotItem::Paper(_) => {} //TODO: },
-                    PlotItem::TitleBlock(title_block) => {
+                    /* PlotItem::TitleBlock(title_block) => {
                         for item in
                             draw_border(Some(title_block), self.paper_size, &Theme::kicad_2000())
                                 .unwrap()
                         {}
-                    } //TODO: },
-                    PlotItem::SheetInstance(_) => {} //TODO: },
-                    PlotItem::LineItem(_, line) => {
+                    } //TODO: }, */
+                    PlotItem::Line(_, line) => {
                         stroke!(context, line);
                         context.move_to(line.pts[[0, 0]], line.pts[[0, 1]]);
                         context.line_to(line.pts[[1, 0]], line.pts[[1, 1]]);
                         context.stroke().unwrap();
                     }
-                    PlotItem::PolylineItem(_, line) => {
+                    PlotItem::Polyline(_, line) => {
                         stroke!(context, line);
                         let mut first: bool = true;
                         for pos in line.pts.rows() {
@@ -524,7 +499,7 @@ impl<'a> Plotter for CairoPlotter<'a> {
                         fill!(context, &line.fill);
                         context.stroke().unwrap()
                     }
-                    PlotItem::RectangleItem(_, rectangle) => {
+                    PlotItem::Rectangle(_, rectangle) => {
                         stroke!(context, rectangle);
                         context.rectangle(
                             rectangle.pts[[0, 0]],
@@ -536,21 +511,21 @@ impl<'a> Plotter for CairoPlotter<'a> {
                         fill!(context, &rectangle.fill);
                         context.stroke().unwrap()
                     }
-                    PlotItem::CircleItem(_, circle) => {
+                    PlotItem::Circle(_, circle) => {
                         stroke!(context, circle);
                         context.arc(circle.pos[0], circle.pos[1], circle.radius, 0., 10.);
                         context.stroke_preserve().unwrap();
                         fill!(context, &circle.fill);
                         context.stroke().unwrap()
                     }
-                    PlotItem::ArcItem(_, circle) => {
+                    PlotItem::Arc(_, circle) => {
                         stroke!(context, circle);
                         context.arc(circle.start[0], circle.start[1], circle.mid[1], 0., 10.);
                         context.stroke_preserve().unwrap();
                         fill!(context, &circle.fill);
                         context.stroke().unwrap()
                     }
-                    PlotItem::TextItem(_, text) => {
+                    PlotItem::Text(_, text) => {
                         context.save().unwrap();
                         effects!(context, text);
                         let mut x = text.pos[0];

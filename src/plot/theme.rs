@@ -136,12 +136,12 @@ impl Theme {
     }
     pub fn mono() -> Theme {
         let content = r#"(theme
-            (wire (stroke (width 0.254) (type default) (color 1 1 1 1)))
-            (junction (stroke (width 0.254) (type default) (color 1 1 1 1)))
-            (no_connect (stroke (width 0.254) (type default) (color 1 1 1 1)))
-            (symbol (stroke (width 0.254) (type default) (color 1 1 1 1)))
-            (pin (stroke (width 0.254) (type default) (color 1 1 1 1)))
-            (border_stroke (stroke (width 0.254) (type default) (color 1 1 1 1)))
+            (wire (stroke (width 0.254) (type default) (color 0 0 0 1)))
+            (junction (stroke (width 0.254) (type default) (color 0 0 0 1)))
+            (no_connect (stroke (width 0.254) (type default) (color 0 0 0 1)))
+            (symbol (stroke (width 0.254) (type default) (color 0 0 0 1)))
+            (pin (stroke (width 0.254) (type default) (color 0 0 0 1)))
+            (border_stroke (stroke (width 0.254) (type default) (color 0 0 0 1)))
             (label (effects (font (size 1.27 1.27))))
             (property (effects (font (size 1.27 1.27))))
             (pin_number (effects (font (size 1.27 1.27))))
