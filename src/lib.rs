@@ -15,7 +15,6 @@ mod spice;
 pub use crate::error::Error;
 
 use rand::Rng;
-use std::fs::File;
 use viuer::{print_from_file, Config};
 
 use pyo3::prelude::*;
@@ -58,13 +57,7 @@ pub fn netlist(
 
 pub fn dump(input: &str, output: Option<String>) -> Result<(), Error> {
     let schema = Schema::load(input)?;
-    if let Some(output) = output {
-        check_directory(&output)?;
-        let mut out = File::create(output)?;
-        schema.write(&mut out)
-    } else {
-        schema.write(&mut std::io::stdout())
-    }
+    schema.write(output.unwrap().as_str())
 }
 
 pub fn get_library(key: &str, path: Vec<String>) -> Result<LibrarySymbol, Error> {

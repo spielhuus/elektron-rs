@@ -118,6 +118,7 @@ impl Theme {
     }
     pub fn kicad_2000() -> Theme {
         let content = r#"(theme
+            (bus (stroke (width 0.254) (type default) (color 1 0 0 1)))
             (wire (stroke (width 0.254) (type default) (color 1 0 0 1)))
             (junction (stroke (width 0.254) (type default) (color 1 0 0 1)))
             (no_connect (stroke (width 0.254) (type default) (color 1 0 0 1)))
@@ -136,6 +137,7 @@ impl Theme {
     }
     pub fn mono() -> Theme {
         let content = r#"(theme
+            (bus (stroke (width 0.254) (type default) (color 1 0 0 1)))
             (wire (stroke (width 0.254) (type default) (color 0 0 0 1)))
             (junction (stroke (width 0.254) (type default) (color 0 0 0 1)))
             (no_connect (stroke (width 0.254) (type default) (color 0 0 0 1)))

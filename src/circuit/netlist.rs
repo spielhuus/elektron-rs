@@ -91,7 +91,7 @@ impl<'a> Netlist<'a> {
         for page in 0..schema.pages() {
             for node in schema.iter(page).unwrap() {
                 if let SchemaElement::Symbol(symbol) = node {
-                    let library = schema.get_library(page, &symbol.lib_id).unwrap();
+                    let library = schema.get_library(&symbol.lib_id).unwrap();
                     pins(symbol.unit, library).iter().for_each(|el| {
                         let identifier: Option<String> = if library.power {
                             symbol.get_property("Value")

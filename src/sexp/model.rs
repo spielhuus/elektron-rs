@@ -228,12 +228,14 @@ pub struct Polyline {
     pub pts: Array2<f64>,
     pub stroke: Stroke,
     pub fill_type: String,
+    pub uuid: Option<String>
 }
 impl Polyline {
     pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
         let mut pts: Array2<f64> = Array2::zeros((0, 2));
         let mut stroke: Stroke = Stroke::new();
         let mut fill_type: String = String::new();
+        let mut uuid: Option<String> = None;
         let mut count = 1;
         loop {
             match iter.next() {
@@ -252,6 +254,8 @@ impl Polyline {
                     } else if name == "fill" {
                     } else if name == "type" {
                         fill_type = iter.next().unwrap().into();
+                    } else if name == "uuid" {
+                        uuid = Some(iter.next().unwrap().into());
                     } else {
                         todo!("unknown: {}", name);
                     }
@@ -266,6 +270,7 @@ impl Polyline {
                             pts,
                             stroke,
                             fill_type,
+                            uuid,
                         };
                     }
                 }
@@ -613,7 +618,7 @@ pub struct Property {
     pub id: i32,
     pub at: Array1<f64>,
     pub angle: f64,
-    pub effects: Effects,
+    pub effects: Option<Effects>,
 }
 impl Property {
     pub fn new(
@@ -622,7 +627,7 @@ impl Property {
         id: i32,
         at: Array1<f64>,
         angle: f64,
-        effects: Effects,
+        effects: Option<Effects>,
     ) -> Self {
         Self {
             key,
@@ -639,7 +644,7 @@ impl Property {
         let mut id: i32 = 0;
         let mut at: Array1<f64> = arr1(&[0.0, 0.0]);
         let mut angle: f64 = 0.0;
-        let mut effects = Effects::new();
+        let mut effects = None;
         let mut count = 1;
         loop {
             match iter.next() {
@@ -651,7 +656,7 @@ impl Property {
                     } else if name == "id" {
                         id = iter.next().unwrap().into();
                     } else if name == "effects" {
-                        effects = Effects::from(iter);
+                        effects = Some(Effects::from(iter));
                         count -= 1; //the symbol started here and is closed in effects
                     } else {
                         todo!("unknown: {}", name);
@@ -874,7 +879,7 @@ impl Symbol {
                             0,
                             at.clone(),
                             0.0,
-                            Effects::new(),
+                            None,
                         ))
                     //set the value
                     } else if p.key == "Value" {
@@ -884,7 +889,7 @@ impl Symbol {
                             1,
                             at.clone(),
                             0.0,
-                            Effects::new(),
+                            None,
                         ))
                     } else if p.key == "footprint" {
                         Some(Property::new(
@@ -893,7 +898,7 @@ impl Symbol {
                             p.id,
                             at.clone(),
                             0.0,
-                            Effects::new(),
+                            None,
                         ))
                     } else {
                         Some(p.clone())
@@ -1008,6 +1013,7 @@ pub struct Pin {
     pub hide: bool,
     pub name: (String, Effects),
     pub number: (String, Effects),
+    pub uuid: String,
 }
 impl Pin {
     pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
@@ -1019,6 +1025,7 @@ impl Pin {
         let mut hide: bool = false;
         let mut pin_name = (String::new(), Effects::new());
         let mut number = (String::new(), Effects::new());
+        let mut uuid = String::new();
         let mut count = 1;
         loop {
             match iter.next() {
@@ -1040,11 +1047,9 @@ impl Pin {
                             number = (_name, Effects::from(iter));
                         }
                     } else if name == "uuid" {
-                        //TODO: implement
-                        let _uuid: String = iter.next().unwrap().into();
+                        uuid = iter.next().unwrap().into();
                     } else if name == "effects" {
-                        //TODO: implement
-                        let _effects = Effects::from(iter);
+                        pin_name.1 = Effects::from(iter);
                         count -= 1;
                     } else {
                         todo!("unknown: {}", name);
@@ -1070,6 +1075,7 @@ impl Pin {
                             hide,
                             name: pin_name,
                             number,
+                            uuid,
                         };
                     }
                 }
@@ -1110,7 +1116,7 @@ impl LibrarySymbol {
 
         let mut pin_numbers_show = true;
         let mut pin_names_show = true;
-        let mut pin_names_offset = 0.0;
+        let mut pin_names_offset = -1.0;
         let mut power = false;
         let mut extends = String::new();
         let mut in_bom: bool = false;
@@ -1228,6 +1234,64 @@ impl LibrarySymbol {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct HierarchicalLabel {
+    pub text: String,
+    pub shape: String,
+    pub at: Array1<f64>,
+    pub angle: f64,
+    pub effects: Effects,
+    pub uuid: String,
+}
+impl HierarchicalLabel {
+    pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
+        let text: String = iter.next().unwrap().into();
+        let mut shape: String = String::new();
+        let mut at: Array1<f64> = arr1(&[0.0, 0.0]);
+        let mut angle: f64 = 0.0;
+        let mut effects = Effects::new();
+        let mut uuid = String::new();
+        let mut count = 1;
+        loop {
+            match iter.next() {
+                Some(State::StartSymbol(name)) => {
+                    count += 1;
+                    if name == "shape" {
+                        shape = iter.next().unwrap().into();
+                    } else if name == "at" {
+                        at = arr1(&[iter.next().unwrap().into(), iter.next().unwrap().into()]);
+                        angle = iter.next().unwrap().into();
+                    } else if name == "uuid" {
+                        uuid = iter.next().unwrap().into();
+                    } else if name == "effects" {
+                        effects = Effects::from(iter);
+                        count -= 1; //the symbol started here and is closed in stroke
+                    } else {
+                        todo!("unknown: {}", name);
+                    }
+                }
+                None => {
+                    break;
+                }
+                Some(State::EndSymbol) => {
+                    count -= 1;
+                    if count == 0 {
+                        return Self {
+                            text,
+                            shape,
+                            at,
+                            angle,
+                            effects,
+                            uuid,
+                        };
+                    }
+                }
+                _ => {}
+            }
+        }
+        panic!();
+    }
+}
+#[derive(Debug, PartialEq, Clone)]
 pub struct GlobalLabel {
     pub text: String,
     pub shape: String,
@@ -1253,7 +1317,7 @@ impl GlobalLabel {
             0,
             arr1(&[0.0, 0.0]),
             0.0,
-            Effects::new(),
+            None,
         );
         let mut count = 1;
         loop {
@@ -1294,6 +1358,111 @@ impl GlobalLabel {
                             effects,
                             uuid,
                             property,
+                        };
+                    }
+                }
+                _ => {}
+            }
+        }
+        panic!();
+    }
+}
+#[derive(Debug, PartialEq, Clone)]
+pub struct BusEntry {
+    pub at: Array1<f64>,
+    pub angle: f64,
+    pub size: Array1<f64>,
+    pub stroke: Stroke,
+    pub uuid: String,
+}
+impl BusEntry {
+    pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
+        let mut at: Array1<f64> = arr1(&[0.0, 0.0]);
+        let mut angle: f64 = 0.0;
+        let mut size: Array1<f64> = arr1(&[0.0, 0.0]);
+        let mut stroke = Stroke::new();
+        let mut uuid = String::new();
+        let mut count = 1;
+        loop {
+            match iter.next() {
+                Some(State::StartSymbol(name)) => {
+                    count += 1;
+                    if name == "at" {
+                        at = arr1(&[iter.next().unwrap().into(), iter.next().unwrap().into()]);
+                    } else if name == "size" {
+                        size = arr1(&[iter.next().unwrap().into(), iter.next().unwrap().into()]);
+                    } else if name == "uuid" {
+                        uuid = iter.next().unwrap().into();
+                    } else if name == "stroke" {
+                        stroke = Stroke::from(iter);
+                        count -= 1; //the symbol started here and is closed in stroke
+                    } else {
+                        todo!("unknown: {}", name);
+                    }
+                }
+                None => {
+                    break;
+                }
+                Some(State::EndSymbol) => {
+                    count -= 1;
+                    if count == 0 {
+                        return Self {
+                            at,
+                            angle,
+                            size,
+                            stroke,
+                            uuid,
+                        };
+                    }
+                }
+                _ => {}
+            }
+        }
+        panic!();
+    }
+}
+#[derive(Debug, PartialEq, Clone)]
+pub struct Bus {
+    pub pts: Array2<f64>,
+    pub stroke: Stroke,
+    pub uuid: String,
+}
+impl Bus {
+    pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
+        let mut pts: Array2<f64> = Array2::zeros((0, 2));
+        let mut stroke = Stroke::new();
+        let mut uuid = String::new();
+        let mut count = 1;
+        loop {
+            match iter.next() {
+                Some(State::StartSymbol(name)) => {
+                    count += 1;
+                    if name == "pts" {
+                    } else if name == "xy" {
+                        pts.push_row(ArrayView::from(&[
+                            iter.next().unwrap().into(),
+                            iter.next().unwrap().into(),
+                        ]))
+                        .unwrap();
+                    } else if name == "uuid" {
+                        uuid = iter.next().unwrap().into();
+                    } else if name == "stroke" {
+                        stroke = Stroke::from(iter);
+                        count -= 1; //the symbol started here and is closed in stroke
+                    } else {
+                        todo!("unknown: {}", name);
+                    }
+                }
+                None => {
+                    break;
+                }
+                Some(State::EndSymbol) => {
+                    count -= 1;
+                    if count == 0 {
+                        return Self {
+                            pts,
+                            stroke,
+                            uuid,
                         };
                     }
                 }
@@ -1423,7 +1592,7 @@ pub struct TitleBlock {
     pub date: String,
     pub rev: String,
     pub company: String,
-    pub comment: HashMap<i32, String>,
+    pub comment: Vec<(i32, String)>,
 }
 impl TitleBlock {
     pub fn new() -> Self {
@@ -1432,7 +1601,7 @@ impl TitleBlock {
             date: String::new(),
             rev: String::new(),
             company: String::new(),
-            comment: HashMap::new(),
+            comment: Vec::new(),
         }
     }
     pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
@@ -1440,7 +1609,7 @@ impl TitleBlock {
         let mut date: String = String::new();
         let mut rev: String = String::new();
         let mut company: String = String::new();
-        let mut comment: HashMap<i32, String> = HashMap::new();
+        let mut comment: Vec<(i32, String)> = Vec::new();
 
         let mut count = 1;
         loop {
@@ -1456,7 +1625,7 @@ impl TitleBlock {
                     } else if name == "company" {
                         company = iter.next().unwrap().into();
                     } else if name == "comment" {
-                        comment.insert(iter.next().unwrap().into(), iter.next().unwrap().into());
+                        comment.push((iter.next().unwrap().into(), iter.next().unwrap().into()));
                     } else {
                         todo!("unknown: {}", name);
                     }
@@ -1603,8 +1772,8 @@ pub enum SchemaElement {
     Label(Label),
     GlobalLabel(GlobalLabel),
     Sheet(Sheet),
-    SheetInstance(Vec<SheetInstance>),
-    SymbolInstance(Vec<SymbolInstance>),
+    Bus(Bus),
+    BusEntry(BusEntry),
+    Polyline(Polyline),
+    HierarchicalLabel(HierarchicalLabel),
 }
-
-

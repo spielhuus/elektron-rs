@@ -7,6 +7,19 @@ use crate::plot::text;
 use crate::sexp::model::{Graph, SchemaElement};
 use crate::sexp::{Schema, Shape, Transform};
 
+
+
+
+macro_rules! get_effects {
+    ($orig:expr, $theme:expr) => {
+        if let Some(effects) = $orig { 
+            Themer::get(effects, $theme)
+        } else {
+            $theme.clone()
+        }
+    };
+}
+
 pub struct SchemaPlot<'a, I> {
     iter: I,
     theme: Theme,
@@ -22,14 +35,13 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             match self.iter.next() {
-                Some(SchemaElement::SymbolInstance(_)) => {}
                 Some(SchemaElement::Sheet(sheet)) => {
                     let prop = sheet
                         .property
                         .iter()
                         .find(|p| p.key == "Sheet name")
                         .unwrap();
-                    let effects = Themer::get(&prop.effects, &self.theme.effects("text").unwrap());
+                    let effects = get_effects!(&prop.effects, &self.theme.effects("text").unwrap());
                     let stroke = Themer::get(&sheet.stroke, &self.theme.stroke("symbol").unwrap());
                     return Some(vec![
                         PlotItem::Text(
@@ -59,9 +71,6 @@ where
                         ),
                     ]);
                 }
-                Some(SchemaElement::SheetInstance(sheet_instance)) => {
-                    // return Some(vec![PlotItem::SheetInstance(sheet_instance)]); //TODO:
-                }
                 Some(SchemaElement::Wire(wire)) => {
                     let stroke = self.theme.stroke("wire").unwrap();
                     return Some(vec![
@@ -69,6 +78,48 @@ where
                             10,
                             Line::new(
                                 wire.pts.clone(),
+                                stroke.width,
+                                stroke.linetype.clone(),
+                                stroke.color,
+                            ),
+                        )),
+                    ]);
+                }
+                Some(SchemaElement::Polyline(line)) => {
+                    let stroke = Themer::get(&line.stroke, &self.theme.stroke("bus").unwrap());
+                    return Some(vec![
+                        (PlotItem::Line(
+                            10,
+                            Line::new(
+                                line.pts.clone(),
+                                stroke.width,
+                                stroke.linetype.clone(),
+                                stroke.color,
+                            ),
+                        )),
+                    ]);
+                }
+                Some(SchemaElement::Bus(bus)) => {
+                    let stroke = Themer::get(&bus.stroke, &self.theme.stroke("bus").unwrap());
+                    return Some(vec![
+                        (PlotItem::Line(
+                            10,
+                            Line::new(
+                                bus.pts.clone(),
+                                stroke.width,
+                                stroke.linetype.clone(),
+                                stroke.color,
+                            ),
+                        )),
+                    ]);
+                }
+                Some(SchemaElement::BusEntry(bus)) => {
+                    let stroke = Themer::get(&bus.stroke, &self.theme.stroke("bus").unwrap());
+                    return Some(vec![
+                        (PlotItem::Line(
+                            10,
+                            Line::new(
+                                arr2(&[[bus.at[0], bus.at[1]], [bus.at[1] + bus.size[0], bus.at[1] + bus.size[1]]]),
                                 stroke.width,
                                 stroke.linetype.clone(),
                                 stroke.color,
@@ -171,13 +222,34 @@ where
                         ),
                     )]);
                 }
+                Some(SchemaElement::HierarchicalLabel(label)) => {
+                    let effects = self.theme.effects("label").unwrap();
+                    let pos: Array1<f64> = label.at.clone();
+                    let mut angle: f64 = label.angle;
+                    if angle >= 180.0 {
+                        //TODO: dont know why this is possible
+                        angle -= 180.0;
+                    }
+                    return Some(vec![PlotItem::Text(
+                        10,
+                        Text::new(
+                            pos,
+                            angle,
+                            label.text.clone(),
+                            effects.color,
+                            effects.font_size.0,
+                            effects.font.as_str(),
+                            effects.justify,
+                        ),
+                    )]);
+                }
                 Some(SchemaElement::Symbol(symbol)) => {
                     if symbol.on_schema {
                         let mut items: Vec<PlotItem> = Vec::new();
                         for property in &symbol.property {
-                            let mut effects = Themer::get(
+                            let mut effects = get_effects!(
                                 &property.effects,
-                                &self.theme.effects("property").unwrap(),
+                                &self.theme.effects("property").unwrap()
                             );
                             let mut justify: Vec<String> = Vec::new();
                             for j in effects.justify {
@@ -438,8 +510,8 @@ impl<T, I: Iterator<Item = T>> PlotIterator<T> for I {}
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
     use crate::sexp::Schema;
+    use std::path::Path;
 
     #[test]
     fn bom() {

@@ -54,7 +54,11 @@ pub fn get_pins(symbol: &LibrarySymbol, number: i32) -> Result<Vec<&Pin>, Error>
 }
 
 fn filter_properties(node: &&mut Property) -> bool {
-    !node.effects.hide
+    if let Some(effects) = &node.effects {
+        !effects.hide
+    } else {
+        true
+    }
 }
 
 fn sort_properties(a: &&mut Property, b: &&mut Property) -> std::cmp::Ordering {
@@ -72,8 +76,10 @@ pub struct Draw {
 impl Draw {
     #[new]
     pub fn new(library_path: Vec<String>) -> Self {
+        let mut schema = Schema::new();
+        schema.new_page();
         Self {
-            schema: Schema::new(),
+            schema,
             libs: Library::new(library_path),
             last_pos: arr1(&[10.0, 10.0]),
         }
@@ -145,10 +151,13 @@ impl Draw {
 
 impl Draw {
     fn add_dot(&mut self, dot: &model::Dot) -> Result<(), Error> {
-        self.schema.push(0, SchemaElement::Junction(Junction::new(
-            round!(arr1(&[dot.pos[0], dot.pos[1]])),
-            uuid!(),
-        )));
+        self.schema.push(
+            0,
+            SchemaElement::Junction(Junction::new(
+                round!(arr1(&[dot.pos[0], dot.pos[1]])),
+                uuid!(),
+            )),
+        )?;
         Ok(())
     }
     fn add_label(&mut self, label: model::Label) -> Result<(), Error> {
@@ -164,7 +173,7 @@ impl Draw {
         } else {
             new_label.effects.justify.push("left".to_string());
         }
-        self.schema.push(0, SchemaElement::Label(new_label));
+        self.schema.push(0, SchemaElement::Label(new_label))?;
         Ok(())
     }
     fn add_line(&mut self, line: model::Line) -> Result<(), Error> {
@@ -187,14 +196,17 @@ impl Draw {
                 model::Direction::Right => arr1(&[start_pos[0] + line.length, start_pos[1]]),
             }
         };
-        self.schema.push(0, SchemaElement::Wire(Wire::new(
-            round!(arr2(&[
-                [start_pos[0], start_pos[1]],
-                [end_pos[0], end_pos[1]]
-            ])),
-            Stroke::new(),
-            uuid!(),
-        )));
+        self.schema.push(
+            0,
+            SchemaElement::Wire(Wire::new(
+                round!(arr2(&[
+                    [start_pos[0], start_pos[1]],
+                    [end_pos[0], end_pos[1]]
+                ])),
+                Stroke::new(),
+                uuid!(),
+            )),
+        )?;
         self.last_pos = end_pos;
         Ok(())
     }
@@ -216,41 +228,34 @@ impl Draw {
         verts = verts.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
         verts = arr1(&[pos[0], pos[1]]) - &verts;
 
-        if let Some(end_pos) = element.endpos {
+        if let Some(end_pos) = &element.endpos {
             let pins = get_pins(&lib_symbol, element.unit as i32).unwrap(); //TODO:
             if pins.len() == 2 {
-                for p in pins {
-                    if p.number.0 != element.unit.to_string() {
-                        //TODO: What is that?
-                        let mut verts2: Array1<f64> = p.at.dot(&rot);
-                        verts2 = verts2.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
-                        //TODO verts = verts.dot(sexp::MIRROR.get(mirror.as_str()).unwrap());
-                        verts2 = arr1(&[pos[0], pos[1]]) - &verts2;
-                        let sym_len = verts[0] - verts2[0];
-                        let wire_len = ((end_pos[0] - pos[0]) - sym_len) / 2.0;
-                        verts = verts + arr1(&[wire_len, 0.0]);
-                        let mut wire1 = arr2(&[[pos[0], pos[1]], [pos[0] + wire_len, pos[1]]]);
-                        wire1 = wire1.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
-                        let mut wire2 = arr2(&[
-                            [pos[0] + wire_len + sym_len, pos[1]],
-                            [pos[0] + 2.0 * wire_len + sym_len, pos[1]],
-                        ]);
-                        wire2 = wire2.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
-                        self.schema.push(0, SchemaElement::Wire(Wire::new(
-                            wire1,
-                            Stroke::new(),
-                            uuid!(),
-                        )));
-                        self.schema.push(0, SchemaElement::Wire(Wire::new(
-                            wire2,
-                            Stroke::new(),
-                            uuid!(),
-                        )));
-                        self.last_pos = arr1(&[pos[0] + 2.0 * wire_len + sym_len, pos[1]]);
-                    } else {
-                        println!("this realy happens"); //TODO:
-                    }
-                }
+                let mut verts2: Array1<f64> = pins.get(element.pin as usize).unwrap().at.dot(&rot);
+                verts2 = verts2.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
+                //TODO verts = verts.dot(sexp::MIRROR.get(mirror.as_str()).unwrap());
+                verts2 = arr1(&[pos[0], pos[1]]) - &verts2;
+                let sym_len = verts[0] - verts2[0];
+                let wire_len = ((end_pos[0] - pos[0]) - sym_len) / 2.0;
+                verts = verts + arr1(&[wire_len, 0.0]);
+                let mut wire1 = arr2(&[[pos[0], pos[1]], [pos[0] + wire_len, pos[1]]]);
+                wire1 = wire1.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
+                let mut wire2 = arr2(&[
+                    [pos[0] + wire_len + sym_len, pos[1]],
+                    [pos[0] + 2.0 * wire_len + sym_len, pos[1]],
+                ]);
+                wire2 = wire2.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
+                self.schema.push(
+                    0,
+                    SchemaElement::Wire(Wire::new(wire1, Stroke::new(), uuid!())),
+                )?;
+                self.schema.push(
+                    0,
+                    SchemaElement::Wire(Wire::new(wire2, Stroke::new(), uuid!())),
+                )?;
+                self.last_pos = arr1(&[pos[0] + 2.0 * wire_len + sym_len, pos[1]]);
+            } else {
+                panic!("tox and toy can only be used on symbols with two pins.")
             }
         }
 
@@ -280,7 +285,7 @@ impl Draw {
                         0,
                         round!(verts.clone()),
                         0.0,
-                        Effects::hidden(),
+                        Some(Effects::hidden()),
                     ));
                 }
             }
@@ -293,7 +298,7 @@ impl Draw {
             value.to_string(),
             String::new(), /* TODO footprint.to_string()*/
         )); */
-        self.schema.push(0, SchemaElement::Symbol(symbol));
+        self.schema.push(0, SchemaElement::Symbol(symbol))?;
         self.get_library(&element.library)?;
 
         Ok(())
@@ -301,7 +306,7 @@ impl Draw {
 
     fn pin_pos(&self, reference: String, number: String) -> Array1<f64> {
         let symbol = self.schema.get_symbol(reference.as_str(), 1).unwrap();
-        let library = self.schema.get_library(0, symbol.lib_id.as_str()).unwrap();
+        let library = self.schema.get_library(symbol.lib_id.as_str()).unwrap();
         for subsymbol in &library.symbols {
             for pin in &subsymbol.pin {
                 if pin.number.0 == number {
@@ -317,12 +322,12 @@ impl Draw {
     }
     /// return a library symbol when it exists or load it from the libraries.
     fn get_library(&mut self, name: &str) -> Result<LibrarySymbol, Error> {
-        if let Some(lib) = self.schema.get_library(0, name) {
+        if let Some(lib) = self.schema.get_library(name) {
             Ok(lib.clone())
         } else {
             let mut lib = self.libs.get(name).unwrap();
             lib.lib_id = name.to_string();
-            self.schema.libraries.push(0, lib.clone());
+            self.schema.page(0).unwrap().libraries.push(lib.clone());
             Ok(lib)
         }
     }
@@ -337,10 +342,14 @@ impl Draw {
             .property
             .iter()
             .filter_map(|node| {
-                if !node.effects.hide {
-                    Option::from(node)
+                if let Some(effects) = &node.effects {
+                    if !effects.hide {
+                        Option::from(node)
+                    } else {
+                        None
+                    }
                 } else {
-                    None
+                    Option::from(node)
                 }
             })
             .count();
@@ -385,7 +394,9 @@ impl Draw {
                     .filter(filter_properties)
                     .sorted_by(sort_properties)
                     .for_each(|p| {
-                        p.effects.justify.clear();
+                        if let Some(effects) = &mut p.effects {
+                            effects.justify.clear();
+                        }
                         p.at = arr1(&[symbol.at[0], _size[[1, 1]] + LABEL_BORDER]);
                         p.angle = 0.0 - symbol.angle;
                     });
@@ -447,7 +458,9 @@ impl Draw {
                     .filter(filter_properties)
                     .sorted_by(sort_properties)
                     .for_each(|p| {
-                        p.effects.justify.clear();
+                        if let Some(effects) = &mut p.effects {
+                            effects.justify.clear();
+                        }
                         p.at = arr1(&[symbol.at[0], top_pos - offset]);
                         p.angle = 0.0 - symbol.angle;
                         offset -= LABEL_BORDER;
@@ -464,8 +477,14 @@ impl Draw {
                     .filter(filter_properties)
                     .sorted_by(sort_properties)
                     .for_each(|p| {
-                        p.effects.justify.clear();
-                        p.effects.justify.push(String::from("left"));
+                        if let Some(effects) = &mut p.effects {
+                            effects.justify.clear();
+                            effects.justify.push(String::from("left"));
+                        } else {
+                            let mut effects = Effects::new();
+                            effects.justify.push(String::from("left"));
+                            p.effects = Some(effects);
+                        }
                         p.at = arr1(&[_size[[1, 0]] + LABEL_BORDER / 2.0, top_pos - offset]);
                         p.angle = 360.0 - symbol.angle;
                         offset -= LABEL_BORDER;
@@ -494,7 +513,7 @@ impl Draw {
         let symbol_shift: usize = (symbol.angle / 90.0).round() as usize;
 
         for pin in get_pins(
-            self.schema.get_library(0, &symbol.lib_id).unwrap(),
+            self.schema.get_library(&symbol.lib_id).unwrap(),
             symbol.unit,
         )
         .unwrap()

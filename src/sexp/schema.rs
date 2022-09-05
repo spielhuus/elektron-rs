@@ -15,6 +15,8 @@ use crate::{
     },
 };
 
+use super::model::{Bus, BusEntry, Polyline, HierarchicalLabel};
+
 pub struct Schema {
     pages: Vec<Page>,
 }
@@ -24,24 +26,30 @@ impl Schema {
     }
     ///load the schema from a file.
     pub fn load(filename: &str) -> Result<Self, Error> {
-
-        let doc = Page::load(filename)?;
+        let doc = Page::load(filename, "root")?;
         let mut sheets = Vec::new();
         for sheet in &doc.elements {
             if let SchemaElement::Sheet(sheet) = sheet {
                 let path = Path::new(&filename).parent().unwrap();
-                let filename = format!("{}/{}", path.to_str().unwrap(), sheet.sheet_filename().unwrap());
+                let filename = format!(
+                    "{}/{}",
+                    path.to_str().unwrap(),
+                    sheet.sheet_filename().unwrap()
+                );
                 println!("sheet: {:#?}", filename);
-                sheets.push(Page::load(filename.as_str())?);
+                sheets.push(Page::load(filename.as_str(), sheet.sheet_filename().unwrap().as_str())?);
             }
         }
-        let pages = vec![doc];
+        let mut pages = vec![doc];
         pages.extend(sheets);
-        Ok(Self{ pages })
+        Ok(Self { pages })
+    }
+    pub fn new_page(&mut self) {
+        self.pages.push(Page::new(String::new()));
     }
     ///push element to page. will also create the SymbolInstace if required.
     pub fn push(&mut self, page: usize, element: SchemaElement) -> Result<(), Error> {
-        if let Some(page) = self.pages.get(page) {
+        if let Some(page) = self.pages.get_mut(page) {
             page.elements.push(element);
             Ok(())
         } else {
@@ -49,8 +57,8 @@ impl Schema {
         }
     }
     ///get the library symbol from a page.
-    pub fn get_library(&self, page: usize, key: &str) -> Option<&LibrarySymbol> {
-        if let Some(page) = self.pages.get(page) {
+    pub fn get_library(&self, key: &str) -> Option<&LibrarySymbol> {
+        for page in &self.pages {
             for lib in &page.libraries {
                 if lib.lib_id == key {
                     return Some(lib);
@@ -62,15 +70,15 @@ impl Schema {
     ///search symbol from all pages
     pub fn get_symbol(&self, reference: &str, unit: u32) -> Option<&Symbol> {
         for page in &self.pages {
-        for lib in &page.elements {
-            if let SchemaElement::Symbol(symbol) = lib {
-                if let Some(r) = symbol.get_property("Reference") {
-                    if symbol.unit as u32 == unit && reference == r {
-                        return Some(symbol);
+            for lib in &page.elements {
+                if let SchemaElement::Symbol(symbol) = lib {
+                    if let Some(r) = symbol.get_property("Reference") {
+                        if symbol.unit as u32 == unit && reference == r {
+                            return Some(symbol);
+                        }
                     }
                 }
             }
-        }
         }
         None
     }
@@ -78,23 +86,40 @@ impl Schema {
     pub fn pages(&self) -> usize {
         self.pages.len()
     }
+    /// return the number of pages.
+    pub fn page(&mut self, page: usize) -> Option<&mut Page> {
+        self.pages.get_mut(page)
+    }
     ///iterate over the elements in a page.
     pub fn iter(&self, page: usize) -> Result<std::slice::Iter<SchemaElement>, Error> {
         if let Some(page) = self.pages.get(page) {
             Ok(page.elements.iter())
         } else {
-            Err(Error::ParseError)
+            Err(Error::ParseError) //TODO: meaningfull error
         }
     }
     ///iterate the elements in all pages.
-    pub fn iter_all(&self) -> impl Iterator<Item=&SchemaElement> {
-        self.pages.iter().map(|el| el.elements.iter()).flatten()
+    pub fn iter_all(&self) -> impl Iterator<Item = &SchemaElement> {
+        self.pages.iter().flat_map(|el| el.elements.iter())
     }
     pub fn write(&self, filename: &str) -> Result<(), Error> {
+        println!("Write Schema: {}", filename);
+        let mut out = File::create(filename)?;
+        self.pages.first().unwrap().write(&mut out)?;
+        for page in self.pages.iter().skip(1) {
+            let path = Path::new(&filename).parent().unwrap();
+            let sheetname = if path.to_str().unwrap() == "" {
+                page.filename.clone()
+            } else {
+                format!("{}/{}", path.to_str().unwrap(), page.filename)
+            };
+            println!("Write Sheet: {}", sheetname);
+            let mut out = File::create(sheetname)?;
+            page.write(&mut out)?;
+        }
         Ok(())
     }
     ///plot the schema.
-    /// TODO:
     pub fn plot(&self, filename: &str, scale: f64, border: bool, theme: &str) -> Result<(), Error> {
         let image_type = if filename.ends_with(".svg") {
             ImageType::Svg
@@ -122,6 +147,7 @@ impl Schema {
 }
 
 pub struct Page {
+    filename: String,
     uuid: String,
     paper_size: PaperSize,
     title_block: TitleBlock,
@@ -129,12 +155,12 @@ pub struct Page {
     pub libraries: Vec<LibrarySymbol>,
     sheet_instances: Vec<SheetInstance>,
     symbol_instances: Vec<SymbolInstance>,
-    pages: Vec<Schema>,
 }
 
 impl Page {
-    pub fn new() -> Self {
+    pub fn new(filename: String) -> Self {
         Self {
+            filename,
             uuid: String::new(),
             paper_size: PaperSize::A4,
             title_block: TitleBlock::new(),
@@ -142,19 +168,17 @@ impl Page {
             libraries: Vec::new(),
             sheet_instances: Vec::new(),
             symbol_instances: Vec::new(),
-            pages: Vec::new(),
         }
     }
-    pub fn load(filename: &str) -> Result<Self, Error> {
+    pub fn load(filename: &str, name: &str) -> Result<Self, Error> {
         let doc = SexpParser::load(filename)?;
-        let mut root_sheet = Self::parse(doc.iter())?;
-        Ok(root_sheet)
+        Self::parse(doc.iter(), name.to_string())
     }
-    fn parse<'a, I>(mut iter: I) -> Result<Self, Error>
+    fn parse<'a, I>(mut iter: I, filename: String) -> Result<Self, Error>
     where
         I: Iterator<Item = State<'a>>,
     {
-        let mut schema = Self::new();
+        let mut schema = Self::new(filename);
         loop {
             let state = iter.next();
             match state {
@@ -184,6 +208,10 @@ impl Page {
                                 }
                             }
                         }
+                    } else if name == "polyline" {
+                        schema
+                            .elements
+                            .push(SchemaElement::Polyline(Polyline::from(&mut iter)));
                     } else if name == "no_connect" {
                         schema
                             .elements
@@ -196,6 +224,14 @@ impl Page {
                         schema
                             .elements
                             .push(SchemaElement::Wire(Wire::from(&mut iter)));
+                    } else if name == "bus" {
+                        schema
+                            .elements
+                            .push(SchemaElement::Bus(Bus::from(&mut iter)));
+                    } else if name == "bus_entry" {
+                        schema
+                            .elements
+                            .push(SchemaElement::BusEntry(BusEntry::from(&mut iter)));
                     } else if name == "text" {
                         schema
                             .elements
@@ -208,6 +244,10 @@ impl Page {
                         schema
                             .elements
                             .push(SchemaElement::GlobalLabel(GlobalLabel::from(&mut iter)));
+                    } else if name == "hierarchical_label" {
+                        schema
+                            .elements
+                            .push(SchemaElement::HierarchicalLabel(HierarchicalLabel::from(&mut iter)));
                     } else if name == "symbol" {
                         schema
                             .elements
@@ -286,6 +326,15 @@ impl Page {
                 SchemaElement::Symbol(symbol) => {
                     symbol.write(out, 1)?;
                 }
+                SchemaElement::Polyline(line) => {
+                    line.write(out, 1)?;
+                }
+                SchemaElement::Bus(bus) => {
+                    bus.write(out, 1)?;
+                }
+                SchemaElement::BusEntry(bus) => {
+                    bus.write(out, 1)?;
+                }
                 SchemaElement::NoConnect(no_connect) => {
                     no_connect.write(out, 1)?;
                 }
@@ -301,28 +350,34 @@ impl Page {
                 SchemaElement::GlobalLabel(global_label) => {
                     global_label.write(out, 1)?;
                 }
+                SchemaElement::HierarchicalLabel(hierarchical_label) => {
+                    hierarchical_label.write(out, 1)?;
+                }
                 SchemaElement::Text(text) => {
                     text.write(out, 1)?;
                 }
                 SchemaElement::Sheet(sheet) => {
                     sheet.write(out, 1)?;
                 }
-                SchemaElement::SheetInstance(sheet_instances) => {
-                    out.write_all(b"  (sheet_instances\n")?;
-                    for instance in sheet_instances {
-                        instance.write(out, 2)?;
-                    }
-                    out.write_all(b"  )\n")?;
-                }
-                SchemaElement::SymbolInstance(symbol_instances) => {
-                    out.write_all(b"  (symbol_instances\n")?;
-                    for instance in symbol_instances {
-                        instance.write(out, 2)?;
-                    }
-                    out.write_all(b"  )\n")?;
-                }
             }
         }
+
+        if !self.sheet_instances.is_empty() {
+            out.write_all(b"  (sheet_instances\n")?;
+            for instance in &self.sheet_instances {
+                instance.write(out, 2)?;
+            }
+            out.write_all(b"  )\n")?;
+        }
+
+        if !self.symbol_instances.is_empty() {
+            out.write_all(b"  (symbol_instances\n")?;
+            for instance in &self.symbol_instances {
+                instance.write(out, 2)?;
+            }
+            out.write_all(b"  )\n")?;
+        }
+
         out.write_all(b")\n")?;
         Ok(())
     }
@@ -332,7 +387,10 @@ impl Page {
 mod tests {
     use ndarray::arr1;
 
-    use crate::sexp::{Schema, model::{SchemaElement, Sheet}};
+    use crate::sexp::{
+        model::{SchemaElement, Sheet},
+        Schema,
+    };
 
     #[test]
     fn nodes_iter() {
@@ -342,18 +400,24 @@ mod tests {
     #[test]
     fn get_library() {
         let doc = Schema::load("samples/files/summe/summe.kicad_sch").unwrap();
-        let library = doc.get_library(0, "Amplifier_Operational:TL072").unwrap();
+        let library = doc.get_library("Amplifier_Operational:TL072").unwrap();
         assert_eq!("Amplifier_Operational:TL072", library.lib_id);
         assert_eq!(arr1(&[0.0, 5.08]), library.property[0].at);
     }
     #[test]
     fn sheet_names() {
         let doc = Schema::load("samples/files/multipage/multipage.kicad_sch").unwrap();
-        let res: Vec<&Sheet> = doc.iter(0).unwrap().filter_map(|el| {
-            if let SchemaElement::Sheet(sheet) = el {
-                Some(sheet)
-            } else { None }
-        }).collect();
+        let res: Vec<&Sheet> = doc
+            .iter(0)
+            .unwrap()
+            .filter_map(|el| {
+                if let SchemaElement::Sheet(sheet) = el {
+                    Some(sheet)
+                } else {
+                    None
+                }
+            })
+            .collect();
         assert_eq!(1, res.len());
         assert_eq!("subsheet", res[0].sheet_name().unwrap());
         assert_eq!("subsheet.kicad_sch", res[0].sheet_filename().unwrap());
@@ -367,6 +431,6 @@ mod tests {
     fn iter_multipage() {
         let doc = Schema::load("samples/files/multipage/multipage.kicad_sch").unwrap();
         let count = doc.iter_all().count();
-        assert_eq!(2, count);
+        assert_eq!(3, count);
     }
 }

@@ -47,6 +47,11 @@
   )
 
 
+  (hierarchical_label "SUB_PIN" (shape input) (at 157.48 86.36 0)
+    (effects (font (size 1.27 1.27)) (justify left))
+    (uuid 2a5ff2e9-d133-4c95-94b6-b4c276d45a24)
+  )
+
   (symbol (lib_id "Device:R") (at 113.03 93.98 0) (unit 1)
     (in_bom yes) (on_board yes) (fields_autoplaced)
     (uuid 1bb1f3ad-9357-4fe5-b75c-87cad02ac9e3)

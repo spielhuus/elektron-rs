@@ -334,9 +334,7 @@ impl<'a> Plotter for CairoPlotter<'a> {
                     [circle.pos[0] - circle.radius, circle.pos[1] - circle.radius],
                     [circle.pos[0] + circle.radius, circle.pos[1] + circle.radius],
                 ])),
-                PlotItem::Polyline(_, polyline) => {
-                    Option::from(self.arr_outline(&polyline.pts))
-                }
+                PlotItem::Polyline(_, polyline) => Option::from(self.arr_outline(&polyline.pts)),
                 PlotItem::Rectangle(_, rect) => Option::from(arr2(&[
                     [rect.pts[[0, 0]], rect.pts[[0, 1]]],
                     [rect.pts[[1, 0]], rect.pts[[1, 1]]],

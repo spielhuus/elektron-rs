@@ -3,8 +3,8 @@ use std::io::Write;
 use crate::error::Error;
 
 use super::model::{
-    Effects, GlobalLabel, Junction, Label, LibrarySymbol, NoConnect, Property, Sheet,
-    SheetInstance, Stroke, Symbol, SymbolInstance, Text, TitleBlock, Wire,
+    Bus, BusEntry, Effects, GlobalLabel, Junction, Label, LibrarySymbol, NoConnect, Polyline,
+    Property, Sheet, SheetInstance, Stroke, Symbol, SymbolInstance, Text, TitleBlock, Wire, HierarchicalLabel,
 };
 
 pub trait SexpWriter {
@@ -26,6 +26,10 @@ impl SexpWriter for TitleBlock {
         out.write_all("  ".repeat(indent + 1).as_bytes())?;
         out.write_all(b"(rev \"")?;
         out.write_all(self.rev.as_bytes())?;
+        out.write_all(b"\")\n")?;
+        out.write_all("  ".repeat(indent + 1).as_bytes())?;
+        out.write_all(b"(company \"")?;
+        out.write_all(self.company.as_bytes())?;
         out.write_all(b"\")\n")?;
         for (index, comment) in &self.comment {
             out.write_all("  ".repeat(indent + 1).as_bytes())?;
@@ -66,7 +70,14 @@ impl SexpWriter for Effects {
         out.write_all(self.font_size.0.to_string().as_bytes())?;
         out.write_all(b" ")?;
         out.write_all(self.font_size.1.to_string().as_bytes())?;
-        out.write_all(b"))")?;
+        out.write_all(b")")?;
+        if self.bold {
+            out.write_all(b" bold")?;
+        }
+        if self.italic {
+            out.write_all(b" italic")?;
+        }
+        out.write_all(b")")?;
         if !self.justify.is_empty() {
             out.write_all(b" (justify")?;
             for j in &self.justify {
@@ -97,11 +108,16 @@ impl SexpWriter for Property {
         out.write_all(self.at.get(1).unwrap().to_string().as_bytes())?;
         out.write_all(b" ")?;
         out.write_all(self.angle.to_string().as_bytes())?;
-        out.write_all(b")\n")?;
-        self.effects.write(out, indent + 1)?;
-        out.write_all(b"\n")?;
-        out.write_all("  ".repeat(indent).as_bytes())?;
-        out.write_all(b")\n")?;
+        out.write_all(b")")?;
+        if let Some(effects) = &self.effects {
+            out.write_all(b"\n")?;
+            effects.write(out, indent + 1)?;
+            out.write_all(b"\n")?;
+            out.write_all("  ".repeat(indent).as_bytes())?;
+            out.write_all(b")\n")?;
+        } else {
+            out.write_all(b")\n")?;
+        }
         Ok(())
     }
 }
@@ -183,6 +199,32 @@ impl SexpWriter for GlobalLabel {
         Ok(())
     }
 }
+impl SexpWriter for HierarchicalLabel {
+    fn write(&self, out: &mut dyn Write, indent: usize) -> Result<(), Error> {
+        out.write_all("  ".repeat(indent).as_bytes())?;
+        out.write_all(b"(hierarchical_label \"")?;
+        out.write_all(self.text.as_bytes())?;
+        out.write_all(b"\" (shape ")?;
+        out.write_all(self.shape.as_bytes())?;
+        out.write_all(b") (at ")?;
+        out.write_all(self.at.get(0).unwrap().to_string().as_bytes())?;
+        out.write_all(b" ")?;
+        out.write_all(self.at.get(1).unwrap().to_string().as_bytes())?;
+        out.write_all(b" ")?;
+        out.write_all(self.angle.to_string().as_bytes())?;
+        out.write_all(b")")?;
+        out.write_all(b"\n")?;
+        self.effects.write(out, indent + 1)?;
+        out.write_all(b"\n")?;
+        out.write_all("  ".repeat(indent + 1).as_bytes())?;
+        out.write_all(b"(uuid ")?;
+        out.write_all(self.uuid.as_bytes())?;
+        out.write_all(b")\n")?;
+        out.write_all("  ".repeat(indent).as_bytes())?;
+        out.write_all(b")\n")?;
+        Ok(())
+    }
+}
 impl SexpWriter for NoConnect {
     fn write(&self, out: &mut dyn Write, indent: usize) -> Result<(), Error> {
         out.write_all("  ".repeat(indent).as_bytes())?;
@@ -218,6 +260,52 @@ impl SexpWriter for Wire {
         Ok(())
     }
 }
+impl SexpWriter for Bus {
+    fn write(&self, out: &mut dyn Write, indent: usize) -> Result<(), Error> {
+        out.write_all("  ".repeat(indent).as_bytes())?;
+        out.write_all(b"(bus (pts (xy ")?;
+        out.write_all(self.pts.get((0, 0)).unwrap().to_string().as_bytes())?;
+        out.write_all(b" ")?;
+        out.write_all(self.pts.get((0, 1)).unwrap().to_string().as_bytes())?;
+        out.write_all(b") (xy ")?;
+        out.write_all(self.pts.get((1, 0)).unwrap().to_string().as_bytes())?;
+        out.write_all(b" ")?;
+        out.write_all(self.pts.get((1, 1)).unwrap().to_string().as_bytes())?;
+        out.write_all(b"))\n")?;
+        self.stroke.write(out, indent + 1)?;
+        out.write_all("  ".repeat(indent + 1).as_bytes())?;
+        out.write_all(b"(uuid ")?;
+        out.write_all(self.uuid.as_bytes())?;
+        out.write_all(b")\n")?;
+        out.write_all("  ".repeat(indent).as_bytes())?;
+        out.write_all(b")\n")?;
+        Ok(())
+    }
+}
+impl SexpWriter for BusEntry {
+    fn write(&self, out: &mut dyn Write, indent: usize) -> Result<(), Error> {
+        out.write_all("  ".repeat(indent).as_bytes())?;
+        out.write_all(b"(bus_entry")?;
+        out.write_all(b" (at ")?;
+        out.write_all(self.at.get(0).unwrap().to_string().as_bytes())?;
+        out.write_all(b" ")?;
+        out.write_all(self.at.get(1).unwrap().to_string().as_bytes())?;
+        out.write_all(b") ")?;
+        out.write_all(b"(size ")?;
+        out.write_all(self.size.get(0).unwrap().to_string().as_bytes())?;
+        out.write_all(b" ")?;
+        out.write_all(self.size.get(1).unwrap().to_string().as_bytes())?;
+        out.write_all(b")\n")?;
+        self.stroke.write(out, indent + 1)?;
+        out.write_all("  ".repeat(indent + 1).as_bytes())?;
+        out.write_all(b"(uuid ")?;
+        out.write_all(self.uuid.as_bytes())?;
+        out.write_all(b")\n")?;
+        out.write_all("  ".repeat(indent).as_bytes())?;
+        out.write_all(b")\n")?;
+        Ok(())
+    }
+}
 impl SexpWriter for Text {
     fn write(&self, out: &mut dyn Write, indent: usize) -> Result<(), Error> {
         out.write_all("  ".repeat(indent).as_bytes())?;
@@ -227,6 +315,8 @@ impl SexpWriter for Text {
         out.write_all(self.at.get(0).unwrap().to_string().as_bytes())?;
         out.write_all(b" ")?;
         out.write_all(self.at.get(1).unwrap().to_string().as_bytes())?;
+        out.write_all(b" ")?;
+        out.write_all(self.angle.to_string().as_bytes())?;
         out.write_all(b")\n")?;
         self.effects.write(out, indent + 1)?;
         out.write_all(b"\n")?;
@@ -234,6 +324,31 @@ impl SexpWriter for Text {
         out.write_all(b"(uuid ")?;
         out.write_all(self.uuid.as_bytes())?;
         out.write_all(b")\n")?;
+        out.write_all("  ".repeat(indent).as_bytes())?;
+        out.write_all(b")\n")?;
+        Ok(())
+    }
+}
+impl SexpWriter for Polyline {
+    fn write(&self, out: &mut dyn Write, indent: usize) -> Result<(), Error> {
+        out.write_all("  ".repeat(indent).as_bytes())?;
+        out.write_all(b"(polyline ")?;
+        out.write_all(b"(pts")?;
+        for p in self.pts.rows().into_iter() {
+            out.write_all(b" (xy ")?;
+            out.write_all(p.get(0).unwrap().to_string().as_bytes())?;
+            out.write_all(b" ")?;
+            out.write_all(p.get(1).unwrap().to_string().as_bytes())?;
+            out.write_all(b")")?;
+        }
+        out.write_all(b")\n")?;
+        self.stroke.write(out, indent + 1)?;
+        out.write_all("  ".repeat(indent + 1).as_bytes())?;
+        if let Some(uuid) = &self.uuid {
+            out.write_all(b"(uuid ")?;
+            out.write_all(uuid.as_bytes())?;
+            out.write_all(b")\n")?;
+        }
         out.write_all("  ".repeat(indent).as_bytes())?;
         out.write_all(b")\n")?;
         Ok(())
@@ -251,16 +366,16 @@ impl SexpWriter for LibrarySymbol {
         if !self.pin_numbers_show {
             out.write_all(b"(pin_numbers hide) ")?;
         }
-        out.write_all(b"(pin_names")?;
-        // if self.pin_names_offset != 0.0 {
-        out.write_all(b" (offset ")?;
-        out.write_all(self.pin_names_offset.to_string().as_bytes())?;
-        out.write_all(b")")?;
-        // }
-        if !self.pin_names_show {
-            out.write_all(b" hide")?;
+        if self.pin_names_offset != -1.0 {
+            out.write_all(b"(pin_names")?;
+            out.write_all(b" (offset ")?;
+            out.write_all(self.pin_names_offset.to_string().as_bytes())?;
+            out.write_all(b")")?;
+            if !self.pin_names_show {
+                out.write_all(b" hide")?;
+            }
+            out.write_all(b") ")?;
         }
-        out.write_all(b") ")?;
         out.write_all(b"(in_bom ")?;
         out.write_all(if self.in_bom { b"yes" } else { b"no" })?;
         out.write_all(b") (on_board ")?;
@@ -423,22 +538,24 @@ impl SexpWriter for LibrarySymbol {
 impl SexpWriter for Sheet {
     fn write(&self, out: &mut dyn Write, indent: usize) -> Result<(), Error> {
         out.write_all("  ".repeat(indent).as_bytes())?;
-        out.write_all(b"(symbol (sheet ")?;
+        out.write_all(b"(sheet ")?;
         out.write_all(b"(at ")?;
         out.write_all(self.at.get(0).unwrap().to_string().as_bytes())?;
         out.write_all(b" ")?;
         out.write_all(self.at.get(1).unwrap().to_string().as_bytes())?;
-        out.write_all(b"\") (size ")?;
+        out.write_all(b") (size ")?;
         out.write_all(self.size.get(0).unwrap().to_string().as_bytes())?;
         out.write_all(b" ")?;
         out.write_all(self.size.get(1).unwrap().to_string().as_bytes())?;
+        out.write_all(b")")?;
         if self.fields_autoplaced {
             out.write_all(b" (fields_autoplaced)")?;
         }
         out.write_all(b"\n")?;
+        self.stroke.write(out, indent + 1)?;
         out.write_all("  ".repeat(indent + 1).as_bytes())?;
         out.write_all(b"(fill ")?;
-        out.write_all(b" (color ")?;
+        out.write_all(b"(color ")?;
         out.write_all(self.fill.0.to_string().as_bytes())?;
         out.write_all(b" ")?;
         out.write_all(self.fill.1.to_string().as_bytes())?;
@@ -455,10 +572,10 @@ impl SexpWriter for Sheet {
             property.write(out, indent + 1)?;
         }
         for pin in &self.pin {
-            out.write_all("  ".repeat(indent + 2).as_bytes())?;
-            out.write_all(b"(pin ")?;
+            out.write_all("  ".repeat(indent + 1).as_bytes())?;
+            out.write_all(b"(pin \"")?;
             out.write_all(pin.pin_type.as_bytes())?;
-            out.write_all(b" ")?;
+            out.write_all(b"\" ")?;
             out.write_all(pin.pin_graphic_style.as_bytes())?;
             out.write_all(b" (at ")?;
             out.write_all(pin.at.get(0).unwrap().to_string().as_bytes())?;
@@ -466,24 +583,15 @@ impl SexpWriter for Sheet {
             out.write_all(pin.at.get(1).unwrap().to_string().as_bytes())?;
             out.write_all(b" ")?;
             out.write_all(pin.angle.to_string().as_bytes())?;
-            out.write_all(b") (length ")?;
-            out.write_all(pin.length.to_string().as_bytes())?;
-            out.write_all(b")\n")?;
-            out.write_all("  ".repeat(indent + 3).as_bytes())?;
-            out.write_all(b"(name \"")?;
-            out.write_all(pin.name.0.as_bytes())?;
-            out.write_all(b"\" ")?;
-            pin.name.1.write(out, 0)?;
-            out.write_all("  ".repeat(indent + 3).as_bytes())?;
-            out.write_all(b")\n")?;
-            out.write_all("  ".repeat(indent + 3).as_bytes())?;
-            out.write_all(b"(number \"")?;
-            out.write_all(pin.number.0.as_bytes())?;
-            out.write_all(b"\" ")?;
-            pin.name.1.write(out, 0)?;
-            out.write_all("  ".repeat(indent + 3).as_bytes())?;
             out.write_all(b")\n")?;
             out.write_all("  ".repeat(indent + 2).as_bytes())?;
+            pin.name.1.write(out, 0)?;
+            out.write_all(b"\n")?;
+            out.write_all("  ".repeat(indent + 2).as_bytes())?;
+            out.write_all(b"(uuid ")?;
+            out.write_all(pin.uuid.as_bytes())?;
+            out.write_all(b")\n")?;
+            out.write_all("  ".repeat(indent + 1).as_bytes())?;
             out.write_all(b")\n")?;
         }
         out.write_all("  ".repeat(indent).as_bytes())?;
@@ -502,6 +610,10 @@ impl SexpWriter for Symbol {
         out.write_all(self.at.get(1).unwrap().to_string().as_bytes())?;
         out.write_all(b" ")?;
         out.write_all(self.angle.to_string().as_bytes())?;
+        if !self.mirror.is_empty() {
+            out.write_all(b") (mirror ")?;
+            out.write_all(self.mirror.join(" ").as_bytes())?;
+        }
         out.write_all(b") (unit ")?;
         out.write_all(self.unit.to_string().as_bytes())?;
         out.write_all(b")\n")?;
@@ -510,7 +622,11 @@ impl SexpWriter for Symbol {
         out.write_all(if self.in_bom { b"yes" } else { b"no" })?;
         out.write_all(b") (on_board ")?;
         out.write_all(if self.on_board { b"yes" } else { b"no" })?;
-        out.write_all(b")\n")?;
+        out.write_all(b")")?;
+        if self.fields_autoplaced {
+            out.write_all(b" (fields_autoplaced)")?;
+        }
+        out.write_all(b"\n")?;
         out.write_all("  ".repeat(indent + 1).as_bytes())?;
         out.write_all(b"(uuid ")?;
         out.write_all(self.uuid.as_bytes())?;
@@ -566,8 +682,6 @@ impl SexpWriter for SymbolInstance {
 
 #[cfg(test)]
 mod tests {
-    use crate::sexp::{Schema, SexpParser};
-
     #[test]
     fn test_write() {
         /* let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();

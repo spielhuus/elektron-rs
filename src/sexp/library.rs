@@ -24,7 +24,8 @@ where
                 Some(State::StartSymbol(name)) => {
                     if name == "symbol" {
                         return Some(LibrarySymbol::from(&mut self.iter));
-                    } else if name != "kicad_sch" {
+                    } else if name != "kicad_symbol_lib" && name != "version" && name != "generator"
+                    {
                         println!("start symbol: {}", name);
                     }
                 }

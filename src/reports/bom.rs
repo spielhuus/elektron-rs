@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::{error::Error, sexp::{model::SchemaElement, Schema}};
+use crate::{
+    error::Error,
+    sexp::{model::SchemaElement, Schema},
+};
 
 #[derive(Debug, Clone)]
 pub struct BomItem {
@@ -29,23 +32,23 @@ pub fn bom(document: &Schema, group: bool) -> Result<Vec<BomItem>, Error> {
     let mut bom_items: Vec<BomItem> = Vec::new();
     for item in document.iter_all() {
         if let SchemaElement::Symbol(symbol) = item {
-                if symbol.unit == 1
-                    && !symbol.lib_id.starts_with("power:")
-                    && !symbol.lib_id.starts_with("Mechanical:")
-                {
-                    bom_items.push(BomItem {
-                        amount: 1,
-                        references: vec![symbol.get_property("Reference").unwrap()],
-                        value: symbol.get_property("Value").unwrap(),
-                        footprint: symbol.get_property("Footprint").unwrap(),
-                        datasheet: symbol.get_property("Datasheet").unwrap(),
-                        description: if let Some(description) = symbol.get_property("Description") {
-                            description
-                        } else {
-                            String::new()
-                        },
-                    });
-                }
+            if symbol.unit == 1
+                && !symbol.lib_id.starts_with("power:")
+                && !symbol.lib_id.starts_with("Mechanical:")
+            {
+                bom_items.push(BomItem {
+                    amount: 1,
+                    references: vec![symbol.get_property("Reference").unwrap()],
+                    value: symbol.get_property("Value").unwrap(),
+                    footprint: symbol.get_property("Footprint").unwrap(),
+                    datasheet: symbol.get_property("Datasheet").unwrap(),
+                    description: if let Some(description) = symbol.get_property("Description") {
+                        description
+                    } else {
+                        String::new()
+                    },
+                });
+            }
         }
     }
 
