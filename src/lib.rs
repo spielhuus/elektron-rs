@@ -24,7 +24,7 @@ use std::env::temp_dir;
 use self::{
     circuit::{Circuit, Netlist},
     reports::BomItem,
-    sexp::{model::LibrarySymbol, Schema, SexpParser, State},
+    sexp::{model::LibrarySymbol, Schema, SexpParser, State, pcb::Pcb},
 };
 
 pub fn check_directory(filename: &str) -> Result<(), Error> {
@@ -56,8 +56,14 @@ pub fn netlist(
 }
 
 pub fn dump(input: &str, output: Option<String>) -> Result<(), Error> {
-    let schema = Schema::load(input)?;
-    schema.write(output.unwrap().as_str())
+    if String::from(input).ends_with(".kicad_sch") { 
+        let schema = Schema::load(input)?;
+        schema.write(output.unwrap().as_str())
+    } else {
+        let pcb = Pcb::load(input)?;
+        pcb.write(output.unwrap().as_str())
+
+    }
 }
 
 pub fn get_library(key: &str, path: Vec<String>) -> Result<LibrarySymbol, Error> {
@@ -72,23 +78,44 @@ pub fn plot(
     border: bool,
     theme: Option<String>,
 ) -> Result<(), Error> {
-    let scale = if let Some(scale) = scale { scale } else { 1.0 };
-    let theme = if let Some(theme) = theme {
-        theme
+    if input.ends_with(".kicad_sch") {
+        let scale = if let Some(scale) = scale { scale } else { 1.0 };
+        let theme = if let Some(theme) = theme {
+            theme
+        } else {
+            "kicad_2000".to_string()
+        };
+        let schema = Schema::load(input)?;
+        if let Some(filename) = &output {
+            schema.plot(filename.as_str(), scale, border, theme.as_str())?;
+        } else {
+            let mut rng = rand::thread_rng();
+            let num: u32 = rng.gen();
+            let filename =
+                String::new() + temp_dir().to_str().unwrap() + "/" + &num.to_string() + ".png";
+            schema.plot(filename.as_str(), scale, border, theme.as_str())?;
+            print_from_file(&filename, &Config::default()).expect("Image printing failed.");
+        };
     } else {
-        "kicad_2000".to_string()
-    };
-    let schema = Schema::load(input)?;
-    if let Some(filename) = &output {
-        schema.plot(filename.as_str(), scale, border, theme.as_str())?;
-    } else {
-        let mut rng = rand::thread_rng();
-        let num: u32 = rng.gen();
-        let filename =
-            String::new() + temp_dir().to_str().unwrap() + "/" + &num.to_string() + ".png";
-        schema.plot(filename.as_str(), scale, border, theme.as_str())?;
-        print_from_file(&filename, &Config::default()).expect("Image printing failed.");
-    };
+        let scale = if let Some(scale) = scale { scale } else { 1.0 };
+        let theme = if let Some(theme) = theme {
+            theme
+        } else {
+            "kicad_2000".to_string()
+        };
+        let pcb = Pcb::load(input)?;
+        if let Some(filename) = &output {
+            pcb.plot(filename.as_str(), scale, border, theme.as_str())?;
+        } else {
+            let mut rng = rand::thread_rng();
+            let num: u32 = rng.gen();
+            let filename =
+                String::new() + temp_dir().to_str().unwrap() + "/" + &num.to_string() + ".png";
+            pcb.plot(filename.as_str(), scale, border, theme.as_str())?;
+            print_from_file(&filename, &Config::default()).expect("Image printing failed.");
+        };
+
+    }
     Ok(())
 }
 

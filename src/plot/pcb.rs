@@ -1,63 +1,178 @@
 use std::io::Write;
 
-use super::border::draw_border;
 use super::cairo_plotter::{
     Arc, Circle, ImageType, Line, PlotItem, Plotter, Polyline, Rectangle, Text,
 };
+use super::theme::{Theme, Themer, ThemerMerge};
 use crate::error::Error;
-use crate::sexp::document::Document;
-use crate::sexp::get::{get, Get};
-use crate::sexp::iterator::libraries;
-use crate::sexp::test::Test;
-use crate::sexp::{get_unit, Color, Effects, FillType, LineType, Stroke};
-use crate::sexp::{Justify, Sexp};
-use crate::shape::{Shape, Transform};
-use crate::themes::StyleTypes;
-use crate::themes::{Style, StyleContext};
+use crate::plot::text;
+use crate::sexp::model::{PcbElements, Stroke};
+use crate::sexp::pcb::Pcb;
+use crate::sexp::{Shape, Transform};
 use ndarray::{arr1, arr2, Array1, Array2};
 
-pub fn pcb(
-    plotter: &mut dyn Plotter,
-    out: Box<dyn Write>,
-    sexp_parser: &Document,
+macro_rules! theme {
+    ($self:expr, $element:expr) => {
+        Themer::get(
+            &Stroke {
+                width: $element.width,
+                linetype: "default".to_string(),
+                color: (0.0, 0.0, 0.0, 0.0),
+                filltype: String::new(),
+            },
+            &$self.theme.stroke(&$element.layer).unwrap(),
+        )
+    };
+}
+
+pub struct PcbPlot<'a, I> {
+    iter: I,
+    theme: Theme,
     border: bool,
-    scale: f64,
-    style: Style,
-    image_type: ImageType,
-) -> Result<(), Error> {
-    let libraries = libraries(sexp_parser).unwrap();
+    pcb: &'a Pcb,
+}
 
-    if border {
-        sexp_parser.iter().for_each(|node| {
-            if let Sexp::Node(name, values) = node {
-                if name == "paper" {
-                    let v = values.get(0);
-                    if let Some(Sexp::Value(size)) = v {
-                        plotter.paper(size.clone());
+impl<'a, I> Iterator for PcbPlot<'a, I>
+where
+    I: Iterator<Item = &'a PcbElements>,
+{
+    type Item = Vec<PlotItem>;
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            match self.iter.next() {
+                Some(PcbElements::Line(line)) => {
+                    let stroke = theme!(self, line);
+                    return Some(vec![
+                        (PlotItem::Line(
+                            10,
+                            Line::new(
+                                arr2(&[[line.start[0], line.start[1]], [line.end[0], line.end[1]]]),
+                                stroke.width,
+                                stroke.linetype.clone(),
+                                stroke.color,
+                            ),
+                        )),
+                    ]);
+                }
+                Some(PcbElements::Segment(segment)) => {
+                    let stroke = theme!(self, segment);
+                    return Some(vec![
+                        (PlotItem::Line(
+                            10,
+                            Line::new(
+                                arr2(&[
+                                    [segment.start[0], segment.start[1]],
+                                    [segment.end[0], segment.end[1]],
+                                ]),
+                                stroke.width,
+                                stroke.linetype.clone(),
+                                stroke.color,
+                            ),
+                        )),
+                    ]);
+                }
+                Some(PcbElements::Footprint(footprint)) => {
+                    let mut graphics = Vec::new();
+                    for graphic in &footprint.graphics {
+                        match graphic {
+                            crate::sexp::model::Graphics::FpText(text) => {
+                                let effects = Themer::get(
+                                    &text.effects,
+                                    &self.theme.effects("footprint").unwrap(),
+                                );
+                                graphics.push(text!(
+                                    Shape::transform(footprint, &text.at),
+                                    text.angle,
+                                    text.value.clone(),
+                                    effects
+                                ));
+                            }
+                            crate::sexp::model::Graphics::FpLine(line) => {
+                                let stroke = theme!(self, line);
+                                graphics.push(PlotItem::Line(
+                                    10,
+                                    Line::new(
+                                        Shape::transform(
+                                            footprint,
+                                            &arr2(&[
+                                                [line.start[0], line.start[1]],
+                                                [line.end[0], line.end[1]],
+                                            ]),
+                                        ),
+                                        stroke.width,
+                                        stroke.linetype.clone(),
+                                        stroke.color,
+                                    ),
+                                ));
+                            }
+                            crate::sexp::model::Graphics::FpCircle(circle) => {
+                                let stroke = theme!(self, circle);
+                                graphics.push(PlotItem::Circle(
+                                    1,
+                                    Circle::new(
+                                        Shape::transform(footprint, &circle.center),
+                                        ((circle.end[0] - circle.center[0]).powf(2.0)
+                                            + (circle.end[1] - circle.center[1]).powf(2.0))
+                                        .sqrt(),
+                                        stroke.width,
+                                        stroke.linetype,
+                                        stroke.color,
+                                        self.theme.color(&stroke.filltype),
+                                    ),
+                                ));
+                            }
+                            crate::sexp::model::Graphics::FpArc(_) => {}
+                        }
                     }
+                    return Some(graphics);
                 }
-            }
-        });
-        sexp_parser.iter().for_each(|node| {
-            if let Sexp::Node(name, _) = node {
-                if name == "title_block" {
-                    draw_border(Option::from(node), plotter.get_paper(), plotter, &style).unwrap();
+                None => {
+                    return None;
                 }
+                _ => {}
             }
-        });
-    }
-
-    sexp_parser.iter().for_each(|node| {
-        if let Sexp::Node(name, _) = node {
-            if name == "gr_line" {
-
-            }
-            println!("name {}", name);
-        } else {
-            panic!("wrong node");
         }
-    });
+        /* } else {
+        } */
 
-    plotter.plot(out, border, scale, image_type).unwrap();
-    Ok(())
+        /* },
+        None => {
+            return None;
+        },
+        _ => {} */
+        /* }
+        } */
+    }
+}
+
+impl<'a, I> PcbPlot<'a, I> {
+    pub fn new(iter: I, pcb: &'a Pcb, theme: Theme, border: bool) -> Self {
+        Self {
+            iter,
+            pcb,
+            border,
+            theme,
+        }
+    }
+}
+
+pub trait PcbPlotIterator<T>: Iterator<Item = T> + Sized {
+    fn plot(self, pcb: &'_ Pcb, theme: Theme, border: bool) -> PcbPlot<Self> {
+        PcbPlot::new(self, pcb, theme, border)
+    }
+}
+impl<T, I: Iterator<Item = T>> PcbPlotIterator<T> for I {}
+
+#[cfg(test)]
+mod tests {
+    /* use crate::sexp::Schema;
+    use std::path::Path;
+
+    #[test]
+    fn bom() {
+        let doc = Schema::load("samples/files/summe/summe.kicad_sch").unwrap();
+        doc.plot("/tmp/summe.svg", 1.0, true, "kicad_2000").unwrap();
+        assert!(Path::new("/tmp/summe.svg").exists());
+        assert!(Path::new("/tmp/summe.svg").metadata().unwrap().len() > 0);
+    } */
 }

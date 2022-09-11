@@ -31,6 +31,7 @@ cairo-rs = { version = "0.15.11", features = ["svg", "png", "pdf"] }
 rand = "0.8.5"
 viuer = "0.6.1"
 libloading = "0.7.3"
+diff = "0.1.13"
 
 [build-dependencies]
 bindgen = "0.60.1"

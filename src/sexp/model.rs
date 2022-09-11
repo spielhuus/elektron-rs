@@ -1,7 +1,6 @@
 use crate::Error;
 
 use super::State;
-use std::collections::HashMap;
 
 use ndarray::{arr1, Array1, Array2, ArrayView};
 
@@ -228,7 +227,7 @@ pub struct Polyline {
     pub pts: Array2<f64>,
     pub stroke: Stroke,
     pub fill_type: String,
-    pub uuid: Option<String>
+    pub uuid: Option<String>,
 }
 impl Polyline {
     pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
@@ -290,7 +289,7 @@ pub enum Graph {
     Text(Text),
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Default)]
 /// Text effects
 pub struct Effects {
     pub font: String,
@@ -308,7 +307,7 @@ impl Effects {
         Self {
             font: String::new(),
             font_size: (1.27, 1.27),
-            thickness: 0.0,
+            thickness: -1.0,
             bold: false,
             italic: false,
             line_spacing: 0.0,
@@ -333,7 +332,7 @@ impl Effects {
     pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
         let mut font: String = String::new();
         let mut font_size: (f64, f64) = (0.0, 0.0);
-        let mut thickness: f64 = 0.0;
+        let mut thickness: f64 = -1.0;
         let mut bold: bool = false;
         let mut italic: bool = false;
         let mut line_spacing: f64 = 0.0;
@@ -400,7 +399,7 @@ impl Effects {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct Stroke {
     pub width: f64,
     pub linetype: String,
@@ -1459,11 +1458,7 @@ impl Bus {
                 Some(State::EndSymbol) => {
                     count -= 1;
                     if count == 0 {
-                        return Self {
-                            pts,
-                            stroke,
-                            uuid,
-                        };
+                        return Self { pts, stroke, uuid };
                     }
                 }
                 _ => {}
@@ -1586,7 +1581,7 @@ impl SymbolInstance {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct TitleBlock {
     pub title: String,
     pub date: String,
@@ -1652,7 +1647,7 @@ impl TitleBlock {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct Sheet {
     pub at: Array1<f64>,
     pub size: Array1<f64>,
@@ -1761,7 +1756,6 @@ impl Sheet {
         Err(Error::ParseError)
     }
 }
-
 #[derive(Debug, PartialEq, Clone)]
 pub enum SchemaElement {
     Symbol(Symbol),
@@ -1776,4 +1770,1046 @@ pub enum SchemaElement {
     BusEntry(BusEntry),
     Polyline(Polyline),
     HierarchicalLabel(HierarchicalLabel),
+}
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Layers {
+    pub ordinal: u32,
+    pub canonical_name: String,
+    pub layertype: String,
+    pub user_name: Option<String>,
+}
+#[derive(Debug, PartialEq, Clone)]
+pub struct Footprint {
+    pub key: String,
+    pub layer: String,
+    pub tedit: String,
+    pub tstamp: String,
+    pub at: Array1<f64>,
+    pub angle: f64,
+    pub descr: String,
+    pub tags: Vec<String>,
+    pub path: String,
+    pub attr: Vec<String>,
+    pub graphics: Vec<Graphics>,
+    pub pads: Vec<Pad>,
+    pub models: Vec<Model>,
+    pub locked: bool,
+}
+impl Footprint {
+    pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
+        let key: String = iter.next().unwrap().into();
+        let mut layer = String::new();
+        let mut tedit = String::new();
+        let mut tstamp = String::new();
+        let mut at = arr1(&[0.0, 0.0]);
+        let mut angle: f64 = 0.0;
+        let mut descr = String::new();
+        let mut tags = Vec::new();
+        let mut path = String::new();
+        let mut attr = Vec::new();
+        let mut graphics = Vec::new();
+        let mut pads = Vec::new();
+        let mut models = Vec::new();
+        let mut locked = false;
+        let mut count = 1;
+        loop {
+            match iter.next() {
+                Some(State::StartSymbol(name)) => {
+                    count += 1;
+                    if name == "layer" {
+                        layer = iter.next().unwrap().into();
+                    } else if name == "tedit" {
+                        tedit = iter.next().unwrap().into();
+                    } else if name == "tstamp" {
+                        tstamp = iter.next().unwrap().into();
+                    } else if name == "at" {
+                        at = arr1(&[iter.next().unwrap().into(), iter.next().unwrap().into()]);
+                        if let Some(State::Values(value)) = iter.next() {
+                            angle = value.parse::<f64>().unwrap();
+                        } else {
+                            count -= 1;
+                        }
+                    } else if name == "descr" {
+                        descr = iter.next().unwrap().into();
+                    } else if name == "tags" {
+                        let string_tags: String = iter.next().unwrap().into();
+                        tags = string_tags.split(' ').map(|s| s.to_string()).collect();
+                    } else if name == "path" {
+                        path = iter.next().unwrap().into();
+                    } else if name == "attr" {
+                        loop {
+                            if let Some(State::Values(value)) = iter.next() {
+                                attr.push(value.to_string());
+                            } else {
+                                count -= 1;
+                                break;
+                            }
+                        }
+                    } else if name == "fp_text" {
+                        graphics.push(Graphics::FpText(FpText::from(iter)));
+                        count -= 1;
+                    } else if name == "fp_line" {
+                        graphics.push(Graphics::FpLine(FpLine::from(iter)));
+                        count -= 1;
+                    } else if name == "fp_circle" {
+                        graphics.push(Graphics::FpCircle(FpCircle::from(iter)));
+                        count -= 1;
+                    } else if name == "fp_arc" {
+                        graphics.push(Graphics::FpArc(FpArc::from(iter)));
+                        count -= 1;
+                    } else if name == "pad" {
+                        pads.push(Pad::from(iter));
+                        count -= 1;
+                    } else if name == "model" {
+                        models.push(Model::from(iter));
+                        count -= 1;
+                    } else {
+                        todo!("unknown: {}", name);
+                    }
+                }
+                Some(State::Values(value)) => {
+                    if value == "locked" {
+                        locked = true;
+                    }
+                }
+                None => {
+                    break;
+                }
+                Some(State::EndSymbol) => {
+                    count -= 1;
+                    if count == 0 {
+                        return Self {
+                            key,
+                            layer,
+                            tedit,
+                            tstamp,
+                            at,
+                            angle,
+                            descr,
+                            tags,
+                            path,
+                            attr,
+                            graphics,
+                            pads,
+                            models,
+                            locked,
+                        };
+                    }
+                }
+                _ => {}
+            }
+        }
+        panic!();
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct FpText {
+    pub key: String,
+    pub value: String,
+    pub at: Array1<f64>,
+    pub angle: f64,
+    pub layer: String,
+    pub effects: Effects,
+    pub hidden: bool,
+    pub tstamp: String,
+}
+impl FpText {
+    pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
+        let key = iter.next().unwrap().into();
+        let value = iter.next().unwrap().into();
+        let mut layer = String::new();
+        let mut at = arr1(&[0.0, 0.0]);
+        let mut angle = -1.0;
+        let mut effects = Effects::new();
+        let mut hidden = false;
+        let mut tstamp = String::new();
+        let mut count = 1;
+        loop {
+            match iter.next() {
+                Some(State::StartSymbol(name)) => {
+                    count += 1;
+                    if name == "layer" {
+                        layer = iter.next().unwrap().into();
+                    } else if name == "at" {
+                        at = arr1(&[iter.next().unwrap().into(), iter.next().unwrap().into()]);
+                        if let Some(State::Values(a)) = iter.next() {
+                            angle = a.parse::<f64>().unwrap();
+                        } else {
+                            count -= 1;
+                        }
+                    } else if name == "tstamp" {
+                        tstamp = iter.next().unwrap().into();
+                    } else if name == "effects" {
+                        effects = Effects::from(iter);
+                        count -= 1; //the symbol started here and is closed in effects
+                    } else {
+                        todo!("unknown: {}", name);
+                    }
+                }
+                None => {
+                    break;
+                }
+                Some(State::Values(value)) => {
+                    if value == "hide" {
+                        hidden = true;
+                    } else {
+                        todo!("unknown value in FpText: {}", value);
+                    }
+                }
+                Some(State::EndSymbol) => {
+                    count -= 1;
+                    if count == 0 {
+                        return Self {
+                            key,
+                            value,
+                            at,
+                            angle,
+                            layer,
+                            effects,
+                            hidden,
+                            tstamp,
+                        };
+                    }
+                }
+                _ => {}
+            }
+        }
+        panic!();
+    }
+}
+#[derive(Debug, PartialEq, Clone)]
+pub struct FpArc {
+    pub start: Array1<f64>,
+    pub mid: Array1<f64>,
+    pub end: Array1<f64>,
+    pub layer: String,
+    pub width: f64,
+    pub fill: String,
+    pub tstamp: String,
+}
+impl FpArc {
+    pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
+        let mut start = arr1(&[0.0, 0.0]);
+        let mut mid = arr1(&[0.0, 0.0]);
+        let mut end = arr1(&[0.0, 0.0]);
+        let mut layer = String::new();
+        let mut width: f64 = 0.0;
+        let mut fill = String::new();
+        let mut tstamp = String::new();
+        let mut count = 1;
+        loop {
+            match iter.next() {
+                Some(State::StartSymbol(name)) => {
+                    count += 1;
+                    if name == "layer" {
+                        layer = iter.next().unwrap().into();
+                    } else if name == "start" {
+                        start = arr1(&[iter.next().unwrap().into(), iter.next().unwrap().into()]);
+                    } else if name == "mid" {
+                        mid = arr1(&[iter.next().unwrap().into(), iter.next().unwrap().into()]);
+                    } else if name == "end" {
+                        end = arr1(&[iter.next().unwrap().into(), iter.next().unwrap().into()]);
+                    } else if name == "width" {
+                        width = iter.next().unwrap().into();
+                    } else if name == "fill" {
+                        fill = iter.next().unwrap().into();
+                    } else if name == "tstamp" {
+                        tstamp = iter.next().unwrap().into();
+                    } else {
+                        todo!("unknown: {}", name);
+                    }
+                }
+                None => {
+                    break;
+                }
+                Some(State::EndSymbol) => {
+                    count -= 1;
+                    if count == 0 {
+                        return Self {
+                            start,
+                            mid,
+                            end,
+                            layer,
+                            width,
+                            fill,
+                            tstamp,
+                        };
+                    }
+                }
+                _ => {}
+            }
+        }
+        panic!();
+    }
+}
+#[derive(Debug, PartialEq, Clone)]
+pub struct FpCircle {
+    pub center: Array1<f64>,
+    pub end: Array1<f64>,
+    pub layer: String,
+    pub width: f64,
+    pub fill: String,
+    pub tstamp: String,
+}
+impl FpCircle {
+    pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
+        let mut center = arr1(&[0.0, 0.0]);
+        let mut end = arr1(&[0.0, 0.0]);
+        let mut layer = String::new();
+        let mut width: f64 = 0.0;
+        let mut fill = String::new();
+        let mut tstamp = String::new();
+        let mut count = 1;
+        loop {
+            match iter.next() {
+                Some(State::StartSymbol(name)) => {
+                    count += 1;
+                    if name == "layer" {
+                        layer = iter.next().unwrap().into();
+                    } else if name == "center" {
+                        center = arr1(&[iter.next().unwrap().into(), iter.next().unwrap().into()]);
+                    } else if name == "end" {
+                        end = arr1(&[iter.next().unwrap().into(), iter.next().unwrap().into()]);
+                    } else if name == "width" {
+                        width = iter.next().unwrap().into();
+                    } else if name == "fill" {
+                        fill = iter.next().unwrap().into();
+                    } else if name == "tstamp" {
+                        tstamp = iter.next().unwrap().into();
+                    } else {
+                        todo!("unknown: {}", name);
+                    }
+                }
+                None => {
+                    break;
+                }
+                Some(State::EndSymbol) => {
+                    count -= 1;
+                    if count == 0 {
+                        return Self {
+                            center,
+                            end,
+                            layer,
+                            width,
+                            fill,
+                            tstamp,
+                        };
+                    }
+                }
+                _ => {}
+            }
+        }
+        panic!();
+    }
+}
+#[derive(Debug, PartialEq, Clone)]
+pub struct FpLine {
+    pub start: Array1<f64>,
+    pub end: Array1<f64>,
+    pub layer: String,
+    pub width: f64,
+    pub tstamp: String,
+}
+impl FpLine {
+    pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
+        let mut layer = String::new();
+        let mut start = arr1(&[0.0, 0.0]);
+        let mut end = arr1(&[0.0, 0.0]);
+        let mut width: f64 = 0.0;
+        let mut tstamp = String::new();
+        let mut count = 1;
+        loop {
+            match iter.next() {
+                Some(State::StartSymbol(name)) => {
+                    count += 1;
+                    if name == "layer" {
+                        layer = iter.next().unwrap().into();
+                    } else if name == "start" {
+                        start = arr1(&[iter.next().unwrap().into(), iter.next().unwrap().into()]);
+                    } else if name == "end" {
+                        end = arr1(&[iter.next().unwrap().into(), iter.next().unwrap().into()]);
+                    } else if name == "width" {
+                        width = iter.next().unwrap().into();
+                    } else if name == "tstamp" {
+                        tstamp = iter.next().unwrap().into();
+                    } else {
+                        todo!("unknown: {}", name);
+                    }
+                }
+                None => {
+                    break;
+                }
+                Some(State::EndSymbol) => {
+                    count -= 1;
+                    if count == 0 {
+                        return Self {
+                            start,
+                            end,
+                            layer,
+                            width,
+                            tstamp,
+                        };
+                    }
+                }
+                _ => {}
+            }
+        }
+        panic!();
+    }
+}
+#[derive(Debug, PartialEq, Clone)]
+pub struct Net {
+    pub number: u32,
+    pub name: String,
+    pub tstamp: String,
+}
+impl Net {
+    pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
+        let number = iter.next().unwrap().into();
+        let name = iter.next().unwrap().into();
+        let mut tstamp = String::new();
+        let mut count = 1;
+        loop {
+            match iter.next() {
+                Some(State::StartSymbol(name)) => {
+                    count += 1;
+                    if name == "tstamp" {
+                        let string_layers: String = iter.next().unwrap().into();
+                        tstamp = iter.next().unwrap().into();
+                    } else {
+                        todo!("unknown: {}", name);
+                    }
+                }
+                None => {
+                    break;
+                }
+                Some(State::EndSymbol) => {
+                    count -= 1;
+                    if count == 0 {
+                        return Self {
+                            number,
+                            name,
+                            tstamp,
+                        };
+                    }
+                }
+                _ => {}
+            }
+        }
+        panic!();
+    }
+}
+#[derive(Debug, PartialEq, Clone)]
+pub struct Via {
+    pub at: Array1<f64>,
+    pub size: f64,
+    pub drill: f64,
+    pub layers: Vec<String>,
+    pub net: String,
+    pub tstamp: String,
+}
+impl Via {
+    pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
+        let mut at = arr1(&[0.0, 0.0]);
+        let mut size = 0.0;
+        let mut drill = -1.0;
+        let mut layers = Vec::new();
+        let mut net = String::new();
+        let mut tstamp = String::new();
+        let mut count = 1;
+        loop {
+            match iter.next() {
+                Some(State::StartSymbol(name)) => {
+                    count += 1;
+                    if name == "layers" {
+                        loop {
+                            let state = iter.next();
+                            if let Some(State::Values(value)) = state {
+                                layers.push(value.to_string());
+                            } else if let Some(State::Text(value)) = state {
+                                layers.push(value.to_string());
+                            } else {
+                                count -= 1;
+                                break;
+                            }
+                        }
+                    } else if name == "at" {
+                        at = arr1(&[iter.next().unwrap().into(), iter.next().unwrap().into()]);
+                    } else if name == "size" {
+                        size = iter.next().unwrap().into();
+                    } else if name == "drill" {
+                        drill = iter.next().unwrap().into();
+                    } else if name == "net" {
+                        net = iter.next().unwrap().into();
+                    } else if name == "tstamp" {
+                        tstamp = iter.next().unwrap().into();
+                    } else {
+                        todo!("unknown: {}", name);
+                    }
+                }
+                None => {
+                    break;
+                }
+                Some(State::EndSymbol) => {
+                    count -= 1;
+                    if count == 0 {
+                        return Self {
+                            at,
+                            size,
+                            layers,
+                            drill,
+                            net,
+                            tstamp,
+                        };
+                    }
+                }
+                _ => {}
+            }
+        }
+        panic!();
+    }
+}
+#[derive(Debug, PartialEq, Clone)]
+pub struct Pad {
+    pub number: String,
+    pub padtype: String,
+    pub padshape: String,
+    pub locked: bool,
+    pub at: Array1<f64>,
+    pub angle: f64,
+    pub size: Array1<f64>,
+    pub layers: Vec<String>,
+    pub rratio: f64,
+    pub oval: bool,
+    pub drill: f64,
+    pub net: Option<Net>,
+    pub tstamp: String,
+}
+impl Pad {
+    pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
+        let number = iter.next().unwrap().into();
+        let padtype = iter.next().unwrap().into();
+        let padshape = iter.next().unwrap().into();
+        let mut locked = false;         
+        let mut layers = Vec::new();
+        let mut at = arr1(&[0.0, 0.0]);
+        let mut angle = 0.0;
+        let mut size = arr1(&[0.0, 0.0]);
+        let mut rratio = 0.0;
+        let mut oval = false;
+        let mut drill = -1.0;
+        let mut net = None;
+        let mut tstamp = String::new();
+        let mut count = 1;
+        loop {
+            match iter.next() {
+                Some(State::StartSymbol(name)) => {
+                    count += 1;
+                    if name == "layers" {
+                        loop {
+                            let state = iter.next();
+                            if let Some(State::Values(value)) = state {
+                                layers.push(value.to_string());
+                            } else if let Some(State::Text(value)) = state {
+                                layers.push(value.to_string());
+                            } else {
+                                count -= 1;
+                                break;
+                            }
+                        }
+                    } else if name == "at" {
+                        at = arr1(&[iter.next().unwrap().into(), iter.next().unwrap().into()]);
+                        if let Some(State::Values(value)) = iter.next() {
+                            angle = value.parse::<f64>().unwrap();
+                        } else {
+                            count -= 1;
+                        }
+                    } else if name == "size" {
+                        size = arr1(&[iter.next().unwrap().into(), iter.next().unwrap().into()]);
+                    } else if name == "roundrect_rratio" {
+                        rratio = iter.next().unwrap().into();
+                    } else if name == "drill" {
+                        loop {
+                            if let Some(State::Values(value)) = iter.next() {
+                                if value == "oval" {
+                                    oval = true;
+                                } else {
+                                    drill = value.parse::<f64>().unwrap();
+                                }
+                            } else {
+                                count -= 1;
+                                break;
+                            }
+                        }
+                    } else if name == "net" {
+                        net = Some(Net::from(iter));
+                        count -= 1;
+                    } else if name == "tstamp" {
+                        tstamp = iter.next().unwrap().into();
+                    } else {
+                        todo!("unknown: {}", name);
+                    }
+                }
+                Some(State::Values(value)) => {
+                    if value == "locked" {
+                        locked = true;
+                    }
+                }
+                None => {
+                    break;
+                }
+                Some(State::EndSymbol) => {
+                    count -= 1;
+                    if count == 0 {
+                        return Self {
+                            number,
+                            padtype,
+                            padshape,
+                            locked,
+                            at,
+                            angle,
+                            size,
+                            layers,
+                            rratio,
+                            oval,
+                            drill,
+                            net,
+                            tstamp,
+                        };
+                    }
+                }
+                _ => {}
+            }
+        }
+        panic!();
+    }
+}
+#[derive(Debug, PartialEq, Clone)]
+pub struct Model {
+    pub path: String,
+    pub offset: Array1<f64>,
+    pub scale: Array1<f64>,
+    pub rotate: Array1<f64>,
+}
+impl Model {
+    pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
+        let path = iter.next().unwrap().into();
+        let mut offset = arr1(&[0.0, 0.0]);
+        let mut scale = arr1(&[0.0, 0.0]);
+        let mut rotate = arr1(&[0.0, 0.0]);
+        let mut count = 1;
+        loop {
+            match iter.next() {
+                Some(State::StartSymbol(name)) => {
+                    count += 1;
+                    if name == "offset" {
+                        if let Some(State::StartSymbol(_)) = iter.next() {
+                            offset = arr1(&[
+                                iter.next().unwrap().into(),
+                                iter.next().unwrap().into(),
+                                iter.next().unwrap().into(),
+                            ]);
+                        }
+                        count += 1;
+                    } else if name == "scale" {
+                        if let Some(State::StartSymbol(_)) = iter.next() {
+                            scale = arr1(&[
+                                iter.next().unwrap().into(),
+                                iter.next().unwrap().into(),
+                                iter.next().unwrap().into(),
+                            ]);
+                        }
+                        count += 1;
+                    } else if name == "rotate" {
+                        if let Some(State::StartSymbol(_)) = iter.next() {
+                            rotate = arr1(&[
+                                iter.next().unwrap().into(),
+                                iter.next().unwrap().into(),
+                                iter.next().unwrap().into(),
+                            ]);
+                        }
+                        count += 1;
+                    } else {
+                        todo!("unknown: {}", name);
+                    }
+                }
+                None => {
+                    break;
+                }
+                Some(State::EndSymbol) => {
+                    count -= 1;
+                    if count == 0 {
+                        return Self {
+                            path,
+                            offset,
+                            rotate,
+                            scale,
+                        };
+                    }
+                }
+                _ => {}
+            }
+        }
+        panic!();
+    }
+}
+#[derive(Debug, PartialEq, Clone)]
+pub struct GrText {
+    pub text: String,
+    pub at: Array1<f64>,
+    pub angle: f64,
+    pub layer: String,
+    pub effects: Effects,
+    pub tstamp: String,
+}
+impl GrText {
+    pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
+        let text = iter.next().unwrap().into();
+        let mut layer = String::new();
+        let mut at = arr1(&[0.0, 0.0]);
+        let mut angle = 1.0;
+        let mut effects = Effects::new();
+        let mut tstamp = String::new();
+        let mut count = 1;
+        loop {
+            match iter.next() {
+                Some(State::StartSymbol(name)) => {
+                    count += 1;
+                    if name == "layer" {
+                        layer = iter.next().unwrap().into();
+                    } else if name == "at" {
+                        at = arr1(&[iter.next().unwrap().into(), iter.next().unwrap().into()]);
+                        angle = iter.next().unwrap().into();
+                    } else if name == "effects" {
+                        effects = Effects::from(iter);
+                        count -= 1;
+                    } else if name == "tstamp" {
+                        tstamp = iter.next().unwrap().into();
+                    } else {
+                        todo!("unknown: {}", name);
+                    }
+                }
+                None => {
+                    break;
+                }
+                Some(State::EndSymbol) => {
+                    count -= 1;
+                    if count == 0 {
+                        return Self {
+                            text,
+                            at,
+                            angle,
+                            layer,
+                            effects,
+                            tstamp,
+                        };
+                    }
+                }
+                _ => {}
+            }
+        }
+        panic!();
+    }
+}
+#[derive(Debug, PartialEq, Clone)]
+pub struct GrLine {
+    pub start: Array1<f64>,
+    pub end: Array1<f64>,
+    pub layer: String,
+    pub width: f64,
+    pub tstamp: String,
+}
+impl GrLine {
+    pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
+        let mut layer = String::new();
+        let mut start = arr1(&[0.0, 0.0]);
+        let mut end = arr1(&[0.0, 0.0]);
+        let mut width: f64 = 0.0;
+        let mut tstamp = String::new();
+        let mut count = 1;
+        loop {
+            match iter.next() {
+                Some(State::StartSymbol(name)) => {
+                    count += 1;
+                    if name == "layer" {
+                        layer = iter.next().unwrap().into();
+                    } else if name == "start" {
+                        start = arr1(&[iter.next().unwrap().into(), iter.next().unwrap().into()]);
+                    } else if name == "end" {
+                        end = arr1(&[iter.next().unwrap().into(), iter.next().unwrap().into()]);
+                    } else if name == "width" {
+                        width = iter.next().unwrap().into();
+                    } else if name == "tstamp" {
+                        tstamp = iter.next().unwrap().into();
+                    } else {
+                        todo!("unknown: {}", name);
+                    }
+                }
+                None => {
+                    break;
+                }
+                Some(State::EndSymbol) => {
+                    count -= 1;
+                    if count == 0 {
+                        return Self {
+                            start,
+                            end,
+                            layer,
+                            width,
+                            tstamp,
+                        };
+                    }
+                }
+                _ => {}
+            }
+        }
+        panic!();
+    }
+}
+#[derive(Debug, PartialEq, Clone)]
+pub struct Segment {
+    pub start: Array1<f64>,
+    pub end: Array1<f64>,
+    pub layer: String,
+    pub net: String,
+    pub width: f64,
+    pub tstamp: String,
+}
+impl Segment {
+    pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
+        let mut layer = String::new();
+        let mut net = String::new();
+        let mut start = arr1(&[0.0, 0.0]);
+        let mut end = arr1(&[0.0, 0.0]);
+        let mut width: f64 = 0.0;
+        let mut tstamp = String::new();
+        let mut count = 1;
+        loop {
+            match iter.next() {
+                Some(State::StartSymbol(name)) => {
+                    count += 1;
+                    if name == "layer" {
+                        layer = iter.next().unwrap().into();
+                    } else if name == "start" {
+                        start = arr1(&[iter.next().unwrap().into(), iter.next().unwrap().into()]);
+                    } else if name == "end" {
+                        end = arr1(&[iter.next().unwrap().into(), iter.next().unwrap().into()]);
+                    } else if name == "width" {
+                        width = iter.next().unwrap().into();
+                    } else if name == "net" {
+                        net = iter.next().unwrap().into();
+                    } else if name == "tstamp" {
+                        tstamp = iter.next().unwrap().into();
+                    } else {
+                        todo!("unknown: {}", name);
+                    }
+                }
+                None => {
+                    break;
+                }
+                Some(State::EndSymbol) => {
+                    count -= 1;
+                    if count == 0 {
+                        return Self {
+                            start,
+                            end,
+                            layer,
+                            net,
+                            width,
+                            tstamp,
+                        };
+                    }
+                }
+                _ => {}
+            }
+        }
+        panic!();
+    }
+}
+#[derive(Debug, PartialEq, Clone)]
+pub struct Zone {
+    pub layer: String,
+    pub net: u32,
+    pub net_name: String,
+    pub tstamp: String,
+    pub hatch_style: String,
+    pub hatch_edge: f64,
+    pub pad_clearance: f64,
+    pub min_thickness: f64,
+    pub filled: bool,
+    pub fill_thermal_gap: f64,
+    pub fill_thermal_bridge: f64,
+    pub polygon: Array2<f64>,
+    pub filled_polygon: (String, Array2<f64>),
+}
+impl Zone {
+    pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
+        let mut layer = String::new();
+        let mut net = 0;
+        let mut net_name = String::new();
+        let mut tstamp = String::new();
+        let mut hatch_style: String = String::new();
+        let mut hatch_edge: f64 = 0.0;
+        let mut pad_clearance: f64 = 0.0;
+        let mut min_thickness: f64 = 0.0;
+        let mut filled = false;
+        let mut fill_thermal_gap: f64 = 0.0;
+        let mut fill_thermal_bridge: f64 = 0.0;
+        let mut polygon: Array2<f64> = Array2::zeros((0, 2));
+        let mut filled_polygon = (String::new(), Array2::zeros((0, 2)));
+        let mut count = 1;
+        loop {
+            match iter.next() {
+                Some(State::StartSymbol(name)) => {
+                    count += 1;
+                    if name == "layer" {
+                        layer = iter.next().unwrap().into();
+                    } else if name == "net" {
+                        net = iter.next().unwrap().into();
+                    } else if name == "net_name" {
+                        net_name = iter.next().unwrap().into();
+                    } else if name == "tstamp" {
+                        tstamp = iter.next().unwrap().into();
+                    } else if name == "hatch" {
+                        loop {
+                            if let Some(State::Values(value)) = iter.next() {
+                                if ["none", "edge", "full"].contains(&value) {
+                                    hatch_style = value.to_string();
+                                } else {
+                                    hatch_edge = value.parse::<f64>().unwrap();
+                                }
+                            } else {
+                                count -= 1;
+                                break;
+                            }
+                        }
+                        count += 1;
+                    } else if name == "connect_pads" {
+                        if let Some(State::StartSymbol(name)) = iter.next() {
+                            if name == "clearance" {
+                                pad_clearance = iter.next().unwrap().into();
+                            } else {
+                                todo!("other start symbol in pad clearance: {}", name);
+                            }
+                        }
+                        count += 1;
+                    } else if name == "min_thickness" {
+                        min_thickness = iter.next().unwrap().into();
+                    } else if name == "fill" {
+                        let fill_string: String = iter.next().unwrap().into();
+                        filled = fill_string == "yes";
+                        if let Some(State::StartSymbol(name)) = iter.next() {
+                            if name == "thermal_gap" {
+                                fill_thermal_gap = iter.next().unwrap().into();
+                            } else {
+                                todo!("other start symbol in fill thermal gap: {}", name);
+                            }
+                        }
+                        iter.next();
+                        if let Some(State::StartSymbol(name)) = iter.next() {
+                            if name == "thermal_bridge_width" {
+                                fill_thermal_bridge = iter.next().unwrap().into();
+                            } else {
+                                todo!("other start symbol in fill thermal gap: {}", name);
+                            }
+                        }
+                        count += 1;
+                    } else if name == "polygon" {
+                        let mut index = 1;
+                        loop {
+                            let state = iter.next();
+                            if let Some(State::StartSymbol(name)) = state {
+                                index += 1;
+                                if name == "xy" {
+                                    polygon
+                                        .push_row(ArrayView::from(&[
+                                            iter.next().unwrap().into(),
+                                            iter.next().unwrap().into(),
+                                        ]))
+                                        .unwrap();
+                                }
+                            } else if let Some(State::EndSymbol) = state {
+                                index -= 1;
+                                if index == 0 {
+                                    break;
+                                }
+                            }
+                        }
+                        count -= 1;
+                    } else if name == "filled_polygon" {
+                        if let Some(State::StartSymbol(name)) = iter.next() {
+                            filled_polygon.0 = iter.next().unwrap().into();
+                        }
+                        let mut index = 2;
+                        loop {
+                            let state = iter.next();
+                            if let Some(State::StartSymbol(name)) = state {
+                                index += 1;
+                                if name == "xy" {
+                                    filled_polygon
+                                        .1
+                                        .push_row(ArrayView::from(&[
+                                            iter.next().unwrap().into(),
+                                            iter.next().unwrap().into(),
+                                        ]))
+                                        .unwrap();
+                                }
+                            } else if let Some(State::EndSymbol) = state {
+                                index -= 1;
+                                if index == 0 {
+                                    break;
+                                }
+                            }
+                        }
+                        count -= 1;
+                    } else {
+                        todo!("unknown: {}", name);
+                    }
+                }
+                None => {
+                    break;
+                }
+                Some(State::EndSymbol) => {
+                    count -= 1;
+                    if count == 0 {
+                        return Self {
+                            layer,
+                            net,
+                            net_name,
+                            tstamp,
+                            hatch_style,
+                            hatch_edge,
+                            pad_clearance,
+                            min_thickness,
+                            filled,
+                            fill_thermal_gap,
+                            fill_thermal_bridge,
+                            polygon,
+                            filled_polygon,
+                        };
+                    }
+                }
+                _ => {}
+            }
+        }
+        panic!();
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Graphics {
+    FpText(FpText),
+    FpLine(FpLine),
+    FpCircle(FpCircle),
+    FpArc(FpArc),
+}
+#[derive(Debug, Clone, PartialEq)]
+pub enum PcbElements {
+    Footprint(Footprint),
+    Text(GrText),
+    Line(GrLine),
+    Segment(Segment),
+    Via(Via),
+    Zone(Zone),
 }

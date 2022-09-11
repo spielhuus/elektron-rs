@@ -2,6 +2,7 @@ mod library;
 pub mod model;
 mod parser;
 pub mod schema;
+pub mod pcb;
 mod shape;
 mod write;
 

@@ -132,6 +132,19 @@ impl Theme {
             (border_effects (effects (font (size 2.54 2.54))))
             (subtitle_effects (effects (font (size 2.54 2.54))))
             (title_effects (effects (font (size 5.0 5.0))))
+            (footprint (effects (font (size 5.0 5.0))))
+            
+            (Edge.Cuts (stroke (width 0.254) (type default) (color 0.8157 0.8235 0.8039 1)))
+            (F.Cu (stroke (width 0.254) (type default) (color 0.7841 0.2039 0.2039 1)))
+            (B.Cu (stroke (width 0.254) (type default) (color 0.3019 0.4980 0.7696 1)))
+            (F.SilkS (stroke (width 0.254) (type default) (color 0.9490196078431372 0.9294117647058824 0.6313725490196078 1)))
+            (Dwgs.User (stroke (width 0.254) (type default) (color 0.7607843137254902 0.7607843137254902 0.7607843137254902 1)))
+            (F.CrtYd (stroke (width 0.254) (type default) (color 1.0 0.0 0.9607843137254902 1)))
+            (B.CrtYd (stroke (width 0.254) (type default) (color 1.0 0.14901960784313725 0.8862745098039215 1)))
+            (F.Fab (stroke (width 0.254) (type default) (color 0.6862745098039216 0.6862745098039216 0.6862745098039216 1)))
+            (B.Fab (stroke (width 0.254) (type default) (color 0.34509803921568627 0.36470588235294116 0.5176470588235295 1)))
+            (B.SilkS (stroke (width 0.254) (type default) (color 0.9098039215686274 0.6980392156862745 0.6549019607843137 1)))
+            (Cmts.User (stroke (width 0.254) (type default) (color 0.34901960784313724 0.5803921568627451 0.8627450980392157 1)))
             "#;
         Theme::new(content.to_string())
     }

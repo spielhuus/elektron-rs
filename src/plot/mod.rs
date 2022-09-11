@@ -1,10 +1,12 @@
 mod border;
 mod cairo_plotter;
 mod schema;
+mod pcb;
 mod theme;
 
 pub use self::cairo_plotter::{CairoPlotter, ImageType, PlotItem, Plotter};
 pub use self::schema::{PlotIterator, SchemaPlot};
+pub use self::pcb::{PcbPlotIterator, PcbPlot};
 pub use self::theme::{Theme, Themer};
 
 macro_rules! text {

@@ -15,8 +15,9 @@ use crate::{
     },
 };
 
-use super::model::{Bus, BusEntry, Polyline, HierarchicalLabel};
+use super::model::{Bus, BusEntry, HierarchicalLabel, Polyline};
 
+#[derive(Default)]
 pub struct Schema {
     pages: Vec<Page>,
 }
@@ -37,7 +38,10 @@ impl Schema {
                     sheet.sheet_filename().unwrap()
                 );
                 println!("sheet: {:#?}", filename);
-                sheets.push(Page::load(filename.as_str(), sheet.sheet_filename().unwrap().as_str())?);
+                sheets.push(Page::load(
+                    filename.as_str(),
+                    sheet.sheet_filename().unwrap().as_str(),
+                )?);
             }
         }
         let mut pages = vec![doc];
@@ -150,7 +154,7 @@ pub struct Page {
     filename: String,
     uuid: String,
     paper_size: PaperSize,
-    title_block: TitleBlock,
+    title_block: Option<TitleBlock>,
     elements: Vec<SchemaElement>,
     pub libraries: Vec<LibrarySymbol>,
     sheet_instances: Vec<SheetInstance>,
@@ -163,7 +167,7 @@ impl Page {
             filename,
             uuid: String::new(),
             paper_size: PaperSize::A4,
-            title_block: TitleBlock::new(),
+            title_block: None,
             elements: Vec::new(),
             libraries: Vec::new(),
             sheet_instances: Vec::new(),
@@ -191,7 +195,7 @@ impl Page {
                     } else if name == "paper" {
                         schema.paper_size = iter.next().unwrap().into();
                     } else if name == "title_block" {
-                        schema.title_block = TitleBlock::from(&mut iter);
+                        schema.title_block = Some(TitleBlock::from(&mut iter));
                     } else if name == "lib_symbols" {
                         let mut instance_count = 1;
                         loop {
@@ -245,9 +249,9 @@ impl Page {
                             .elements
                             .push(SchemaElement::GlobalLabel(GlobalLabel::from(&mut iter)));
                     } else if name == "hierarchical_label" {
-                        schema
-                            .elements
-                            .push(SchemaElement::HierarchicalLabel(HierarchicalLabel::from(&mut iter)));
+                        schema.elements.push(SchemaElement::HierarchicalLabel(
+                            HierarchicalLabel::from(&mut iter),
+                        ));
                     } else if name == "symbol" {
                         schema
                             .elements
@@ -313,8 +317,9 @@ impl Page {
         out.write_all(b"  (paper \"")?;
         out.write_all(self.paper_size.to_string().as_bytes())?;
         out.write_all(b"\")\n\n")?;
-        self.title_block.write(out, 1)?;
-
+        if let Some(title_block) = &self.title_block {
+            title_block.write(out, 1)?;
+        }
         out.write_all(b"  (lib_symbols\n")?;
         for lib in &self.libraries {
             lib.write(out, 2)?;
@@ -385,6 +390,8 @@ impl Page {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use ndarray::arr1;
 
     use crate::sexp::{
@@ -431,6 +438,52 @@ mod tests {
     fn iter_multipage() {
         let doc = Schema::load("samples/files/multipage/multipage.kicad_sch").unwrap();
         let count = doc.iter_all().count();
-        assert_eq!(3, count);
+        assert_eq!(27, count);
+    }
+    #[test]
+    fn read_write() {
+        let path = Path::new("/tmp/multipage");
+        if path.exists() {
+            std::fs::remove_dir_all("/tmp/multipage").unwrap();
+        }
+        let doc = Schema::load("samples/files/multipage/multipage.kicad_sch").unwrap();
+        std::fs::create_dir("/tmp/multipage/").unwrap();
+        doc.write("/tmp/multipage/multipage.kicad_sch").unwrap();
+
+        let left = std::fs::read_to_string("samples/files/multipage/multipage.kicad_sch").unwrap();
+        let right = std::fs::read_to_string("/tmp/multipage/multipage.kicad_sch").unwrap();
+        for diff in diff::lines(left.as_str(), right.as_str()) {
+            match diff {
+                diff::Result::Left(l) => {
+                    if !l.is_empty() && l != "(kicad_sch (version 20211123) (generator eeschema)" {
+                        assert!(false, "-'{}'", l);
+                    }
+                }
+                diff::Result::Both(_, _) => {}
+                diff::Result::Right(r) => {
+                    if r != "(kicad_sch (version 20211123) (generator elektron)" {
+                        assert!(false, "+'{}'", r);
+                    }
+                }
+            }
+        }
+        
+        let left = std::fs::read_to_string("samples/files/multipage/subsheet.kicad_sch").unwrap();
+        let right = std::fs::read_to_string("/tmp/multipage/subsheet.kicad_sch").unwrap();
+        for diff in diff::lines(left.as_str(), right.as_str()) {
+            match diff {
+                diff::Result::Left(l) => {
+                    if !l.is_empty() && l != "(kicad_sch (version 20211123) (generator eeschema)" {
+                        assert!(false, "-'{}'", l);
+                    }
+                }
+                diff::Result::Both(_, _) => {}
+                diff::Result::Right(r) => {
+                    if r != "(kicad_sch (version 20211123) (generator elektron)" {
+                        assert!(false, "+'{}'", r);
+                    }
+                }
+            }
+        }
     }
 }

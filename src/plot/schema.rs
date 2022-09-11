@@ -7,9 +7,6 @@ use crate::plot::text;
 use crate::sexp::model::{Graph, SchemaElement};
 use crate::sexp::{Schema, Shape, Transform};
 
-
-
-
 macro_rules! get_effects {
     ($orig:expr, $theme:expr) => {
         if let Some(effects) = $orig { 
@@ -282,7 +279,6 @@ where
                                 ));
                             }
                         }
-
                         if let Some(lib) = self.schema.get_library(&symbol.lib_id) {
                             for _unit in &self.schema.get_library(&symbol.lib_id).unwrap().symbols {
                                 if _unit.unit == 0 || _unit.unit == symbol.unit {
@@ -472,9 +468,7 @@ where
                 }
                 None => {
                     return None;
-                } /* Some(node) => {
-                      todo!("not implemented: {:?}", node);
-                  } */
+                } 
             }
         }
         /* } else {

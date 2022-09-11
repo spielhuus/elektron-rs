@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use crate::error::Error;
 
-use super::model::{Graph, LibrarySymbol, Symbol};
+use super::model::{Graph, LibrarySymbol, Symbol, Footprint};
 
 lazy_static! {
     pub static ref MIRROR: HashMap<String, Array2<f64>> = HashMap::from([ //TODO make global
@@ -18,10 +18,10 @@ lazy_static! {
 pub struct Shape {}
 
 /// transform the coordinates to absolute values.
-pub trait Transform<T> {
-    fn transform(node: &Symbol, pts: &T) -> T;
+pub trait Transform<U, T> {
+    fn transform(node: &U, pts: &T) -> T;
 }
-impl Transform<Array2<f64>> for Shape {
+impl Transform<Symbol, Array2<f64>> for Shape {
     fn transform(symbol: &Symbol, pts: &Array2<f64>) -> Array2<f64> {
         let theta = -symbol.angle.to_radians();
         let rot = arr2(&[[theta.cos(), -theta.sin()], [theta.sin(), theta.cos()]]);
@@ -31,7 +31,7 @@ impl Transform<Array2<f64>> for Shape {
         verts.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap())
     }
 }
-impl Transform<Array1<f64>> for Shape {
+impl Transform<Symbol, Array1<f64>> for Shape {
     fn transform(symbol: &Symbol, pts: &Array1<f64>) -> Array1<f64> {
         let theta = -symbol.angle.to_radians();
         let rot = arr2(&[[theta.cos(), -theta.sin()], [theta.sin(), theta.cos()]]);
@@ -48,7 +48,33 @@ impl Transform<Array1<f64>> for Shape {
         })
     }
 }
-
+impl Transform<Footprint, Array2<f64>> for Shape {
+    fn transform(footprint: &Footprint, pts: &Array2<f64>) -> Array2<f64> {
+        let theta = -footprint.angle.to_radians();
+        let rot = arr2(&[[theta.cos(), -theta.sin()], [theta.sin(), theta.cos()]]);
+        let verts: Array2<f64> = pts.dot(&rot);
+        //verts = verts.dot(MIRROR.get(&symbol.mirror.join("")).unwrap());
+        let verts = &footprint.at + verts;
+        verts.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap())
+    }
+}
+impl Transform<Footprint, Array1<f64>> for Shape {
+    fn transform(symbol: &Footprint, pts: &Array1<f64>) -> Array1<f64> {
+        let theta = -symbol.angle.to_radians();
+        let rot = arr2(&[[theta.cos(), -theta.sin()], [theta.sin(), theta.cos()]]);
+        let mut verts: Array1<f64> = pts.dot(&rot);
+        //verts = verts.dot(MIRROR.get(&symbol.mirror.join("")).unwrap());
+        let verts = &symbol.at + verts;
+        verts.mapv_into(|v| {
+            let res = format!("{:.2}", v).parse::<f64>().unwrap();
+            if res == -0.0 {
+                0.0
+            } else {
+                res
+            }
+        })
+    }
+}
 /// transform the coordinates to absolute values.
 pub trait Bounds<T> {
     fn bounds(&self, libs: &LibrarySymbol) -> Result<T, Error>;

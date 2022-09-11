@@ -10,6 +10,16 @@ pub enum State<'a> {
     Text(&'a str),
 }
 
+impl std::convert::From<State<'_>> for u32 {
+    fn from(state: State<'_>) -> Self {
+        if let State::Values(value) = state {
+            return value.parse::<u32>().unwrap();
+        } else if let State::Text(value) = state {
+            return value.parse::<u32>().unwrap();
+        }
+        panic!();
+    }
+}
 impl std::convert::From<State<'_>> for i32 {
     fn from(state: State<'_>) -> Self {
         if let State::Values(value) = state {
@@ -25,7 +35,7 @@ impl std::convert::From<State<'_>> for f64 {
         if let State::Values(value) = state {
             return value.parse::<f64>().unwrap();
         }
-        panic!();
+        panic!("Error Parsing to f64: {:?}", state);
     }
 }
 impl std::convert::From<State<'_>> for String {
