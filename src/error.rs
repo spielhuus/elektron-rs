@@ -17,8 +17,6 @@ pub enum Error {
     LineTypeValueError,
     #[error("Sexp content not loaded.")]
     NotLoaded,
-    #[error("Property not found for {0}")]
-    PropertyNotFound(String),
     #[error("More then one Property found for {0}")]
     MoreThenOnPropertyFound(String), */
     #[error("Pin not found for {0}")]
@@ -35,6 +33,12 @@ pub enum Error {
     SpiceModelNotFound(String),
     #[error("Unknown circuit element {0}")]
     UnknownCircuitElement(String),
+    #[error("No pins found in {0} for unit {1}")]
+    NoPinsFound(String, u32),
+    #[error("Property \"{0}\" not found in \"{1}\"")]
+    PropertyNotFound(String, String),
+    #[error("Library \"{0}\" not found in schema")]
+    LinraryNotFound(String),
 }
 
 impl std::convert::From<std::io::Error> for Error {

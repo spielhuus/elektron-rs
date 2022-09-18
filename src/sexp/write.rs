@@ -3,8 +3,10 @@ use std::io::Write;
 use crate::error::Error;
 
 use super::model::{
-    Bus, BusEntry, Effects, GlobalLabel, Junction, Label, LibrarySymbol, NoConnect, Polyline,
-    Property, Sheet, SheetInstance, Stroke, Symbol, SymbolInstance, Text, TitleBlock, Wire, HierarchicalLabel, Footprint, FpText, FpLine, FpCircle, Model, Pad, Net, Segment, GrLine, GrText, Layers, Zone, FpArc, Via,
+    Bus, BusEntry, Effects, Footprint, FpArc, FpCircle, FpLine, FpText, GlobalLabel, GrLine,
+    GrText, HierarchicalLabel, Junction, Label, Layers, LibrarySymbol, Model, Net, NoConnect, Pad,
+    Polyline, Property, Segment, Sheet, SheetInstance, Stroke, Symbol, SymbolInstance, Text,
+    TitleBlock, Via, Wire, Zone,
 };
 
 pub trait SexpWriter {
@@ -77,7 +79,6 @@ impl SexpWriter for Effects {
             out.write_all(b" (thickness ")?;
             out.write_all(self.thickness.to_string().as_bytes())?;
             out.write_all(b")")?;
-
         }
         if self.bold {
             out.write_all(b" bold")?;
@@ -374,7 +375,6 @@ impl SexpWriter for LibrarySymbol {
         if !self.pin_numbers_show {
             out.write_all(b"(pin_numbers hide) ")?;
         }
-        println!("skip: {}, {}, {}", self.lib_id, self.pin_names_offset, self.pin_names_show);
         if self.pin_names_offset != -1.0 || !self.pin_names_show {
             out.write_all(b"(pin_names")?;
             if self.pin_names_offset != -1.0 {
@@ -703,7 +703,6 @@ impl SexpWriter for Layers {
             out.write_all(b" \"")?;
             out.write_all(user_name.as_bytes())?;
             out.write_all(b"\"")?;
-
         }
         out.write_all(b")\n")?;
         Ok(())
@@ -1111,7 +1110,6 @@ impl SexpWriter for Zone {
         if self.filled {
             out.write_all(b"yes")?;
         } else {
-
             out.write_all(b"no")?;
         }
         out.write_all(b" (thermal_gap ")?;

@@ -1,5 +1,5 @@
+use std::fs::File;
 use std::io::Write;
-use std::{env::temp_dir, fs::File};
 
 use clap::{Parser, Subcommand};
 use comfy_table::{
@@ -7,9 +7,7 @@ use comfy_table::{
 };
 
 use itertools::Itertools;
-use rand::Rng;
 use rust_fuzzy_search::fuzzy_compare;
-use viuer::{print_from_file, Config};
 
 use elektron::sexp;
 use elektron::sexp::{SexpParser, State};
@@ -141,7 +139,7 @@ fn main() -> Result<(), Error> {
             output,
             spice,
         } => {
-            elektron::netlist(input.as_str(), output, spice);
+            elektron::netlist(input.as_str(), output, spice)?;
         }
         Command::Dump { input, output } => {
             elektron::dump(input.as_str(), output)?;

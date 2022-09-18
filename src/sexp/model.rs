@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::Error;
 
 use super::State;
@@ -1230,6 +1232,31 @@ impl LibrarySymbol {
         }
         panic!();
     }
+    pub fn pins(&self, unit: i32) -> Result<Vec<&Pin>, Error> {
+        let mut items: Vec<&Pin> = Vec::new();
+        for _unit in &self.symbols {
+            if unit == 0 || _unit.unit == 0 || _unit.unit == unit {
+                for pin in &_unit.pin {
+                    items.push(pin);
+                }
+            }
+        }
+        if items.is_empty() {
+            Err(Error::NoPinsFound(self.lib_id.clone(), unit as u32)) //TODO: remove cast.
+        } else {
+            Ok(items)
+        }
+    }
+    pub fn pin_names(&self) -> Result<HashMap<String, (Pin, i32)>, Error> {
+        let mut pins = HashMap::new();
+        for symbol in &self.symbols {
+            //search the pins
+            for pin in &symbol.pin {
+                pins.insert(pin.number.0.clone(), (pin.clone(), symbol.unit));
+            }
+        }
+        Ok(pins)
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -2158,7 +2185,7 @@ impl FpLine {
         panic!();
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Net {
     pub number: u32,
     pub name: String,
@@ -2291,7 +2318,7 @@ impl Pad {
         let number = iter.next().unwrap().into();
         let padtype = iter.next().unwrap().into();
         let padshape = iter.next().unwrap().into();
-        let mut locked = false;         
+        let mut locked = false;
         let mut layers = Vec::new();
         let mut at = arr1(&[0.0, 0.0]);
         let mut angle = 0.0;

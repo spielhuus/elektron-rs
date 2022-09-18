@@ -1,15 +1,10 @@
-use std::io::Write;
-
-use super::cairo_plotter::{
-    Arc, Circle, ImageType, Line, PlotItem, Plotter, Polyline, Rectangle, Text,
-};
+use super::cairo_plotter::{Circle, Line, LineCap, PlotItem, Text};
 use super::theme::{Theme, Themer, ThemerMerge};
-use crate::error::Error;
 use crate::plot::text;
 use crate::sexp::model::{PcbElements, Stroke};
 use crate::sexp::pcb::Pcb;
 use crate::sexp::{Shape, Transform};
-use ndarray::{arr1, arr2, Array1, Array2};
+use ndarray::arr2;
 
 macro_rules! theme {
     ($self:expr, $element:expr) => {
@@ -49,6 +44,7 @@ where
                                 arr2(&[[line.start[0], line.start[1]], [line.end[0], line.end[1]]]),
                                 stroke.width,
                                 stroke.linetype.clone(),
+                                LineCap::Butt,
                                 stroke.color,
                             ),
                         )),
@@ -66,6 +62,7 @@ where
                                 ]),
                                 stroke.width,
                                 stroke.linetype.clone(),
+                                LineCap::Round,
                                 stroke.color,
                             ),
                         )),
@@ -76,16 +73,18 @@ where
                     for graphic in &footprint.graphics {
                         match graphic {
                             crate::sexp::model::Graphics::FpText(text) => {
-                                let effects = Themer::get(
-                                    &text.effects,
-                                    &self.theme.effects("footprint").unwrap(),
-                                );
-                                graphics.push(text!(
-                                    Shape::transform(footprint, &text.at),
-                                    text.angle,
-                                    text.value.clone(),
-                                    effects
-                                ));
+                                if !text.hidden {
+                                    let effects = Themer::get(
+                                        &text.effects,
+                                        &self.theme.effects("footprint").unwrap(),
+                                    );
+                                    graphics.push(text!(
+                                        Shape::transform(footprint, &text.at),
+                                        text.angle,
+                                        text.value.clone(),
+                                        effects
+                                    ));
+                                }
                             }
                             crate::sexp::model::Graphics::FpLine(line) => {
                                 let stroke = theme!(self, line);
@@ -101,6 +100,7 @@ where
                                         ),
                                         stroke.width,
                                         stroke.linetype.clone(),
+                                        LineCap::Butt,
                                         stroke.color,
                                     ),
                                 ));
@@ -132,16 +132,6 @@ where
                 _ => {}
             }
         }
-        /* } else {
-        } */
-
-        /* },
-        None => {
-            return None;
-        },
-        _ => {} */
-        /* }
-        } */
     }
 }
 

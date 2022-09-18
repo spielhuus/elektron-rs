@@ -1,4 +1,4 @@
-use super::cairo_plotter::{Line, PlotItem, Rectangle, Text};
+use super::cairo_plotter::{Line, LineCap, PlotItem, Rectangle, Text};
 use super::{text, Theme};
 use crate::error::Error;
 use crate::sexp::model::{Effects, Stroke, TitleBlock};
@@ -105,6 +105,7 @@ pub fn draw_border(
             ]),
             stroke.width,
             stroke.linetype.clone(),
+            LineCap::Butt,
             stroke.color,
         ),
     ));
@@ -117,6 +118,7 @@ pub fn draw_border(
             ]),
             stroke.width,
             stroke.linetype.clone(),
+            LineCap::Butt,
             stroke.color,
         ),
     ));
@@ -129,6 +131,7 @@ pub fn draw_border(
             ]),
             stroke.width,
             stroke.linetype.clone(),
+            LineCap::Butt,
             stroke.color,
         ),
     ));

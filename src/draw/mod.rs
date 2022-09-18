@@ -141,10 +141,11 @@ impl Draw {
         };
         Ok(vec![0])
     }
+
     pub fn circuit(&mut self, pathlist: Vec<String>) -> Circuit {
-        let mut netlist = Netlist::from(&self.schema).unwrap();
+        let netlist = Netlist::from(&self.schema).unwrap();
         let mut circuit = Circuit::new(String::from("draw circuit"), pathlist);
-        netlist.dump(&mut circuit).unwrap();
+        netlist.circuit(&mut circuit).unwrap();
         circuit
     }
 }

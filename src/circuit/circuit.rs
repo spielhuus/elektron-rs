@@ -12,6 +12,8 @@ use std::{
     io::Write,
 };
 
+use plotters::prelude::*;
+
 lazy_static! {
     pub static ref RE_SUBCKT: regex::Regex =
         Regex::new(r"(?i:\.SUBCKT) ([a-zA-Z0-9]*) .*").unwrap();
@@ -317,15 +319,15 @@ impl Simulation {
         map
     }
 
-    /* fn plot(&self, name: &str, filename: Option<&str>) {
+    pub fn plot(&self, name: &str, filename: Option<&str>) -> Result<(), Error> {
 
         let plot = self.ngspice.current_plot().unwrap();
         let vecs = self.ngspice.all_vecs(&plot).unwrap();
-        for vec in vecs {
+        /* for vec in vecs {
             if let Ok(vecinfo) = self.ngspice.vector_info(&format!("{}.{}", plot, vec)) {
                 println!("{} {:?}", vec, vecinfo);
             }
-        }
+        } */
         let re = self.ngspice.vector_info("time").unwrap();
         let data1 = match re.data {
             ComplexSlice::Real(list) => {
@@ -346,14 +348,52 @@ impl Simulation {
                 &[0.0]
             }
         };
-        let trace1 = Scatter::new(data1, data2)
-            .name("trace1")
-            .mode(Mode::Markers);
+        let re = self.ngspice.vector_info("output").unwrap();
+        let data3 = match re.data {
+            ComplexSlice::Real(list) => {
+                list
+            },
+            ComplexSlice::Complex(list) => {
+                //list.into_iter().map(|f| f.parse::<f64>()).collect()
+                &[0.0]
+            }
+        };
 
-        let mut plot = Plot::new();
-        plot.add_trace(trace1);
-        /* plot.add_trace(trace2);
-        plot.add_trace(trace3); */
-        plot.show();
-    } */
+
+    let root = BitMapBackend::new("0.png", (640, 480)).into_drawing_area();
+    root.fill(&WHITE).unwrap();
+    let mut chart = ChartBuilder::on(&root)
+        .caption("y=x^2", ("sans-serif", 50).into_font())
+        .margin(5)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(0f32..0.01f32, -5f32..5f32).unwrap();
+
+    chart.configure_mesh().draw().unwrap();
+
+    chart
+        .draw_series(LineSeries::new(
+            data1.iter().zip(data2.iter()).map(|(x, y)| (*x as f32, *y as f32)),
+            &RED,
+        )).unwrap()
+        .label("y = x^2");
+
+    chart
+        .draw_series(LineSeries::new(
+            data1.iter().zip(data3.iter()).map(|(x, y)| (*x as f32, *y as f32)),
+            &BLUE,
+        )).unwrap()
+        .label("y = x^2");
+        // .legend(|(x, y)| LineSeries::new(data2.iter().map(|x| *x as f32), &RED));
+
+    chart
+        .configure_series_labels()
+        .background_style(&WHITE.mix(0.8))
+        .border_style(&BLACK)
+        .draw().unwrap();
+
+    root.present().unwrap();
+
+    Ok(())
+    }
 }

@@ -1,18 +1,15 @@
-use std::{fs::File, io::Write, path::Path};
+use std::{fs::File, io::Write};
 
 use crate::{
     check_directory,
     error::Error,
     plot::{CairoPlotter, ImageType, Theme},
     sexp::{
-        model::{
-            PaperSize,
-            TitleBlock, Segment, Zone, Footprint, GrLine, GrText, Via
-        },
+        model::{Footprint, GrLine, GrText, PaperSize, Segment, TitleBlock, Via, Zone},
         parser::State,
         write::SexpWriter,
         SexpParser,
-  },
+    },
 };
 
 use super::model::{Layers, PcbElements};
@@ -55,7 +52,7 @@ impl Pcb {
 
         use crate::plot::{PcbPlotIterator, Plotter};
         let iter = self.iter()?.plot(self, theme, border).flatten().collect(); //TODO: plot all
-                                                                                //pages
+                                                                               //pages
         let mut cairo = CairoPlotter::new(&iter);
 
         check_directory(filename)?;
@@ -116,8 +113,11 @@ impl Pcb {
                                 let canonical_name = iter.next().unwrap().into();
                                 let layertype = iter.next().unwrap().into();
                                 let user_name = if let Some(State::Text(value)) = iter.next() {
-                                        Some(value.to_string())
-                                    } else {count-=1; None};
+                                    Some(value.to_string())
+                                } else {
+                                    count -= 1;
+                                    None
+                                };
                                 pcb.layers.push(Layers {
                                     ordinal: ordinal.parse::<u32>().unwrap(),
                                     canonical_name,
@@ -135,13 +135,17 @@ impl Pcb {
                         pcb.nets
                             .push((iter.next().unwrap().into(), iter.next().unwrap().into()));
                     } else if name == "footprint" {
-                        pcb.elements.push(PcbElements::Footprint(Footprint::from(&mut iter)));
+                        pcb.elements
+                            .push(PcbElements::Footprint(Footprint::from(&mut iter)));
                     } else if name == "gr_line" {
-                        pcb.elements.push(PcbElements::Line(GrLine::from(&mut iter)));
+                        pcb.elements
+                            .push(PcbElements::Line(GrLine::from(&mut iter)));
                     } else if name == "gr_text" {
-                        pcb.elements.push(PcbElements::Text(GrText::from(&mut iter)));
+                        pcb.elements
+                            .push(PcbElements::Text(GrText::from(&mut iter)));
                     } else if name == "segment" {
-                        pcb.elements.push(PcbElements::Segment(Segment::from(&mut iter)));
+                        pcb.elements
+                            .push(PcbElements::Segment(Segment::from(&mut iter)));
                     } else if name == "via" {
                         pcb.elements.push(PcbElements::Via(Via::from(&mut iter)));
                     } else if name == "zone" {
@@ -156,7 +160,7 @@ impl Pcb {
     }
     ///iterate over the elements of the pcb.
     pub fn iter(&self) -> Result<std::slice::Iter<PcbElements>, Error> {
-            Ok(self.elements.iter())
+        Ok(self.elements.iter())
     }
     pub fn write(&self, filename: &str) -> Result<(), Error> {
         let mut out = File::create(filename)?;
@@ -168,7 +172,7 @@ impl Pcb {
         out.write_all(b"(generator ")?;
         out.write_all("elektron".as_bytes())?;
         out.write_all(b")\n\n")?;
-        
+
         out.write_all(b"  (general\n")?;
         for general in &self.general {
             out.write_all(b"    (")?;
@@ -193,7 +197,7 @@ impl Pcb {
         //setup
         //
         //
-  
+
         for net in &self.nets {
             out.write_all(b"  (net ")?;
             out.write_all(net.0.to_string().as_bytes())?;
@@ -212,12 +216,11 @@ impl Pcb {
                 PcbElements::Zone(zone) => zone.write(&mut out, 1)?,
             }
         }
-        
+
         out.write_all(b")\n")?;
         Ok(())
     }
 }
 
 #[cfg(test)]
-mod tests {
-}
+mod tests {}

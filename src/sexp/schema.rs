@@ -467,7 +467,7 @@ mod tests {
                 }
             }
         }
-        
+
         let left = std::fs::read_to_string("samples/files/multipage/subsheet.kicad_sch").unwrap();
         let right = std::fs::read_to_string("/tmp/multipage/subsheet.kicad_sch").unwrap();
         for diff in diff::lines(left.as_str(), right.as_str()) {

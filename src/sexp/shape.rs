@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use crate::error::Error;
 
-use super::model::{Graph, LibrarySymbol, Symbol, Footprint};
+use super::model::{Footprint, Graph, LibrarySymbol, Symbol};
 
 lazy_static! {
     pub static ref MIRROR: HashMap<String, Array2<f64>> = HashMap::from([ //TODO make global
@@ -50,7 +50,7 @@ impl Transform<Symbol, Array1<f64>> for Shape {
 }
 impl Transform<Footprint, Array2<f64>> for Shape {
     fn transform(footprint: &Footprint, pts: &Array2<f64>) -> Array2<f64> {
-        let theta = -footprint.angle.to_radians();
+        let theta = /* TODO - */ footprint.angle.to_radians();
         let rot = arr2(&[[theta.cos(), -theta.sin()], [theta.sin(), theta.cos()]]);
         let verts: Array2<f64> = pts.dot(&rot);
         //verts = verts.dot(MIRROR.get(&symbol.mirror.join("")).unwrap());
@@ -60,7 +60,7 @@ impl Transform<Footprint, Array2<f64>> for Shape {
 }
 impl Transform<Footprint, Array1<f64>> for Shape {
     fn transform(symbol: &Footprint, pts: &Array1<f64>) -> Array1<f64> {
-        let theta = -symbol.angle.to_radians();
+        let theta = /* TODO - */ symbol.angle.to_radians();
         let rot = arr2(&[[theta.cos(), -theta.sin()], [theta.sin(), theta.cos()]]);
         let mut verts: Array1<f64> = pts.dot(&rot);
         //verts = verts.dot(MIRROR.get(&symbol.mirror.join("")).unwrap());

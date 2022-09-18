@@ -22,10 +22,18 @@ pub enum ImageType {
 }
 
 #[derive(Debug)]
+pub enum LineCap {
+    Butt,
+    Round,
+    Square,
+}
+
+#[derive(Debug)]
 pub struct Line {
     pub pts: Array2<f64>,
     pub linewidth: f64,
     pub linetype: String,
+    pub linecap: LineCap,
     pub color: (f64, f64, f64, f64),
 }
 impl Line {
@@ -33,12 +41,14 @@ impl Line {
         pts: Array2<f64>,
         linewidth: f64,
         linetype: String,
+        linecap: LineCap,
         color: (f64, f64, f64, f64),
     ) -> Line {
         Line {
             pts,
             linewidth,
             linetype,
+            linecap,
             color,
         }
     }
@@ -478,6 +488,11 @@ impl<'a> Plotter for CairoPlotter<'a> {
                     } //TODO: }, */
                     PlotItem::Line(_, line) => {
                         stroke!(context, line);
+                        match line.linecap {
+                            LineCap::Butt => context.set_line_cap(cairo::LineCap::Butt),
+                            LineCap::Round => context.set_line_cap(cairo::LineCap::Round),
+                            LineCap::Square => context.set_line_cap(cairo::LineCap::Square),
+                        }
                         context.move_to(line.pts[[0, 0]], line.pts[[0, 1]]);
                         context.line_to(line.pts[[1, 0]], line.pts[[1, 1]]);
                         context.stroke().unwrap();

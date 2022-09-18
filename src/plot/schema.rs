@@ -1,6 +1,6 @@
 use ndarray::{arr1, arr2, Array1, Array2};
 
-use super::cairo_plotter::{Circle, Line, PlotItem, Text};
+use super::cairo_plotter::{Circle, Line, LineCap, PlotItem, Text};
 use super::theme::{Theme, Themer, ThemerMerge};
 use crate::plot::cairo_plotter::{Arc, Polyline, Rectangle};
 use crate::plot::text;
@@ -9,7 +9,7 @@ use crate::sexp::{Schema, Shape, Transform};
 
 macro_rules! get_effects {
     ($orig:expr, $theme:expr) => {
-        if let Some(effects) = $orig { 
+        if let Some(effects) = $orig {
             Themer::get(effects, $theme)
         } else {
             $theme.clone()
@@ -77,6 +77,7 @@ where
                                 wire.pts.clone(),
                                 stroke.width,
                                 stroke.linetype.clone(),
+                                LineCap::Butt,
                                 stroke.color,
                             ),
                         )),
@@ -91,6 +92,7 @@ where
                                 line.pts.clone(),
                                 stroke.width,
                                 stroke.linetype.clone(),
+                                LineCap::Butt,
                                 stroke.color,
                             ),
                         )),
@@ -105,6 +107,7 @@ where
                                 bus.pts.clone(),
                                 stroke.width,
                                 stroke.linetype.clone(),
+                                LineCap::Butt,
                                 stroke.color,
                             ),
                         )),
@@ -116,9 +119,13 @@ where
                         (PlotItem::Line(
                             10,
                             Line::new(
-                                arr2(&[[bus.at[0], bus.at[1]], [bus.at[1] + bus.size[0], bus.at[1] + bus.size[1]]]),
+                                arr2(&[
+                                    [bus.at[0], bus.at[1]],
+                                    [bus.at[1] + bus.size[0], bus.at[1] + bus.size[1]],
+                                ]),
                                 stroke.width,
                                 stroke.linetype.clone(),
+                                LineCap::Butt,
                                 stroke.color,
                             ),
                         )),
@@ -154,11 +161,23 @@ where
                     return Some(vec![
                         (PlotItem::Line(
                             10,
-                            Line::new(lines1, stroke.width, stroke.linetype.clone(), stroke.color),
+                            Line::new(
+                                lines1,
+                                stroke.width,
+                                stroke.linetype.clone(),
+                                LineCap::Butt,
+                                stroke.color,
+                            ),
                         )),
                         PlotItem::Line(
                             10,
-                            Line::new(lines2, stroke.width, stroke.linetype, stroke.color),
+                            Line::new(
+                                lines2,
+                                stroke.width,
+                                stroke.linetype,
+                                LineCap::Butt,
+                                stroke.color,
+                            ),
                         ),
                     ]);
                 }
@@ -395,6 +414,7 @@ where
                                                 Shape::transform(symbol, &pin_line),
                                                 stroke.width,
                                                 stroke.linetype,
+                                                LineCap::Butt,
                                                 stroke.color,
                                             ),
                                         ));
@@ -468,7 +488,7 @@ where
                 }
                 None => {
                     return None;
-                } 
+                }
             }
         }
         /* } else {

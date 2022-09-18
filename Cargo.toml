@@ -32,6 +32,8 @@ rand = "0.8.5"
 viuer = "0.6.1"
 libloading = "0.7.3"
 diff = "0.1.13"
+petgraph = "0.6.2"
+plotters = "0.3.4"
 
 [build-dependencies]
 bindgen = "0.60.1"

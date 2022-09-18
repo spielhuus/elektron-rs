@@ -90,5 +90,5 @@ circuit.subcircuit("Potentiometer", ["n0", "n1", "n2"], pot)
 circuit.save(None)
 simulation = Simulation(circuit)
 simulation.tran("1us", "10ms", "0")
-# circuit.plot("output", "draw_output.svg")
+simulation.plot("output", "draw_output.svg")
 

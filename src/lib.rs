@@ -24,7 +24,7 @@ use std::env::temp_dir;
 use self::{
     circuit::{Circuit, Netlist},
     reports::BomItem,
-    sexp::{model::LibrarySymbol, Schema, SexpParser, State, pcb::Pcb},
+    sexp::{model::LibrarySymbol, pcb::Pcb, Schema, SexpParser, State},
 };
 
 pub fn check_directory(filename: &str) -> Result<(), Error> {
@@ -51,18 +51,17 @@ pub fn netlist(
     let schema = Schema::load(input)?;
     let mut netlist = Netlist::from(&schema)?;
     let mut circuit = Circuit::new(input.to_string(), spice_models);
-    netlist.dump(&mut circuit)?;
+    netlist.circuit(&mut circuit)?;
     circuit.save(output)
 }
 
 pub fn dump(input: &str, output: Option<String>) -> Result<(), Error> {
-    if String::from(input).ends_with(".kicad_sch") { 
+    if String::from(input).ends_with(".kicad_sch") {
         let schema = Schema::load(input)?;
         schema.write(output.unwrap().as_str())
     } else {
         let pcb = Pcb::load(input)?;
         pcb.write(output.unwrap().as_str())
-
     }
 }
 
@@ -114,7 +113,6 @@ pub fn plot(
             pcb.plot(filename.as_str(), scale, border, theme.as_str())?;
             print_from_file(&filename, &Config::default()).expect("Image printing failed.");
         };
-
     }
     Ok(())
 }
