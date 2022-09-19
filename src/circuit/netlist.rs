@@ -61,6 +61,34 @@ impl<'a> Node<'a> {
     }
 }
 
+macro_rules! insert_or_update {
+    ($self: expr, $identifier: expr, $next_pos: expr, $pin: expr) => {
+                        let mut found_existing_node = false;
+                        if let Some(identifier) = $identifier {
+                            if $self.has_node(identifier.to_string()) {
+                                for n in &mut $self.nodes {
+                                    if let Some(node_id) = &n.identifier {
+                                        if node_id == identifier {
+                                            n.identifier = Some(identifier.to_string());
+                                            n.points.append(&mut $next_pos);
+                                            n.pins.push($pin);
+                                            found_existing_node = true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if !found_existing_node {
+                            $self.nodes.push(Node::from(
+                                $identifier.clone(),
+                                $next_pos,
+                                vec![$pin],
+                            ))
+                        }
+    };
+}
+
+
 /// The Netlist struct
 ///
 /// Create a netlist as a graph.
@@ -172,19 +200,20 @@ impl<'a> Netlist<'a> {
                                 for (subref, subsymbol) in &netlist.symbols {
                                     if subref != reference {
                                         for sym in subsymbol {
-                                            if let Some(lib_symbol) =
+                                            if let Some(sub_lib_symbol) =
                                                 schema.get_library(sym.lib_id.as_str())
                                             {
-                                                for pin in lib_symbol.pins(sym.unit)? {
+                                                for pin in sub_lib_symbol.pins(sym.unit)? {
                                                     let subpts = Shape::transform(*sym, &pin.at);
                                                     let subpoint = Point::new(subpts[0], subpts[1]);
                                                     if subpoint == point {
-                                                        println!(
-                                                            "  > found matching pin: {}->{}",
-                                                            sym.get_property("Value").unwrap(),
-                                                            symbol.get_property("Value").unwrap()
-                                                        );
-
+                                                        if lib_symbol.power {
+                                                            insert_or_update!(netlist, &symbol.get_property("Value"), vec![point], pin);
+                                                        } else if sub_lib_symbol.power {
+                                                            insert_or_update!(netlist, &sym.get_property("Value"), vec![point], pin);
+                                                        } else {
+                                                            insert_or_update!(netlist, &identifier, vec![point], pin);
+                                                        }
                                                         found = true;
                                                     }
                                                 }
@@ -273,10 +302,13 @@ impl<'a> Netlist<'a> {
         for node in &mut netlist.nodes {
             if node.identifier.is_none() {
                 node.identifier = Some(index.to_string());
-                index += index;
+                index += 1;
             }
         }
 
+        for item in &netlist.nodes {
+            println!("> {:?} -> {:?}", item.identifier, item.points);
+        }
         Ok(netlist)
     }
     fn has_node(&self, identifier: String) -> bool {

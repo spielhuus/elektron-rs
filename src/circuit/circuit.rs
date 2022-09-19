@@ -221,17 +221,28 @@ impl Circuit {
             res.append(&mut value.1.to_str(false).unwrap());
             res.push(".ends".to_string());
         }
-        //TODO output subcircuits
         for item in &self.items {
             match item {
                 CircuitItem::R(reference, n0, n1, value) => {
-                    res.push(format!("R{} {} {} {}", reference, n0, n1, value));
+                    if reference.starts_with('R') {
+                        res.push(format!("{} {} {} {}", reference, n0, n1, value));
+                    } else {
+                        res.push(format!("R{} {} {} {}", reference, n0, n1, value));
+                    }
                 }
                 CircuitItem::C(reference, n0, n1, value) => {
-                    res.push(format!("C{} {} {} {}", reference, n0, n1, value));
+                    if reference.starts_with('C') {
+                        res.push(format!("{} {} {} {}", reference, n0, n1, value));
+                    } else {
+                        res.push(format!("C{} {} {} {}", reference, n0, n1, value));
+                    }
                 }
                 CircuitItem::D(reference, n0, n1, value) => {
-                    res.push(format!("{} {} {} {}", reference, n0, n1, value));
+                    if reference.starts_with('D') {
+                        res.push(format!("{} {} {} {}", reference, n0, n1, value));
+                    } else {
+                        res.push(format!("D{} {} {} {}", reference, n0, n1, value));
+                    }
                 }
                 CircuitItem::Q(reference, n0, n1, n2, value) => {
                     res.push(format!("Q{} {} {} {} {}", reference, n0, n1, n2, value));
@@ -323,11 +334,6 @@ impl Simulation {
 
         let plot = self.ngspice.current_plot().unwrap();
         let vecs = self.ngspice.all_vecs(&plot).unwrap();
-        /* for vec in vecs {
-            if let Ok(vecinfo) = self.ngspice.vector_info(&format!("{}.{}", plot, vec)) {
-                println!("{} {:?}", vec, vecinfo);
-            }
-        } */
         let re = self.ngspice.vector_info("time").unwrap();
         let data1 = match re.data {
             ComplexSlice::Real(list) => {

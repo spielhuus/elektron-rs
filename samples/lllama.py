@@ -77,8 +77,9 @@ draw.add(Element("GND", "power:+5V", value="+5V", unit=1, on_schema="no").at("U2
 
 draw.write("llama.kicad_sch")
 res = draw.plot(None, False, 3)
-print(res)
+#print(res)
 
+print("create circuit")
 circuit = draw.circuit(['/home/etienne/elektron/samples/files/spice/'])
 circuit.voltage("1", "+5V", "GND", "5V")
 circuit.voltage("2", "INPUT", "GND", "5V SIN(0, 2.5, 100)")
