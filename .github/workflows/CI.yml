@@ -142,8 +142,7 @@ jobs:
       if: matrix.os == 'ubuntu'
       run: |
         sudo apt-get install -y -qq libngspice0-dev libpango1.0-dev libcairo2-dev libfontconfig1-dev
-        pip install -U setuptools-rust
-        python setup.py sdist
+
     - name: build ${{ matrix.platform || matrix.os }} binaries
       run: cibuildwheel --output-dir dist
       env:
@@ -157,6 +156,7 @@ jobs:
         CIBW_MANYLINUX_X86_64_IMAGE: 'manylinux2014'
         CIBW_MANYLINUX_I686_IMAGE: 'manylinux2014'
         CIBW_BEFORE_BUILD: >
+          sudo apt-get install -y -qq libngspice0-dev libpango1.0-dev libcairo2-dev libfontconfig1-dev
           pip install -U setuptools-rust &&
           rustup default nightly &&
           rustup show
