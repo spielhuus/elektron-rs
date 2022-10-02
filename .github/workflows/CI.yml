@@ -9,31 +9,31 @@ on:
   pull_request: {}
 
 jobs:
-  # test:
-  #   runs-on: ubuntu-latest
+  test:
+    runs-on: ubuntu-latest
 
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       python-version: ['3.7', '3.8', '3.9']
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.7', '3.8', '3.9']
 
-  #   env:
-  #     PYTHON: ${{ matrix.python-version }}
+    env:
+      PYTHON: ${{ matrix.python-version }}
 
-  #   steps:
-  #   - uses: actions/checkout@v2
+    steps:
+    - uses: actions/checkout@v2
 
-  #   - name: set up python ${{ matrix.python-version }}
-  #     uses: actions/setup-python@v1
-  #     with:
-  #       python-version: ${{ matrix.python-version }}
+    - name: set up python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
 
-  #   - name: install rust
-  #     uses: actions-rs/toolchain@v1
-  #     with:
-  #       profile: minimal
-  #       toolchain: nightly
-  #       override: true
+    - name: install rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: nightly
+        override: true
 
     # - name: install python dependencies
     #   run: make install
@@ -98,7 +98,6 @@ jobs:
     name: build py3.${{ matrix.python-version }} on ${{ matrix.platform || matrix.os }}
     needs:
       - test
-      - lint
     strategy:
       fail-fast: false
       matrix:
