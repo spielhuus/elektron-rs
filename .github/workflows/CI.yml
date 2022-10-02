@@ -1,15 +1,99 @@
-name: Build
+name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '**'
+  pull_request: {}
 
 jobs:
-  build_wheels:
-    name: Build wheels on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        #os: [ubuntu-20.04, windows-2019, macOS-11]
-        os: [ubuntu-20.04]
+  # test:
+  #   runs-on: ubuntu-latest
+
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       python-version: ['3.7', '3.8', '3.9']
+
+  #   env:
+  #     PYTHON: ${{ matrix.python-version }}
+
+  #   steps:
+  #   - uses: actions/checkout@v2
+
+  #   - name: set up python ${{ matrix.python-version }}
+  #     uses: actions/setup-python@v1
+  #     with:
+  #       python-version: ${{ matrix.python-version }}
+
+  #   - name: install rust
+  #     uses: actions-rs/toolchain@v1
+  #     with:
+  #       profile: minimal
+  #       toolchain: nightly
+  #       override: true
+
+    # - name: install python dependencies
+    #   run: make install
+
+    # - name: build
+    #   run: make build-dev
+
+    # - name: test
+    #   run: |
+    #     make test
+    #     coverage xml
+    #     ls -alh
+    # - name: install go
+    #   uses: actions/setup-go@v1
+    #   with:
+    #     go-version: 1.16.x
+
+    # - name: run toml-test
+    #   run: |
+    #     git clone --depth 1 --branch 1.0.0-beta2 https://github.com/BurntSushi/toml-test.git
+    #     cd toml-test
+    #     # TODO, fix tehse tests
+    #     rm tests/valid/datetime-local-date.*
+    #     rm tests/valid/datetime-local-time.*
+    #     rm tests/valid/datetime-local.*
+    #     rm tests/valid/key-empty.*
+    #     rm tests/invalid/control-comment-del.*
+    #     rm tests/invalid/integer-positive-bin.*
+    #     rm tests/invalid/integer-positive-hex.*
+    #     go build ./cmd/toml-test
+    #     cd ../
+    #     ./toml-test/toml-test ./tests/toml_test.py
+    # - uses: codecov/codecov-action@v1.0.13
+    #   with:
+    #     file: ./coverage.xml
+    #     env_vars: PYTHON
+
+  # lint:
+  #   runs-on: ubuntu-latest
+
+  #   steps:
+  #   - uses: actions/checkout@v2
+
+  #   - uses: actions/setup-python@v1
+  #     with:
+  #       python-version: '3.8'
+
+  #   - run: pip install -r tests/requirements-linting.txt
+
+  #   - name: install rust
+  #     uses: actions-rs/toolchain@v1
+  #     with:
+  #       profile: minimal
+  #       toolchain: nightly
+  #       override: true
+  #       components: rustfmt, clippy
+
+  #   - run: make lint
+  #   - run: make mypy
+
   build:
     name: build py3.${{ matrix.python-version }} on ${{ matrix.platform || matrix.os }}
     needs:
@@ -20,12 +104,13 @@ jobs:
       matrix:
         os:
         - ubuntu
-        - macos
-        - windows
+        # - macos
+        # - windows
         python-version:
         - '7'
         - '8'
         - '9'
+        - '10'
         include:
         - os: ubuntu
           platform: linux
@@ -39,7 +124,7 @@ jobs:
     - name: set up python
       uses: actions/setup-python@v1
       with:
-        python-version: '3.8'
+        python-version: '3.10'
 
     - name: set up rust
       if: matrix.os != 'ubuntu'
@@ -50,12 +135,13 @@ jobs:
         override: true
 
     - name: install python dependencies
-      run: pip install -U setuptools wheel twine cibuildwheel
+      run: |
+        pip install -U setuptools wheel twine cibuildwheel
+        pip install -r requirements.txt
 
     - name: build sdist
       if: matrix.os == 'ubuntu' && matrix.python-version == '8'
       run: |
-        pip install -r requirements.txt
         sudo apt-get install -y -qq libngspice0-dev libpango1.0-dev libcairo2-dev          
         pip install -U setuptools-rust
         python setup.py sdist
@@ -100,36 +186,10 @@ jobs:
     - name: twine check
       run: twine check dist/*
 
+    - name: upload to pypi
+      if: startsWith(github.ref, 'refs/tags/')
+      run: twine upload dist/*
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.pypi_token }}
 
-# name: Python package
-
-# on: [push]
-
-# jobs:
-#   build:
-
-#     runs-on: ubuntu-latest
-#     strategy:
-#       matrix:
-#         python-version: ["3.10"]
-
-#     steps:
-#       - uses: actions/checkout@v3
-#       - name: Set up Python ${{ matrix.python-version }}
-#         uses: actions/setup-python@v4
-#         with:
-#           python-version: ${{ matrix.python-version }}
-#       - name: Install dependencies
-#         run: |
-#           python -m pip install --upgrade pip
-#           pip install -r requirements.txt
-#           sudo apt-get install -y -qq libngspice0-dev libpango1.0-dev libcairo2-dev          
-#       - name: build
-#         run: python setup.py sdist
-#       - name: Deploy package        
-#         uses: casperdcl/deploy-pypi@v2
-#         with:
-#           password: ${{ secrets.PYPI_TOKEN }}
-#           pip: wheel -w dist/ --no-deps .
-#           # only upload if a tag is pushed (otherwise just build & check)
-#           # upload: ${{ github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags') }}
