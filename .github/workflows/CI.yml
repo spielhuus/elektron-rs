@@ -139,9 +139,9 @@ jobs:
         pip install -r requirements.txt
 
     - name: build sdist
-      if: matrix.os == 'ubuntu' && matrix.python-version == '8'
+      if: matrix.os == 'ubuntu'
       run: |
-        sudo apt-get install -y -qq libngspice0-dev libpango1.0-dev libcairo2-dev          
+        sudo apt-get install -y -qq libngspice0-dev libpango1.0-dev libcairo2-dev libfontconfig1-dev
         pip install -U setuptools-rust
         python setup.py sdist
     - name: build ${{ matrix.platform || matrix.os }} binaries
