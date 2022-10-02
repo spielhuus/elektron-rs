@@ -20,7 +20,7 @@ pub enum Error {
     #[error("More then one Property found for {0}")]
     MoreThenOnPropertyFound(String), */
     #[error("Pin not found for {0}")]
-    PinNotFound(usize),
+    PinNotFound(u32),
     #[error("can not find symbol {0}.")]
     SymbolNotFound(String),
     #[error("Library not found {0}.")]

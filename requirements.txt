@@ -2,3 +2,8 @@
 setuptools-rust
 setuptools
 wheel
+matplotlib==3.5.3
+ipympl
+matplotlib-backend-kitty
+numpy
+scipy

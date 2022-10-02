@@ -76,7 +76,7 @@ draw.add(Element("GND", "power:GND", value="GND", unit=1, on_schema="no").at("U2
 draw.add(Element("GND", "power:+5V", value="+5V", unit=1, on_schema="no").at("U2", "7"))
 
 draw.write("llama.kicad_sch")
-res = draw.plot(None, False, 3)
+#res = draw.plot(None, False, 3)
 #print(res)
 
 print("create circuit")

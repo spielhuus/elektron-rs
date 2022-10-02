@@ -4,7 +4,7 @@
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
-mod circuit;
+pub mod circuit;
 mod draw;
 mod error;
 mod plot;
@@ -22,7 +22,7 @@ use rust_fuzzy_search::fuzzy_compare;
 use std::env::temp_dir;
 
 use self::{
-    circuit::{Circuit, Netlist},
+    circuit::{Circuit, Netlist, Erc},
     reports::BomItem,
     sexp::{model::LibrarySymbol, pcb::Pcb, Schema, SexpParser, State},
 };
@@ -38,23 +38,26 @@ pub fn check_directory(filename: &str) -> Result<(), Error> {
     Ok(())
 }
 
+///Create the BOM.
 pub fn bom(filename: &str, group: bool) -> Result<Vec<BomItem>, Error> {
     let schema = Schema::load(filename)?;
     reports::bom(&schema, group)
 }
 
+///Get the netlist of the schema.
 pub fn netlist(
     input: &str,
     output: Option<String>,
     spice_models: Vec<String>,
 ) -> Result<(), Error> {
     let schema = Schema::load(input)?;
-    let mut netlist = Netlist::from(&schema)?;
+    let netlist = Netlist::from(&schema)?;
     let mut circuit = Circuit::new(input.to_string(), spice_models);
     netlist.circuit(&mut circuit)?;
     circuit.save(output)
 }
 
+///Dump the schema to a file or console.
 pub fn dump(input: &str, output: Option<String>) -> Result<(), Error> {
     if String::from(input).ends_with(".kicad_sch") {
         let schema = Schema::load(input)?;
@@ -65,11 +68,20 @@ pub fn dump(input: &str, output: Option<String>) -> Result<(), Error> {
     }
 }
 
+///Get a library symbol by name.
 pub fn get_library(key: &str, path: Vec<String>) -> Result<LibrarySymbol, Error> {
     let mut library = sexp::Library::new(path);
     library.get(key)
 }
 
+///Do the ERC check for a schema.
+pub fn erc(input: &str) -> Result<Vec<Erc>, Error> {
+    let schema = Schema::load(input)?;
+    let netlist = Netlist::from(&schema)?;
+    Ok(netlist.erc())
+}
+
+///Plot a schema or PCB to a file or console.
 pub fn plot(
     input: &str,
     output: Option<String>,
@@ -117,6 +129,7 @@ pub fn plot(
     Ok(())
 }
 
+///Search the symbol libraries.
 pub fn search_library(key: &str, paths: Vec<String>) -> Result<Vec<(f32, String, String)>, Error> {
     let mut results: Vec<(f32, String, String)> = Vec::new();
     for path in paths {

@@ -37,8 +37,8 @@ clean:
 $(VENV)/bin/elektron: $(VENV)/bin/activate $(SOURCES)
 	$(PYTHON) setup.py $(release)
 
-# debug: $(VENV)/bin/activate 
-# 	$(PYTHON) setup.py develop
-
 test: $(VENV)/bin/activate
 	cargo test
+
+doc: $(VENV)/bin/activate
+	cargo doc --no-deps

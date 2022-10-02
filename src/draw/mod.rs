@@ -2,13 +2,13 @@
 use crate::circuit::{Circuit, Netlist};
 use crate::error::Error;
 use crate::sexp::model::{
-    Effects, Junction, Label, LibrarySymbol, Pin, Property, SchemaElement, Stroke, Symbol, Wire,
+     Effects, Junction, Label, LibrarySymbol, Property, SchemaElement, Stroke, Symbol, Wire,
 };
-use crate::sexp::{Bounds, Library, Schema, Shape, Transform};
+use crate::sexp::{uuid, Bounds, Library, Schema, Shape, Transform};
 use itertools::Itertools;
 use pyo3::prelude::*;
 use std::env::temp_dir;
-use viuer::{print_from_file, Config};
+use std::{fs::{File, self}, io::Read};
 
 use ndarray::{arr1, arr2, Array1};
 use rand::Rng;
@@ -18,39 +18,10 @@ pub mod model;
 
 const LABEL_BORDER: f64 = 2.54;
 
-macro_rules! uuid {
-    () => {
-        Uuid::new_v4().to_string()
-    };
-}
-
 macro_rules! round {
     ($val: expr) => {
         $val.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap())
     };
-}
-
-pub fn get_pin(symbol: &LibrarySymbol, number: u32) -> Result<&Pin, Error> {
-    for s in &symbol.symbols {
-        for p in &s.pin {
-            if p.number.0 == number.to_string() {
-                return Ok(p);
-            }
-        }
-    }
-    Err(Error::PinNotFound(number as usize)) //TODO: remove cast
-}
-/// Get all the pins of a library symbol.
-pub fn get_pins(symbol: &LibrarySymbol, number: i32) -> Result<Vec<&Pin>, Error> {
-    let mut result = Vec::new();
-    for s in &symbol.symbols {
-        if s.unit == number {
-            for p in &s.pin {
-                result.push(p);
-            }
-        }
-    }
-    Ok(result)
 }
 
 fn filter_properties(node: &&mut Property) -> bool {
@@ -91,7 +62,6 @@ impl Draw {
             self.add_line(line)?;
             return Ok(());
         }
-
         let dot: PyResult<PyRefMut<model::Dot>> = item.extract();
         if let Ok(mut dot) = dot {
             if dot.pos == vec![0.0, 0.0] {
@@ -122,7 +92,8 @@ impl Draw {
         filename: Option<&str>,
         border: bool,
         scale: f64,
-    ) -> Result<Vec<u8>, Error> {
+        imagetype: &str,
+    ) -> Result<Option<Vec<u8>>, Error> {
         let theme = if let Ok(theme) = std::env::var("ELEKTRON_THEME") {
             theme
         } else {
@@ -130,16 +101,22 @@ impl Draw {
         };
         if let Some(filename) = filename {
             self.schema.plot(filename, scale, border, theme.as_str())?;
+            Ok(None)
         } else {
             let mut rng = rand::thread_rng();
             let num: u32 = rng.gen();
             let filename =
-                String::new() + temp_dir().to_str().unwrap() + "/" + &num.to_string() + ".png";
+                String::new() + temp_dir().to_str().unwrap() + "/" + &num.to_string() + "." + imagetype;
             self.schema
                 .plot(filename.as_str(), scale, border, theme.as_str())?;
-            print_from_file(&filename, &Config::default()).unwrap();
-        };
-        Ok(vec![0])
+            
+            let mut f = File::open(&filename).expect("no file found");
+            let metadata = fs::metadata(&filename).expect("unable to read metadata");
+            let mut buffer = vec![0; metadata.len() as usize];
+            f.read_exact(&mut buffer).expect("buffer overflow");
+            Ok(Some(buffer))
+            //print_from_file(&filename, &Config::default()).unwrap();
+        }
     }
 
     pub fn circuit(&mut self, pathlist: Vec<String>) -> Circuit {
@@ -212,8 +189,8 @@ impl Draw {
         Ok(())
     }
     fn add_symbol(&mut self, element: model::Element) -> Result<(), Error> {
-        let lib_symbol = self.get_library(element.library.as_str()).unwrap();
-        let sym_pin = get_pin(&lib_symbol, element.pin).unwrap(); //TODO: remove cast
+        let lib_symbol = self.get_library(element.library.as_str())?;
+        let sym_pin = lib_symbol.get_pin(element.pin)?;
 
         let pos = if let (Some(atref), Some(atpin)) = (element.atref, element.atpin) {
             self.pin_pos(atref, atpin)
@@ -230,7 +207,7 @@ impl Draw {
         verts = arr1(&[pos[0], pos[1]]) - &verts;
 
         if let Some(end_pos) = &element.endpos {
-            let pins = get_pins(&lib_symbol, element.unit as i32).unwrap(); //TODO:
+            let pins = lib_symbol.pins(element.unit)?;
             if pins.len() == 2 {
                 let mut verts2: Array1<f64> = pins.get(element.pin as usize).unwrap().at.dot(&rot);
                 verts2 = verts2.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap());
@@ -264,7 +241,7 @@ impl Draw {
             &lib_symbol,
             round!(verts.clone()),
             element.angle,
-            element.unit as i32, //TODO:
+            element.unit,
             element.reference.to_string(),
             element.value.to_string(),
         );
@@ -376,7 +353,7 @@ impl Draw {
         };
         let positions = self.pin_position(symbol, &lib);
         let mut offset = 0.0;
-        let pins = get_pins(&lib, symbol.unit).unwrap().len();
+        let pins = lib.pins(symbol.unit)?.len();
         if pins == 1 {
             //PINS!
             if positions[0] == 1 {
@@ -493,7 +470,27 @@ impl Draw {
                 return Ok(());
             } else if positions[0] == 0 {
                 //west
-                todo!();
+                let top_pos = _size[[0, 1]] + ((_size[[1, 1]] - _size[[0, 1]]) / 2.0)
+                    - ((vis_field as f64 - 1.0) * LABEL_BORDER) / 2.0;
+                symbol
+                    .property
+                    .iter_mut()
+                    .filter(filter_properties)
+                    .sorted_by(sort_properties)
+                    .for_each(|p| {
+                        if let Some(effects) = &mut p.effects {
+                            effects.justify.clear();
+                            effects.justify.push(String::from("right"));
+                        } else {
+                            let mut effects = Effects::new();
+                            effects.justify.push(String::from("right"));
+                            p.effects = Some(effects);
+                        }
+                        p.at = arr1(&[_size[[1, 0]] - LABEL_BORDER / 2.0, top_pos - offset]);
+                        p.angle = 360.0 - symbol.angle;
+                        offset -= LABEL_BORDER;
+                    });
+                return Ok(());
             } else if positions[1] == 0 {
                 //south
                 return Ok(());
@@ -513,12 +510,7 @@ impl Draw {
         let mut position: Vec<usize> = vec![0; 4];
         let symbol_shift: usize = (symbol.angle / 90.0).round() as usize;
 
-        for pin in get_pins(
-            self.schema.get_library(&symbol.lib_id).unwrap(),
-            symbol.unit,
-        )
-        .unwrap()
-        {
+        for pin in lib.pins(symbol.unit).unwrap() {
             let lib_pos: usize = (pin.angle / 90.0).round() as usize;
             position[lib_pos] += 1;
         }

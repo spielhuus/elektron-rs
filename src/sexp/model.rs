@@ -57,6 +57,24 @@ impl std::convert::From<State<'_>> for PaperSize {
     }
 }
 
+impl std::convert::From<PaperSize> for (f64, f64) {
+    fn from(size: PaperSize) -> Self {
+        if size == PaperSize::A5 {
+            (148.0, 210.0)
+        } else if size == PaperSize::A4 {
+            (297.0, 210.0)
+        } else if size == PaperSize::A3 {
+            (297.0, 420.0)
+        } else if size == PaperSize::A2 {
+            (420.0, 594.0)
+        } else if size == PaperSize::A1 {
+            (594.0, 841.0)
+        } else {
+            (841.0, 1189.0)
+        }
+    }
+}
+
 pub(crate) use color;
 use uuid::Uuid;
 
@@ -406,7 +424,6 @@ pub struct Stroke {
     pub width: f64,
     pub linetype: String,
     pub color: (f64, f64, f64, f64),
-    pub filltype: String,
 }
 impl Stroke {
     pub fn new() -> Self {
@@ -414,13 +431,11 @@ impl Stroke {
             width: 0.0,
             linetype: String::from("default"),
             color: (0.0, 0.0, 0.0, 0.0),
-            filltype: String::new(),
         }
     }
     pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
         let mut width: f64 = 0.0;
         let mut linetype: String = String::new();
-        let mut filltype: String = String::new();
         let mut color = (0.0, 0.0, 0.0, 0.0);
         let mut count = 1;
         loop {
@@ -431,9 +446,6 @@ impl Stroke {
                         width = iter.next().unwrap().into();
                     } else if name == "type" {
                         linetype = iter.next().unwrap().into();
-                    } else if name == "fill" {
-                        /* if let Some(State::StartSymbol(name)) = iter.next() {
-                        } */
                     } else if name == "color" {
                         color = color!(iter);
                     } else {
@@ -449,7 +461,6 @@ impl Stroke {
                         return Self {
                             width,
                             linetype,
-                            filltype,
                             color,
                         };
                     }
@@ -616,7 +627,7 @@ impl Junction {
 pub struct Property {
     pub key: String,
     pub value: String,
-    pub id: i32,
+    pub id: u32,
     pub at: Array1<f64>,
     pub angle: f64,
     pub effects: Option<Effects>,
@@ -625,7 +636,7 @@ impl Property {
     pub fn new(
         key: String,
         value: String,
-        id: i32,
+        id: u32,
         at: Array1<f64>,
         angle: f64,
         effects: Option<Effects>,
@@ -642,7 +653,7 @@ impl Property {
     pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
         let key: String = iter.next().unwrap().into();
         let value: String = iter.next().unwrap().into();
-        let mut id: i32 = 0;
+        let mut id: u32 = 0;
         let mut at: Array1<f64> = arr1(&[0.0, 0.0]);
         let mut angle: f64 = 0.0;
         let mut effects = None;
@@ -807,7 +818,7 @@ pub struct Symbol {
     pub at: Array1<f64>,
     pub angle: f64,
     pub mirror: Vec<String>,
-    pub unit: i32,
+    pub unit: u32,
     pub in_bom: bool,
     pub on_board: bool,
     pub on_schema: bool,
@@ -822,7 +833,7 @@ impl Symbol {
         at: Array1<f64>,
         angle: f64,
         mirror: Vec<String>,
-        unit: i32,
+        unit: u32,
         in_bom: bool,
         on_board: bool,
         on_schema: bool,
@@ -850,7 +861,7 @@ impl Symbol {
         library: &LibrarySymbol,
         at: Array1<f64>,
         angle: f64,
-        unit: i32,
+        unit: u32,
         reference: String,
         value: String,
     ) -> Self {
@@ -914,7 +925,7 @@ impl Symbol {
         let mut at: Array1<f64> = arr1(&[0.0, 0.0]);
         let mut angle: f64 = 0.0;
         let mut mirror: Vec<String> = Vec::new();
-        let mut unit: i32 = 0;
+        let mut unit: u32 = 0;
         let mut in_bom: bool = false;
         let mut on_board: bool = false;
         let mut fields_autoplaced: bool = false;
@@ -1093,7 +1104,7 @@ lazy_static! {
 #[derive(Debug, PartialEq, Clone)]
 pub struct LibrarySymbol {
     pub lib_id: String,
-    pub unit: i32,
+    pub unit: u32,
     pub pin_numbers_show: bool,
     pub pin_names_show: bool,
     pub pin_names_offset: f64,
@@ -1109,7 +1120,7 @@ pub struct LibrarySymbol {
 impl LibrarySymbol {
     pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
         let lib_id: String = iter.next().unwrap().into();
-        let unit: i32 = if let Some(line) = RE.captures_iter(&lib_id).next() {
+        let unit: u32 = if let Some(line) = RE.captures_iter(&lib_id).next() {
             line[1].parse().unwrap()
         } else {
             0
@@ -1232,7 +1243,31 @@ impl LibrarySymbol {
         }
         panic!();
     }
-    pub fn pins(&self, unit: i32) -> Result<Vec<&Pin>, Error> {
+    
+    ///Get pin by number.
+    pub fn get_pin(&self, number: u32) -> Result<&Pin, Error> {
+        for s in &self.symbols {
+            for p in &s.pin {
+                if p.number.0 == number.to_string() {
+                    return Ok(p);
+                }
+            }
+        }
+        Err(Error::PinNotFound(number))
+    }
+    /// Get all the pins of a library symbol.
+    /* pub fn get_pins(symbol: &LibrarySymbol, number: i32) -> Result<Vec<&Pin>, Error> {
+        let mut result = Vec::new();
+        for s in &symbol.symbols {
+            if s.unit == number {
+                for p in &s.pin {
+                    result.push(p);
+                }
+            }
+        }
+        Ok(result)
+    } */
+    pub fn pins(&self, unit: u32) -> Result<Vec<&Pin>, Error> {
         let mut items: Vec<&Pin> = Vec::new();
         for _unit in &self.symbols {
             if unit == 0 || _unit.unit == 0 || _unit.unit == unit {
@@ -1247,7 +1282,7 @@ impl LibrarySymbol {
             Ok(items)
         }
     }
-    pub fn pin_names(&self) -> Result<HashMap<String, (Pin, i32)>, Error> {
+    pub fn pin_names(&self) -> Result<HashMap<String, (Pin, u32)>, Error> {
         let mut pins = HashMap::new();
         for symbol in &self.symbols {
             //search the pins
@@ -1498,10 +1533,10 @@ impl Bus {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SheetInstance {
     pub path: String,
-    pub page: i32,
+    pub page: u32,
 }
 impl SheetInstance {
-    pub fn new(path: &str, page: i32) -> Self {
+    pub fn new(path: &str, page: u32) -> Self {
         Self {
             path: path.to_string(),
             page,
@@ -1509,7 +1544,7 @@ impl SheetInstance {
     }
     pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
         let path: String = iter.next().unwrap().into();
-        let mut page: i32 = 0;
+        let mut page: u32 = 0;
         let mut count = 1;
         loop {
             match iter.next() {
@@ -1541,7 +1576,7 @@ impl SheetInstance {
 pub struct SymbolInstance {
     pub path: String,
     pub reference: String,
-    pub unit: i32,
+    pub unit: u32,
     pub value: String,
     pub footprint: String,
 }
@@ -1549,7 +1584,7 @@ impl SymbolInstance {
     pub fn new(
         path: String,
         reference: String,
-        unit: i32,
+        unit: u32,
         value: String,
         footprint: String,
     ) -> Self {
@@ -1564,7 +1599,7 @@ impl SymbolInstance {
     pub fn from<'a, I: Iterator<Item = State<'a>>>(iter: &mut I) -> Self {
         let mut path: String = iter.next().unwrap().into();
         let mut reference: String = String::new();
-        let mut unit: i32 = 0;
+        let mut unit: u32 = 0;
         let mut value: String = String::new();
         let mut footprint: String = String::new();
         let mut count = 1;
@@ -1614,7 +1649,7 @@ pub struct TitleBlock {
     pub date: String,
     pub rev: String,
     pub company: String,
-    pub comment: Vec<(i32, String)>,
+    pub comment: Vec<(u32, String)>,
 }
 impl TitleBlock {
     pub fn new() -> Self {
@@ -1631,7 +1666,7 @@ impl TitleBlock {
         let mut date: String = String::new();
         let mut rev: String = String::new();
         let mut company: String = String::new();
-        let mut comment: Vec<(i32, String)> = Vec::new();
+        let mut comment: Vec<(u32, String)> = Vec::new();
 
         let mut count = 1;
         loop {
@@ -1680,7 +1715,7 @@ pub struct Sheet {
     pub size: Array1<f64>,
     pub stroke: Stroke,
     pub fields_autoplaced: bool,
-    pub fill: (f64, f64, f64, f64),
+    pub fill: (f64, f64, f64, f64), //TODO: must this be optional?
     pub uuid: String,
     pub property: Vec<Property>,
     pub pin: Vec<Pin>,

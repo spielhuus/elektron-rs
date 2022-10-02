@@ -28,6 +28,7 @@ png = "0.17.5"
 svg = "0.10.0"
 pdf = "0.7.2"
 cairo-rs = { version = "0.15.11", features = ["svg", "png", "pdf"] }
+pangocairo = "0.15.1"
 rand = "0.8.5"
 viuer = "0.6.1"
 libloading = "0.7.3"

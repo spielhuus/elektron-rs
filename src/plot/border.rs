@@ -7,7 +7,7 @@ use ndarray::{arr1, arr2, Array2};
 const BORDER_RASTER: i32 = 60;
 
 pub fn draw_border(
-    title_block: Option<&TitleBlock>,
+    title_block: &Option<TitleBlock>,
     paper_size: (f64, f64),
     theme: &Theme,
 ) -> Result<Vec<PlotItem>, Error> {

@@ -11,11 +11,14 @@ use crate::{
         },
         parser::State,
         write::SexpWriter,
+        uuid,
         SexpParser,
     },
 };
 
 use super::model::{Bus, BusEntry, HierarchicalLabel, Polyline};
+
+use uuid::Uuid;
 
 #[derive(Default)]
 pub struct Schema {
@@ -139,13 +142,13 @@ impl Schema {
         };
 
         use crate::plot::{PlotIterator, Plotter};
-        let iter = self.iter(0)?.plot(self, theme, border).flatten().collect(); //TODO: plot all
-                                                                                //pages
-        let mut cairo = CairoPlotter::new(&iter);
-
-        check_directory(filename)?;
-        let out: Box<dyn Write> = Box::new(File::create(filename)?);
-        cairo.plot(out, border, scale, image_type)?;
+        for i in 0..self.pages() { //TODO: iterate page directly
+            let iter = self.iter(i)?.plot(self, &self.pages[i].title_block, self.pages[i].paper_size.clone().into(), &theme, border).flatten().collect(); //TODO: plot all, remove clone
+            let mut cairo = CairoPlotter::new(&iter);
+            check_directory(filename)?;
+            let out: Box<dyn Write> = Box::new(File::create(filename)?);
+            cairo.plot(out, border, scale, &image_type)?;
+        }
         Ok(())
     }
 }
@@ -165,7 +168,7 @@ impl Page {
     pub fn new(filename: String) -> Self {
         Self {
             filename,
-            uuid: String::new(),
+            uuid: uuid!(),
             paper_size: PaperSize::A4,
             title_block: None,
             elements: Vec::new(),

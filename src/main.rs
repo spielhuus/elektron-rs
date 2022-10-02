@@ -12,6 +12,7 @@ use rust_fuzzy_search::fuzzy_compare;
 use elektron::sexp;
 use elektron::sexp::{SexpParser, State};
 use elektron::Error;
+use elektron::circuit::Erc;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -74,6 +75,13 @@ enum Command {
         /// the output filename, prints to console when not defined.
         output: Option<String>,
     },
+    Erc {
+        #[clap(short, long, value_parser)]
+        input: String,
+        #[clap(short, long, value_parser)]
+        /// the output filename, prints to console when not defined.
+        output: Option<String>,
+    },
 }
 
 fn main() -> Result<(), Error> {
@@ -129,6 +137,61 @@ fn main() -> Result<(), Error> {
                         Cell::new(item.datasheet.clone()),
                         Cell::new(item.description.clone()),
                     ]);
+                });
+
+                println!("{table}");
+            }
+        }
+        Command::Erc {
+            input,
+            output,
+        } => {
+            let results = elektron::erc(input.as_str())?;
+
+            if let Some(output) = output {
+                /* let mut data = json::JsonValue::new_array();
+                for item in &results {
+                    data.push(json::object! {
+                        amount: item.amount,
+                        reference: item.references.clone(),
+                        value: item.value.clone(),
+                        footprint: item.footprint.clone(),
+                        datasheet: item.datasheet.clone(),
+                        description: item.description.clone()
+                    })
+                    .unwrap();
+                }
+                elektron::check_directory(&output)?;
+                let mut out = File::create(output).unwrap();
+                data.write(&mut out)?;
+                out.flush()?; */
+            } else {
+                let mut table = Table::new();
+                let mut index: u32 = 1;
+                table
+                    .load_preset(UTF8_FULL)
+                    .apply_modifier(UTF8_ROUND_CORNERS)
+                    .set_content_arrangement(ContentArrangement::Dynamic)
+                    // .set_width(40)
+                    .set_header(vec![
+                        "#",
+                        "Pos",
+                        "Description",
+                    ]);
+
+                results.iter().for_each(|item| {
+                    if let Erc::PinNotConnected(pin) = item {
+                        table.add_row(vec![
+                            Cell::new(index.to_string()),
+                            Cell::new(format!("{}:{}", pin.at[0], pin.at[1])),
+                            Cell::new("Pin not connected.")]);
+                    } else if let Erc::WireNotConnected(wire) = item {
+                        table.add_row(vec![
+                            Cell::new(index.to_string()),
+                            Cell::new(format!("{}:{}", wire.pts[[0, 0]], wire.pts[[0, 1]])),
+                            Cell::new("Wire not connected.")]);
+                    }
+                    index += 1;
                 });
 
                 println!("{table}");

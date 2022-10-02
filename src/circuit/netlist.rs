@@ -15,6 +15,12 @@ use crate::{
 
 use super::Circuit;
 
+#[derive(Clone, Debug)]
+pub enum Erc {
+    PinNotConnected(Pin),
+    WireNotConnected(Wire),
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct Point {
     x: f64,
@@ -306,9 +312,6 @@ impl<'a> Netlist<'a> {
             }
         }
 
-        for item in &netlist.nodes {
-            println!("> {:?} -> {:?}", item.identifier, item.points);
-        }
         Ok(netlist)
     }
     fn has_node(&self, identifier: String) -> bool {
@@ -499,14 +502,15 @@ impl<'a> Netlist<'a> {
 
         Ok(())
     }
-    pub fn drc(&self) -> Vec<String> {
+    pub fn erc(&self) -> Vec<Erc> {
         let mut result = Vec::new();
         if self.has_node(String::from("UNCONNECTED")) {
             for n in &self.nodes {
                 if let Some(node_id) = &n.identifier {
                     if node_id == "UNCONNECTED" {
                         for p in &n.pins {
-                            result.push(format!("Pin is not connected: {:?}", p));
+                            let pin = *p;
+                            result.push(Erc::PinNotConnected(pin.clone()));
                         }
                     }
                 }
@@ -522,7 +526,7 @@ impl<'a> Netlist<'a> {
                     }
                 }
                 if !found {
-                    result.push(format!("Wire not connected: {:?}", wire));
+                    result.push(Erc::WireNotConnected(wire.clone()));
                 }
             }
         }
@@ -588,14 +592,14 @@ mod tests {
     fn test_unconnected() {
         let schema = Schema::load("samples/files/summe/summe_unconnected.kicad_sch").unwrap();
         let netlist = Netlist::from(&schema).unwrap();
-        let res = netlist.drc();
+        let res = netlist.erc();
         assert_eq!(1, res.len());
     }
     #[test]
     fn test_check() {
         let schema = Schema::load("samples/files/summe/summe.kicad_sch").unwrap();
         let netlist = Netlist::from(&schema).unwrap();
-        assert_eq!(0, netlist.drc().len());
+        assert_eq!(0, netlist.erc().len());
     }
     #[test]
     fn test_circuit() {

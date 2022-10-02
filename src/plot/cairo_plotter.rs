@@ -1,9 +1,12 @@
-use crate::error::Error;
+use crate::{error::Error, sexp::model::TitleBlock};
 use itertools::Itertools;
 use ndarray::{arr1, arr2, s, Array1, Array2};
+use pangocairo::{create_layout, pango::{ffi::pango_font_description_from_string, FontDescription, Weight, SCALE}, show_layout, update_layout};
 use std::io::Write;
 extern crate cairo;
 use cairo::{Context, FontFace, FontSlant, FontWeight, Format, ImageSurface, SvgSurface};
+
+use super::{border::draw_border, Theme};
 
 pub mod paper {
     pub const A4: (f64, f64) = (297.0, 210.0);
@@ -220,7 +223,6 @@ macro_rules! fill {
     ($context:expr, $fill:expr) => {
         if let Some(fill) = $fill {
             $context.set_source_rgba(fill.0, fill.1, fill.2, fill.3);
-            //$content.set_operator(cairo::CAIRO_OPERATOR_DEST_OVER);
             $context.fill().unwrap();
         }
     };
@@ -247,7 +249,7 @@ pub trait Plotter {
         file: Box<dyn Write>,
         border: bool,
         scale: f64,
-        image_type: ImageType,
+        image_type: &ImageType,
     ) -> Result<(), Error>;
     fn paper(&mut self, paper: String);
     fn get_paper(&self) -> (f64, f64);
@@ -364,7 +366,7 @@ impl<'a> Plotter for CairoPlotter<'a> {
         mut file: Box<dyn Write>,
         border: bool,
         scale: f64,
-        image_type: ImageType,
+        image_type: &ImageType,
     ) -> Result<(), Error> {
         if border {
             match image_type {
@@ -531,48 +533,71 @@ impl<'a> Plotter for CairoPlotter<'a> {
                         fill!(context, &circle.fill);
                         context.stroke().unwrap()
                     }
-                    PlotItem::Arc(_, circle) => {
-                        stroke!(context, circle);
-                        context.arc(circle.start[0], circle.start[1], circle.mid[1], 0., 10.);
+                    PlotItem::Arc(_, arc) => {
+                        stroke!(context, arc);
+                        context.arc(arc.start[0], arc.start[1], arc.mid[1], 0., 10.);
                         context.stroke_preserve().unwrap();
-                        fill!(context, &circle.fill);
+                        fill!(context, &arc.fill);
                         context.stroke().unwrap()
                     }
                     PlotItem::Text(_, text) => {
                         context.save().unwrap();
-                        effects!(context, text);
-                        let mut x = text.pos[0];
-                        let mut y = text.pos[1];
-                        let outline = self.text_size(text);
-                        if text.angle == 0.0 {
-                            if text.align.contains(&String::from("right")) {
-                                x -= outline[0];
-                            } else if !text.align.contains(&String::from("left")) {
-                                x -= outline[0] / 2.0;
+                        let layout = create_layout(&self.context);
+                        if let Some(layout) = layout {
+                            let markup = format!("<span face=\"{}\" foreground=\"blue\" size=\"{}\">{}</span>", 
+                                text.font, (text.fontsize * 1024.0) as i32, text.text);
+                            layout.set_markup(markup.as_str());
+                            context.rotate(-text.angle * std::f64::consts::PI / 180.0);
+                            context.set_source_rgba(0.0, 0.0, 0.0, 1.0);
+                            update_layout(context, &layout);
+
+                            let outline: (i32, i32) = layout.size();
+                            let outline = (outline.0 as f64 / SCALE as f64, outline.1 as f64 / SCALE as f64);
+                            let mut x = text.pos[0];
+                            let mut y = text.pos[1];
+                            if text.angle == 0.0 {
+                                if text.align.contains(&String::from("right")) {
+                                    x -= outline.0 as f64;
+                                } else if !text.align.contains(&String::from("left")) {
+                                    x -= outline.0 as f64 / 2.0;
+                                }
+                                if text.align.contains(&String::from("bottom")) {
+                                    y -= outline.1 as f64;
+                                } else if !text.align.contains(&String::from("top")) {
+                                    y -= outline.1 as f64 / 2.0;
+                                }
+                            } else if text.angle == 90.0 {
+                                if text.align.contains(&String::from("right")) {
+                                    y += outline.0 as f64;
+                                } else if !text.align.contains(&String::from("left")) {
+                                    y += outline.0 as f64 / 2.0;
+                                }
+                                if text.align.contains(&String::from("top")) {
+                                    x -= outline.1 as f64;
+                                } else if !text.align.contains(&String::from("bottom")) {
+                                    x -= outline.1 as f64 / 2.0;
+                                }
+                            } else {
+                                println!("text angle is: {} ({})", text.angle, text.text);
                             }
-                            if text.align.contains(&String::from("top")) {
-                                y -= outline[1];
-                            } else if !text.align.contains(&String::from("Bottom")) {
-                                y += outline[1] / 2.0;
-                            }
-                        } else if text.angle == 90.0 {
-                            if text.align.contains(&String::from("right")) {
-                                y += outline[0];
-                            } else if !text.align.contains(&String::from("left")) {
-                                y += outline[0] / 2.0;
-                            }
-                            if text.align.contains(&String::from("top")) {
-                                x += outline[1];
-                            } else if !text.align.contains(&String::from("bottom")) {
-                                x += outline[1] / 2.0;
-                            }
+
+                            context.move_to(x, y);
+                            show_layout(context, &layout);
+                            context.stroke().unwrap();
+
+                            /* context.move_to(text.pos[0], text.pos[1]);
+                            context.line_to(text.pos[0] + outline.0 as f64, text.pos[1]);
+                            context.line_to(text.pos[0] + outline.0 as f64, text.pos[1] + outline.1 as f64);
+                            context.line_to(text.pos[0], text.pos[1] + outline.1 as f64);
+                            context.line_to(text.pos[0], text.pos[1]);
+                            context.arc(text.pos[0], text.pos[1], 1.0, 0., 10.); */
+
+                            context.stroke().unwrap();
+
+
                         } else {
-                            println!("text angle is: {} ({})", text.angle, text.text);
+                            panic!("can not get pangocairo layout");
                         }
-                        context.move_to(x, y);
-                        context.rotate(-text.angle * std::f64::consts::PI / 180.0);
-                        context.show_text(text.text.as_str()).unwrap();
-                        context.stroke().unwrap();
                         context.restore().unwrap();
                     }
                 }

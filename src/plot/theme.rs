@@ -30,7 +30,6 @@ impl ThemerMerge<Stroke> for Themer {
             } else {
                 b.color
             },
-            filltype: a.filltype.clone(),
         }
     }
 }
@@ -119,11 +118,11 @@ impl Theme {
     pub fn kicad_2000() -> Theme {
         let content = r#"(theme
             (bus (stroke (width 0.254) (type default) (color 1 0 0 1)))
-            (wire (stroke (width 0.254) (type default) (color 1 0 0 1)))
-            (junction (stroke (width 0.254) (type default) (color 1 0 0 1)))
-            (no_connect (stroke (width 0.254) (type default) (color 1 0 0 1)))
-            (symbol (stroke (width 0.254) (type default) (color 1 0 0 1)))
-            (pin (stroke (width 0.254) (type default) (color 1 0 0 1)))
+            (wire (stroke (width 0.254) (type default) (color 0 0.5882352941176471 0 1)))
+            (junction (stroke (width 0.254) (type default) (color 0 0.5882352941176471 0 1)))
+            (no_connect (stroke (width 0.254) (type default) (color 0 0 0.5176470588235295 1)))
+            (symbol (stroke (width 0.254) (type default) (color 0.5176470588235295 0 0 1)))
+            (pin (stroke (width 0.254) (type default) (color 0.5176470588235295 0 0 1)))
             (border_stroke (stroke (width 0.254) (type default) (color 0 0 0 1)))
             (label (effects (font (size 1.27 1.27))))
             (property (effects (font (size 1.27 1.27))))
@@ -145,6 +144,8 @@ impl Theme {
             (B.Fab (stroke (width 0.254) (type default) (color 0.34509803921568627 0.36470588235294116 0.5176470588235295 1)))
             (B.SilkS (stroke (width 0.254) (type default) (color 0.9098039215686274 0.6980392156862745 0.6549019607843137 1)))
             (Cmts.User (stroke (width 0.254) (type default) (color 0.34901960784313724 0.5803921568627451 0.8627450980392157 1)))
+            (background (color 1 1 0.7607843137254902 1)
+            (outline (color 0.5176470588235295 0 0 1)
             "#;
         Theme::new(content.to_string())
     }
@@ -182,7 +183,9 @@ impl Theme {
         }
     }
     pub fn color(&self, name: &str) -> Option<(f64, f64, f64, f64)> {
+        println!("get color: {}", name);
         if let Some(ThemeItems::Color(color)) = &self.items.get(name) {
+            println!("found color: {:?}", color);
             Some(*color)
         } else {
             None

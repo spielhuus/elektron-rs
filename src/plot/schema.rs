@@ -1,10 +1,11 @@
 use ndarray::{arr1, arr2, Array1, Array2};
 
+use super::border::draw_border;
 use super::cairo_plotter::{Circle, Line, LineCap, PlotItem, Text};
 use super::theme::{Theme, Themer, ThemerMerge};
 use crate::plot::cairo_plotter::{Arc, Polyline, Rectangle};
 use crate::plot::text;
-use crate::sexp::model::{Graph, SchemaElement};
+use crate::sexp::model::{Graph, SchemaElement, TitleBlock};
 use crate::sexp::{Schema, Shape, Transform};
 
 macro_rules! get_effects {
@@ -19,9 +20,11 @@ macro_rules! get_effects {
 
 pub struct SchemaPlot<'a, I> {
     iter: I,
-    theme: Theme,
+    theme: &'a Theme,
     border: bool,
     schema: &'a Schema,
+    title_block: &'a Option<TitleBlock>,
+    paper_size: (f64, f64),
 }
 
 impl<'a, I> Iterator for SchemaPlot<'a, I>
@@ -30,6 +33,10 @@ where
 {
     type Item = Vec<PlotItem>;
     fn next(&mut self) -> Option<Self::Item> {
+        if self.border {
+            self.border = false;
+                return Some(draw_border(&self.title_block, self.paper_size, self.theme).unwrap());
+        }
         loop {
             match self.iter.next() {
                 Some(SchemaElement::Sheet(sheet)) => {
@@ -63,7 +70,7 @@ where
                                 stroke.color,
                                 stroke.width,
                                 stroke.linetype,
-                                self.theme.color(&stroke.filltype),
+                                Some(sheet.fill),
                             ),
                         ),
                     ]);
@@ -316,7 +323,7 @@ where
                                                         stroke.color,
                                                         stroke.width,
                                                         stroke.linetype,
-                                                        self.theme.color(&stroke.filltype),
+                                                        self.theme.color(&polyline.fill_type),
                                                     ),
                                                 ));
                                             }
@@ -337,7 +344,7 @@ where
                                                         stroke.color,
                                                         stroke.width,
                                                         stroke.linetype,
-                                                        self.theme.color(&stroke.filltype),
+                                                        self.theme.color(&rectangle.fill_type),
                                                     ),
                                                 ));
                                             }
@@ -355,7 +362,7 @@ where
                                                         stroke.width,
                                                         stroke.linetype,
                                                         stroke.color,
-                                                        self.theme.color(&stroke.filltype),
+                                                        self.theme.color(&circle.fill_type),
                                                     ),
                                                 ));
                                             }
@@ -374,7 +381,7 @@ where
                                                         stroke.width,
                                                         stroke.linetype,
                                                         stroke.color,
-                                                        self.theme.color(&stroke.filltype),
+                                                        self.theme.color(&arc.fill_type),
                                                     ),
                                                 ));
                                             }
@@ -505,19 +512,21 @@ where
 }
 
 impl<'a, I> SchemaPlot<'a, I> {
-    pub fn new(iter: I, schema: &'a Schema, theme: Theme, border: bool) -> Self {
+    pub fn new(iter: I, schema: &'a Schema, title_block: &'a Option<TitleBlock>, paper_size: (f64, f64), theme: &'a Theme, border: bool) -> Self {
         Self {
             iter,
             theme,
             border,
             schema,
+            title_block,
+            paper_size,
         }
     }
 }
 
 pub trait PlotIterator<T>: Iterator<Item = T> + Sized {
-    fn plot(self, schema: &'_ Schema, theme: Theme, border: bool) -> SchemaPlot<Self> {
-        SchemaPlot::new(self, schema, theme, border)
+    fn plot<'a>(self, schema: &'a Schema, title_block: &'a Option<TitleBlock>, paper_size: (f64, f64), theme: &'a Theme, border: bool) -> SchemaPlot<'a, Self> {
+        SchemaPlot::new(self, schema, title_block, paper_size, theme, border)
     }
 }
 impl<T, I: Iterator<Item = T>> PlotIterator<T> for I {}

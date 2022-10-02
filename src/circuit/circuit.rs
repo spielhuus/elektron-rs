@@ -332,14 +332,14 @@ impl Simulation {
 
     pub fn plot(&self, name: &str, filename: Option<&str>) -> Result<(), Error> {
 
-        let plot = self.ngspice.current_plot().unwrap();
-        let vecs = self.ngspice.all_vecs(&plot).unwrap();
+        /* let plot = self.ngspice.current_plot().unwrap();
+        let vecs = self.ngspice.all_vecs(&plot).unwrap(); */
         let re = self.ngspice.vector_info("time").unwrap();
         let data1 = match re.data {
             ComplexSlice::Real(list) => {
                 list
             },
-            ComplexSlice::Complex(list) => {
+            ComplexSlice::Complex(_list) => {
                 //list.into_iter().map(|f| f.parse::<f64>()).collect()
                 &[0.0]
             }
@@ -349,7 +349,7 @@ impl Simulation {
             ComplexSlice::Real(list) => {
                 list
             },
-            ComplexSlice::Complex(list) => {
+            ComplexSlice::Complex(_list) => {
                 //list.into_iter().map(|f| f.parse::<f64>()).collect()
                 &[0.0]
             }

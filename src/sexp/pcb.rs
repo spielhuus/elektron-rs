@@ -53,11 +53,11 @@ impl Pcb {
         use crate::plot::{PcbPlotIterator, Plotter};
         let iter = self.iter()?.plot(self, theme, border).flatten().collect(); //TODO: plot all
                                                                                //pages
-        let mut cairo = CairoPlotter::new(&iter);
-
+        let mut cairo = CairoPlotter::new(&iter); //TODO: set title block
+ 
         check_directory(filename)?;
         let out: Box<dyn Write> = Box::new(File::create(filename)?);
-        cairo.plot(out, border, scale, image_type)?;
+        cairo.plot(out, border, scale, &image_type)?;
         Ok(())
     }
     pub fn load(filename: &str) -> Result<Self, Error> {

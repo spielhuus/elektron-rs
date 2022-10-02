@@ -13,7 +13,6 @@ macro_rules! theme {
                 width: $element.width,
                 linetype: "default".to_string(),
                 color: (0.0, 0.0, 0.0, 0.0),
-                filltype: String::new(),
             },
             &$self.theme.stroke(&$element.layer).unwrap(),
         )
@@ -117,7 +116,7 @@ where
                                         stroke.width,
                                         stroke.linetype,
                                         stroke.color,
-                                        self.theme.color(&stroke.filltype),
+                                        self.theme.color(&circle.fill),
                                     ),
                                 ));
                             }
