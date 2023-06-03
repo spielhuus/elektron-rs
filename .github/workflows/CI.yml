@@ -144,7 +144,7 @@ jobs:
         sudo apt-get install -y -qq libngspice0 libngspice0-dev libpango1.0 libpango1.0-dev libcairo2 libcairo2-dev
 
     - name: build ${{ matrix.platform || matrix.os }} binaries
-        python setup.py install
+      run: python setup.py install
       # run: cibuildwheel --output-dir dist
       # env:
       #   CIBW_BUILD: 'cp3${{ matrix.python-version }}-*'
@@ -166,7 +166,7 @@ jobs:
       #     rustup show
     - name: build windows 32bit binaries
       if: matrix.os == 'windows'
-        python setup.py install
+      run: python setup.py install
       # run: cibuildwheel --output-dir dist
       # env:
       #   CIBW_BUILD: 'cp3${{ matrix.python-version }}-win32'
