@@ -141,7 +141,7 @@ jobs:
     - name: build sdist
       if: matrix.os == 'ubuntu'
       run: |
-        sudo apt-get install -y -qq libngspice0 libngspice0-dev libpango1.0 libpango1.0-dev libcairo2 libcairo2-dev
+        sudo apt-get install -y -qq libngspice0 libngspice0-dev libpango1.0 libpango1.0-dev libcairo2 libcairo2-dev libpoppler-glib-dev
 
     - name: build ${{ matrix.platform || matrix.os }} binaries
       run: python setup.py install
