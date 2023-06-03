@@ -36,17 +36,18 @@ jobs:
         toolchain: nightly
         override: true
 
-    - name: install python dependencies
-      run: make install
+    # - name: install python dependencies
+    #   run: make install
 
-    - name: build
-      run: make build-dev
+    # - name: build
+    #   run: make build-dev
 
     - name: test
       run: |
         make test
         coverage xml
         ls -alh
+
     - name: install go
       uses: actions/setup-go@v1
       with:
