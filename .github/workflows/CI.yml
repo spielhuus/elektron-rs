@@ -14,19 +14,19 @@ jobs:
 
     strategy:
       fail-fast: false
-      # matrix:
-      #   python-version: ['3.7', '3.8', '3.9']
+      matrix:
+        python-version: ['3.7', '3.8', '3.9']
 
-    # env:
-    #   PYTHON: ${{ matrix.python-version }}
+    env:
+      PYTHON: ${{ matrix.python-version }}
 
     steps:
     - uses: actions/checkout@v2
 
-    # - name: set up python ${{ matrix.python-version }}
-    #   uses: actions/setup-python@v1
-    #   with:
-    #     python-version: ${{ matrix.python-version }}
+    - name: set up python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
 
 
     - name: install rust
