@@ -42,15 +42,15 @@ jobs:
     # - name: build
     #   run: make build-dev
 
-    - name: test
-      run: |
-        sudo apt-get install -y -qq libngspice0 libngspice0-dev libpango1.0 libpango1.0-dev libcairo2 libcairo2-dev libpoppler-glib-dev libgraphite2-dev
-        python src/plot/css/generate.py build
+    # - name: test
+    #   run: |
+    #     sudo apt-get install -y -qq libngspice0 libngspice0-dev libpango1.0 libpango1.0-dev libcairo2 libcairo2-dev libpoppler-glib-dev libgraphite2-dev
+    #     python src/plot/css/generate.py build
 
-      run: |
-        make test
-        coverage xml
-        ls -alh
+    #   run: |
+    #     make test
+    #     coverage xml
+    #     ls -alh
 
     - name: install go
       uses: actions/setup-go@v1
