@@ -18,35 +18,35 @@ crate-type = ["rlib", "cdylib"]
 # codegen-units = 1
 
 [dependencies]
-pyo3 = { version = "0.17", features = ["auto-initialize"] }
+pyo3 = { version = "0.19", features = ["auto-initialize"] }
 thiserror = "1.0"
 lazy_static = "1.4.0"
-regex = "1.7.0"
+regex = "1.8"
 indexmap = "1.9"
 itertools = "0.10.5"
 clap = { version = "4", features = ["derive"] }
-comfy-table = "6.1"
+comfy-table = "6.2"
 viuer = "0.6"
 rust-fuzzy-search = "0.1.1"
 ndarray = "0.15"
 json = "0.12"
 diff = "0.1"
-pest = "2.5"
-pest_derive = "2.5"
-tectonic = "0.12"
-pangocairo = "0.16"
+pest = "2.6"
+pest_derive = "2.6"
+tectonic = "0.13"
+pangocairo = "0.17"
 simplecss = "0.2.1"
-cairo-rs = { version = "0.16", features = ["svg", "png", "pdf"] }
+cairo-rs = { version = "0.17", features = ["svg", "png", "pdf"] }
 png = "0.17"
 svg = "0.13"
 pdf = "0.8"
-poppler-rs = "0.20.0"
+poppler-rs = "0.21.0"
 plotters = "0.3"
 plotters-svg = "0.3"
 rand = "0.8"
 yaml-rust = "0.4"
-xlsxwriter = "0.5"
-tempfile = "3.3"
+xlsxwriter = "0.6"
+tempfile = "3.5"
 anyhow = "1.0"
 byteorder = "1.4"
 hound = "3.5"
@@ -56,7 +56,7 @@ bit-set = "0.5"
 elektron_ngspice = "0.1"
 
 [dependencies.uuid]
-version = "1.2"
+version = "1.3"
 features = [
     "v4",                # Lets you generate random UUIDs
     "fast-rng",          # Use a faster (but still sufficiently random) RNG
