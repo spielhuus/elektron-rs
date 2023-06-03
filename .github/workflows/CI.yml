@@ -36,157 +36,152 @@ jobs:
         toolchain: nightly
         override: true
 
-    - run: |
-      sudo apt-get install -y -qq libngspice0 libngspice0-dev libpango1.0 libpango1.0-dev libcairo2 libcairo2-dev libpoppler-glib-dev
-      make sdist
+    - name: install python dependencies
+      run: make install
 
-    # - name: install python dependencies
-    #   run: make install
+    - name: build
+      run: make build-dev
 
-    # - name: build
-    #   run: make build-dev
+    - name: test
+      run: |
+        make test
+        coverage xml
+        ls -alh
+    - name: install go
+      uses: actions/setup-go@v1
+      with:
+        go-version: 1.16.x
 
-    # - name: test
-    #   run: |
-    #     make test
-    #     coverage xml
-    #     ls -alh
-    # - name: install go
-    #   uses: actions/setup-go@v1
-    #   with:
-    #     go-version: 1.16.x
+    - name: run toml-test
+      run: |
+        git clone --depth 1 --branch 1.0.0-beta2 https://github.com/BurntSushi/toml-test.git
+        cd toml-test
+        # TODO, fix tehse tests
+        rm tests/valid/datetime-local-date.*
+        rm tests/valid/datetime-local-time.*
+        rm tests/valid/datetime-local.*
+        rm tests/valid/key-empty.*
+        rm tests/invalid/control-comment-del.*
+        rm tests/invalid/integer-positive-bin.*
+        rm tests/invalid/integer-positive-hex.*
+        go build ./cmd/toml-test
+        cd ../
+        ./toml-test/toml-test ./tests/toml_test.py
+    - uses: codecov/codecov-action@v1.0.13
+      with:
+        file: ./coverage.xml
+        env_vars: PYTHON
 
-    # - name: run toml-test
-    #   run: |
-    #     git clone --depth 1 --branch 1.0.0-beta2 https://github.com/BurntSushi/toml-test.git
-    #     cd toml-test
-    #     # TODO, fix tehse tests
-    #     rm tests/valid/datetime-local-date.*
-    #     rm tests/valid/datetime-local-time.*
-    #     rm tests/valid/datetime-local.*
-    #     rm tests/valid/key-empty.*
-    #     rm tests/invalid/control-comment-del.*
-    #     rm tests/invalid/integer-positive-bin.*
-    #     rm tests/invalid/integer-positive-hex.*
-    #     go build ./cmd/toml-test
-    #     cd ../
-    #     ./toml-test/toml-test ./tests/toml_test.py
-    # - uses: codecov/codecov-action@v1.0.13
-    #   with:
-    #     file: ./coverage.xml
-    #     env_vars: PYTHON
+  lint:
+    runs-on: ubuntu-latest
 
-  # lint:
-  #   runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
 
-  #   steps:
-  #   - uses: actions/checkout@v2
+    - uses: actions/setup-python@v1
+      with:
+        python-version: '3.8'
 
-  #   - uses: actions/setup-python@v1
-  #     with:
-  #       python-version: '3.8'
+    - run: pip install -r tests/requirements-linting.txt
 
-  #   - run: pip install -r tests/requirements-linting.txt
+    - name: install rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: nightly
+        override: true
+        components: rustfmt, clippy
 
-  #   - name: install rust
-  #     uses: actions-rs/toolchain@v1
-  #     with:
-  #       profile: minimal
-  #       toolchain: nightly
-  #       override: true
-  #       components: rustfmt, clippy
+    - run: make lint
+    - run: make mypy
 
-  #   - run: make lint
-  #   - run: make mypy
+  build:
+    name: build py3.${{ matrix.python-version }} on ${{ matrix.platform || matrix.os }}
+    needs:
+      - test
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+        - ubuntu
+        # - macos
+        # - windows
+        python-version:
+        - '7'
+        - '8'
+        - '9'
+        - '10'
+        include:
+        - os: ubuntu
+          platform: linux
+        - os: windows
+          ls: dir
 
-  # build:
-  #   name: build py3.${{ matrix.python-version }} on ${{ matrix.platform || matrix.os }}
-  #   needs:
-  #     - test
-    # strategy:
-    #   fail-fast: false
-    #   matrix:
-    #     os:
-    #     - ubuntu
-    #     # - macos
-    #     # - windows
-    #     python-version:
-    #     - '7'
-    #     - '8'
-    #     - '9'
-    #     - '10'
-    #     include:
-    #     - os: ubuntu
-    #       platform: linux
-    #     - os: windows
-    #       ls: dir
+    runs-on: ${{ format('{0}-latest', matrix.os) }}
+    steps:
+    - uses: actions/checkout@v2
 
-    # runs-on: ${{ format('{0}-latest', matrix.os) }}
-    # steps:
-    # - uses: actions/checkout@v2
+    - name: set up python
+      uses: actions/setup-python@v1
+      with:
+        python-version: '3.10'
 
-    # - name: set up python
-    #   uses: actions/setup-python@v1
-    #   with:
-    #     python-version: '3.10'
+    - name: set up rust
+      if: matrix.os != 'ubuntu'
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: nightly
+        override: true
 
-    # - name: set up rust
-    #   if: matrix.os != 'ubuntu'
-    #   uses: actions-rs/toolchain@v1
-    #   with:
-    #     profile: minimal
-    #     toolchain: nightly
-    #     override: true
+    - name: install python dependencies
+      run: |
+        pip install -U setuptools wheel twine cibuildwheel
+        pip install -r requirements.txt
 
-    # - name: install python dependencies
-    #   run: |
-    #     pip install -U setuptools wheel twine cibuildwheel
-    #     pip install -r requirements.txt
+    - name: build sdist
+      if: matrix.os == 'ubuntu'
+      run: |
+        sudo apt-get install -y -qq libngspice0 libngspice0-dev libpango1.0 libpango1.0-dev libcairo2 libcairo2-dev libpoppler-glib-dev
+        python src/plot/css/generate.py build
 
-    # - name: build sdist
-    #   if: matrix.os == 'ubuntu'
-    #   run: |
-    #     sudo apt-get install -y -qq libngspice0 libngspice0-dev libpango1.0 libpango1.0-dev libcairo2 libcairo2-dev libpoppler-glib-dev
-    #     python src/plot/css/generate.py build
-
-    # - name: build ${{ matrix.platform || matrix.os }} binaries
-    #   run: python setup.py sdist
-    #   run: python setup.py install
-    #   # run: cibuildwheel --output-dir dist
-    #   # env:
-    #   #   CIBW_BUILD: 'cp3${{ matrix.python-version }}-*'
-    #   #   CIBW_SKIP: '*-win32'
-    #   #   CIBW_PLATFORM: ${{ matrix.platform || matrix.os }}
-    #   #   CIBW_TEST_REQUIRES: 'pytest'
-    #   #   CIBW_TEST_COMMAND: 'pytest {project}/tests -s'
-    #   #   CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH"'
-    #   #   CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH"'
-    #   #   CIBW_MANYLINUX_X86_64_IMAGE: 'manylinux2014'
-    #   #   CIBW_MANYLINUX_I686_IMAGE: 'manylinux2014'
-    #   #   CIBW_BEFORE_BUILD: >
-    #   #     pip install -U setuptools-rust &&
-    #   #     rustup default nightly &&
-    #   #     rustup show
-    #   #   CIBW_BEFORE_BUILD_LINUX: >
-    #   #     pip install -U setuptools-rust &&
-    #   #     curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=nightly --profile=minimal -y &&
-    #   #     rustup show
-    # - name: build windows 32bit binaries
-    #   if: matrix.os == 'windows'
-    #   run: python setup.py install
-    #   # run: cibuildwheel --output-dir dist
-    #   # env:
-    #   #   CIBW_BUILD: 'cp3${{ matrix.python-version }}-win32'
-    #   #   CIBW_PLATFORM: windows
-    #   #   CIBW_TEST_REQUIRES: 'pytest'
-    #   #   CIBW_TEST_COMMAND: 'pytest {project}/tests -s'
-    #   #   CIBW_ENVIRONMENT: 'PATH="$UserProfile\.cargo\bin;$PATH"'
-    #   #   CIBW_BEFORE_BUILD: >
-    #   #     pip install -U setuptools-rust &&
-    #   #     rustup toolchain install nightly-i686-pc-windows-msvc &&
-    #   #     rustup default nightly-i686-pc-windows-msvc &&
-    #   #     rustup override set nightly-i686-pc-windows-msvc &&
-    #   #     rustup show
+    - name: build ${{ matrix.platform || matrix.os }} binaries
+      run: python setup.py dist
+      # run: cibuildwheel --output-dir dist
+      # env:
+      #   CIBW_BUILD: 'cp3${{ matrix.python-version }}-*'
+      #   CIBW_SKIP: '*-win32'
+      #   CIBW_PLATFORM: ${{ matrix.platform || matrix.os }}
+      #   CIBW_TEST_REQUIRES: 'pytest'
+      #   CIBW_TEST_COMMAND: 'pytest {project}/tests -s'
+      #   CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH"'
+      #   CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH"'
+      #   CIBW_MANYLINUX_X86_64_IMAGE: 'manylinux2014'
+      #   CIBW_MANYLINUX_I686_IMAGE: 'manylinux2014'
+      #   CIBW_BEFORE_BUILD: >
+      #     pip install -U setuptools-rust &&
+      #     rustup default nightly &&
+      #     rustup show
+      #   CIBW_BEFORE_BUILD_LINUX: >
+      #     pip install -U setuptools-rust &&
+      #     curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=nightly --profile=minimal -y &&
+      #     rustup show
+    - name: build windows 32bit binaries
+      if: matrix.os == 'windows'
+      run: python setup.py dist
+      # run: cibuildwheel --output-dir dist
+      # env:
+      #   CIBW_BUILD: 'cp3${{ matrix.python-version }}-win32'
+      #   CIBW_PLATFORM: windows
+      #   CIBW_TEST_REQUIRES: 'pytest'
+      #   CIBW_TEST_COMMAND: 'pytest {project}/tests -s'
+      #   CIBW_ENVIRONMENT: 'PATH="$UserProfile\.cargo\bin;$PATH"'
+      #   CIBW_BEFORE_BUILD: >
+      #     pip install -U setuptools-rust &&
+      #     rustup toolchain install nightly-i686-pc-windows-msvc &&
+      #     rustup default nightly-i686-pc-windows-msvc &&
+      #     rustup override set nightly-i686-pc-windows-msvc &&
+      #     rustup show
       
       
     # # - name: list dist files
