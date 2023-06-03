@@ -14,19 +14,20 @@ jobs:
 
     strategy:
       fail-fast: false
-      matrix:
-        python-version: ['3.7', '3.8', '3.9']
+      # matrix:
+      #   python-version: ['3.7', '3.8', '3.9']
 
-    env:
-      PYTHON: ${{ matrix.python-version }}
+    # env:
+    #   PYTHON: ${{ matrix.python-version }}
 
     steps:
     - uses: actions/checkout@v2
 
-    - name: set up python ${{ matrix.python-version }}
-      uses: actions/setup-python@v1
-      with:
-        python-version: ${{ matrix.python-version }}
+    # - name: set up python ${{ matrix.python-version }}
+    #   uses: actions/setup-python@v1
+    #   with:
+    #     python-version: ${{ matrix.python-version }}
+
 
     - name: install rust
       uses: actions-rs/toolchain@v1
@@ -34,6 +35,10 @@ jobs:
         profile: minimal
         toolchain: nightly
         override: true
+
+    - run: |
+      sudo apt-get install -y -qq libngspice0 libngspice0-dev libpango1.0 libpango1.0-dev libcairo2 libcairo2-dev libpoppler-glib-dev
+      make sdist
 
     # - name: install python dependencies
     #   run: make install
@@ -94,58 +99,58 @@ jobs:
   #   - run: make lint
   #   - run: make mypy
 
-  build:
-    name: build py3.${{ matrix.python-version }} on ${{ matrix.platform || matrix.os }}
-    needs:
-      - test
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-        - ubuntu
-        # - macos
-        # - windows
-        python-version:
-        - '7'
-        - '8'
-        - '9'
-        - '10'
-        include:
-        - os: ubuntu
-          platform: linux
-        - os: windows
-          ls: dir
+  # build:
+  #   name: build py3.${{ matrix.python-version }} on ${{ matrix.platform || matrix.os }}
+  #   needs:
+  #     - test
+    # strategy:
+    #   fail-fast: false
+    #   matrix:
+    #     os:
+    #     - ubuntu
+    #     # - macos
+    #     # - windows
+    #     python-version:
+    #     - '7'
+    #     - '8'
+    #     - '9'
+    #     - '10'
+    #     include:
+    #     - os: ubuntu
+    #       platform: linux
+    #     - os: windows
+    #       ls: dir
 
-    runs-on: ${{ format('{0}-latest', matrix.os) }}
-    steps:
-    - uses: actions/checkout@v2
+    # runs-on: ${{ format('{0}-latest', matrix.os) }}
+    # steps:
+    # - uses: actions/checkout@v2
 
-    - name: set up python
-      uses: actions/setup-python@v1
-      with:
-        python-version: '3.10'
+    # - name: set up python
+    #   uses: actions/setup-python@v1
+    #   with:
+    #     python-version: '3.10'
 
-    - name: set up rust
-      if: matrix.os != 'ubuntu'
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: nightly
-        override: true
+    # - name: set up rust
+    #   if: matrix.os != 'ubuntu'
+    #   uses: actions-rs/toolchain@v1
+    #   with:
+    #     profile: minimal
+    #     toolchain: nightly
+    #     override: true
 
-    - name: install python dependencies
-      run: |
-        pip install -U setuptools wheel twine cibuildwheel
-        pip install -r requirements.txt
+    # - name: install python dependencies
+    #   run: |
+    #     pip install -U setuptools wheel twine cibuildwheel
+    #     pip install -r requirements.txt
 
-    - name: build sdist
-      if: matrix.os == 'ubuntu'
-      run: |
-        sudo apt-get install -y -qq libngspice0 libngspice0-dev libpango1.0 libpango1.0-dev libcairo2 libcairo2-dev libpoppler-glib-dev
-        python src/plot/css/generate.py build
+    # - name: build sdist
+    #   if: matrix.os == 'ubuntu'
+    #   run: |
+    #     sudo apt-get install -y -qq libngspice0 libngspice0-dev libpango1.0 libpango1.0-dev libcairo2 libcairo2-dev libpoppler-glib-dev
+    #     python src/plot/css/generate.py build
 
-    - name: build ${{ matrix.platform || matrix.os }} binaries
-      run: python setup.py sdist
+    # - name: build ${{ matrix.platform || matrix.os }} binaries
+    #   run: python setup.py sdist
     #   run: python setup.py install
     #   # run: cibuildwheel --output-dir dist
     #   # env:

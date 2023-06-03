@@ -45,6 +45,7 @@ clean:
 	rm -rf elektron_python.egg-info
 	rm -rf elektron/elektron.cpython-310-x86_64-linux-gnu.so
 	rm -rf elektron/__pycache__
+	rm -rf dist
 
 $(VENV)/bin/elektron: $(VENV)/bin/activate $(SOURCES)
 	$(PYTHON) setup.py $(release)
@@ -56,3 +57,7 @@ doc: $(VENV)/bin/activate $(SOURCES)
 	cargo doc --lib --no-deps
 	$(SPHINXBUILD) "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) 
 	
+sdist: $(VENV)/bin/activate
+	$(PYTHON) setup.py sdist
+
+
