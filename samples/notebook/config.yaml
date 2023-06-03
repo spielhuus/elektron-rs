@@ -1,0 +1,13 @@
+baseURL: https://example.com/
+title: notebook
+theme: beautifulhugo
+
+ignoreFiles: 
+  - '\.rmd$'
+
+# Needed for mermaid/katex shortcodes
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
+

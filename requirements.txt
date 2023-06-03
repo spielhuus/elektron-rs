@@ -7,3 +7,5 @@ ipympl
 matplotlib-backend-kitty
 numpy
 scipy
+sympy
+sphinx-press-theme

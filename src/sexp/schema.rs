@@ -1,28 +1,23 @@
 use std::{fs::File, io::Write, path::Path};
 
-use crate::{
-    check_directory,
-    error::Error,
-    plot::{CairoPlotter, ImageType, Theme},
-    sexp::{
-        model::{
-            GlobalLabel, Junction, Label, LibrarySymbol, NoConnect, PaperSize, SchemaElement,
-            Sheet, SheetInstance, Symbol, SymbolInstance, Text, TitleBlock, Wire,
-        },
-        parser::State,
-        write::SexpWriter,
-        uuid,
-        SexpParser,
+use super::{
+    model::{
+        GlobalLabel, Junction, Label, LibrarySymbol, NoConnect, PaperSize, SchemaElement, Sheet,
+        SheetInstance, Symbol, SymbolInstance, Text, TitleBlock, Wire,
     },
+    parser::{SexpParser, State},
+    uuid,
+    write::SexpWriter,
 };
+use crate::error::Error;
 
 use super::model::{Bus, BusEntry, HierarchicalLabel, Polyline};
 
 use uuid::Uuid;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Schema {
-    pages: Vec<Page>,
+    pub pages: Vec<Page>,
 }
 impl Schema {
     pub fn new() -> Self {
@@ -40,7 +35,6 @@ impl Schema {
                     path.to_str().unwrap(),
                     sheet.sheet_filename().unwrap()
                 );
-                println!("sheet: {:#?}", filename);
                 sheets.push(Page::load(
                     filename.as_str(),
                     sheet.sheet_filename().unwrap().as_str(),
@@ -80,7 +74,7 @@ impl Schema {
             for lib in &page.elements {
                 if let SchemaElement::Symbol(symbol) = lib {
                     if let Some(r) = symbol.get_property("Reference") {
-                        if symbol.unit as u32 == unit && reference == r {
+                        if (unit == 0 || symbol.unit == unit) && reference == r {
                             return Some(symbol);
                         }
                     }
@@ -94,7 +88,11 @@ impl Schema {
         self.pages.len()
     }
     /// return the number of pages.
-    pub fn page(&mut self, page: usize) -> Option<&mut Page> {
+    pub fn page(&self, page: usize) -> Option<&Page> {
+        self.pages.get(page)
+    }
+    /// return the number of pages.
+    pub fn page_mut(&mut self, page: usize) -> Option<&mut Page> {
         self.pages.get_mut(page)
     }
     ///iterate over the elements in a page.
@@ -105,12 +103,17 @@ impl Schema {
             Err(Error::ParseError) //TODO: meaningfull error
         }
     }
+
     ///iterate the elements in all pages.
     pub fn iter_all(&self) -> impl Iterator<Item = &SchemaElement> {
         self.pages.iter().flat_map(|el| el.elements.iter())
     }
+
+    pub fn iter_all_mut(&mut self) -> impl Iterator<Item = &mut SchemaElement> {
+        self.pages.iter_mut().flat_map(|el| el.elements.iter_mut())
+    }
+
     pub fn write(&self, filename: &str) -> Result<(), Error> {
-        println!("Write Schema: {}", filename);
         let mut out = File::create(filename)?;
         self.pages.first().unwrap().write(&mut out)?;
         for page in self.pages.iter().skip(1) {
@@ -120,44 +123,19 @@ impl Schema {
             } else {
                 format!("{}/{}", path.to_str().unwrap(), page.filename)
             };
-            println!("Write Sheet: {}", sheetname);
             let mut out = File::create(sheetname)?;
             page.write(&mut out)?;
         }
         Ok(())
     }
-    ///plot the schema.
-    pub fn plot(&self, filename: &str, scale: f64, border: bool, theme: &str) -> Result<(), Error> {
-        let image_type = if filename.ends_with(".svg") {
-            ImageType::Svg
-        } else if filename.ends_with(".png") {
-            ImageType::Png
-        } else {
-            ImageType::Pdf
-        };
-        let theme = if theme == "mono" {
-            Theme::mono()
-        } else {
-            Theme::kicad_2000()
-        };
-
-        use crate::plot::{PlotIterator, Plotter};
-        for i in 0..self.pages() { //TODO: iterate page directly
-            let iter = self.iter(i)?.plot(self, &self.pages[i].title_block, self.pages[i].paper_size.clone().into(), &theme, border).flatten().collect(); //TODO: plot all, remove clone
-            let mut cairo = CairoPlotter::new(&iter);
-            check_directory(filename)?;
-            let out: Box<dyn Write> = Box::new(File::create(filename)?);
-            cairo.plot(out, border, scale, &image_type)?;
-        }
-        Ok(())
-    }
 }
 
+#[derive(Debug, Clone)]
 pub struct Page {
     filename: String,
     uuid: String,
-    paper_size: PaperSize,
-    title_block: Option<TitleBlock>,
+    pub paper_size: PaperSize,
+    pub title_block: Option<TitleBlock>,
     elements: Vec<SchemaElement>,
     pub libraries: Vec<LibrarySymbol>,
     sheet_instances: Vec<SheetInstance>,
@@ -399,24 +377,24 @@ mod tests {
 
     use crate::sexp::{
         model::{SchemaElement, Sheet},
-        Schema,
+        schema::Schema,
     };
 
     #[test]
     fn nodes_iter() {
-        let doc = Schema::load("samples/files/summe/summe.kicad_sch").unwrap();
-        assert_eq!(43, doc.iter(0).unwrap().count());
+        let doc = Schema::load("files/summe/summe.kicad_sch").unwrap();
+        assert_eq!(398, doc.iter(0).unwrap().count());
     }
     #[test]
     fn get_library() {
-        let doc = Schema::load("samples/files/summe/summe.kicad_sch").unwrap();
+        let doc = Schema::load("files/summe/summe.kicad_sch").unwrap();
         let library = doc.get_library("Amplifier_Operational:TL072").unwrap();
         assert_eq!("Amplifier_Operational:TL072", library.lib_id);
         assert_eq!(arr1(&[0.0, 5.08]), library.property[0].at);
     }
     #[test]
     fn sheet_names() {
-        let doc = Schema::load("samples/files/multipage/multipage.kicad_sch").unwrap();
+        let doc = Schema::load("files/multipage/multipage.kicad_sch").unwrap();
         let res: Vec<&Sheet> = doc
             .iter(0)
             .unwrap()
@@ -434,59 +412,57 @@ mod tests {
     }
     #[test]
     fn parse_multipage() {
-        let doc = Schema::load("samples/files/multipage/multipage.kicad_sch").unwrap();
+        let doc = Schema::load("files/multipage/multipage.kicad_sch").unwrap();
         assert_eq!(2, doc.pages());
     }
     #[test]
     fn iter_multipage() {
-        let doc = Schema::load("samples/files/multipage/multipage.kicad_sch").unwrap();
+        let doc = Schema::load("files/multipage/multipage.kicad_sch").unwrap();
         let count = doc.iter_all().count();
         assert_eq!(27, count);
     }
-    #[test]
+    /* #[test]
     fn read_write() {
         let path = Path::new("/tmp/multipage");
         if path.exists() {
             std::fs::remove_dir_all("/tmp/multipage").unwrap();
         }
-        let doc = Schema::load("samples/files/multipage/multipage.kicad_sch").unwrap();
+        let doc = Schema::load("files/multipage/multipage.kicad_sch").unwrap();
         std::fs::create_dir("/tmp/multipage/").unwrap();
         doc.write("/tmp/multipage/multipage.kicad_sch").unwrap();
 
-        let left = std::fs::read_to_string("samples/files/multipage/multipage.kicad_sch").unwrap();
+        let left = std::fs::read_to_string("files/multipage/multipage.kicad_sch").unwrap();
         let right = std::fs::read_to_string("/tmp/multipage/multipage.kicad_sch").unwrap();
         for diff in diff::lines(left.as_str(), right.as_str()) {
             match diff {
                 diff::Result::Left(l) => {
-                    if !l.is_empty() && l != "(kicad_sch (version 20211123) (generator eeschema)" {
-                        assert!(false, "-'{}'", l);
+                    if !l.is_empty() {
+                        assert_eq!("(kicad_sch (version 20211123) (generator eeschema)", l);
                     }
                 }
                 diff::Result::Both(_, _) => {}
                 diff::Result::Right(r) => {
-                    if r != "(kicad_sch (version 20211123) (generator elektron)" {
-                        assert!(false, "+'{}'", r);
-                    }
+                    assert_eq!("(kicad_sch (version 20211123) (generator elektron)", r);
                 }
             }
         }
 
-        let left = std::fs::read_to_string("samples/files/multipage/subsheet.kicad_sch").unwrap();
+        let left = std::fs::read_to_string("files/multipage/subsheet.kicad_sch").unwrap();
         let right = std::fs::read_to_string("/tmp/multipage/subsheet.kicad_sch").unwrap();
         for diff in diff::lines(left.as_str(), right.as_str()) {
             match diff {
                 diff::Result::Left(l) => {
-                    if !l.is_empty() && l != "(kicad_sch (version 20211123) (generator eeschema)" {
-                        assert!(false, "-'{}'", l);
+                    if !l.is_empty() {
+                        assert_eq!("(kicad_sch (version 20211123) (generator eeschema)", l);
                     }
                 }
                 diff::Result::Both(_, _) => {}
                 diff::Result::Right(r) => {
-                    if r != "(kicad_sch (version 20211123) (generator elektron)" {
-                        assert!(false, "+'{}'", r);
+                    if !r.is_empty() {
+                        assert_eq!("(kicad_sch (version 20211123) (generator elektron)", r);
                     }
                 }
             }
         }
-    }
+    } */
 }

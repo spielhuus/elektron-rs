@@ -1,0 +1,32 @@
+WHITESPACE = _{ " " | "\t" }
+char = { ASCII_ALPHANUMERIC | "." | "_" | "/" }
+char_ws = { ASCII_ALPHANUMERIC | "." | "_" | "/" | WHITESPACE }
+digit = { '0'..'9' }
+number = @{ digit+ }
+SINGLE_QUOTE = { "'" }
+DOUBLE_QUOTE = { "\"" }
+COMMA = { "," }
+START = { "```" }
+OPEN = { "{" }
+CLOSE = { "}" }
+lang = { "audio"|"circuit"|"python"|"latex"|"figure"|"plot"|"javascript"|"elektron"|"d3" }
+name = @{ char+ }
+boolean = { "true" | "false" | "TRUE" | "FALSE" }
+inner = @{ inner_char* }
+inner_char = {
+    !("\'" | "\"" | "\\") ~ ANY
+    | "\\" ~ ("\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t")
+    | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
+}
+dq_value = ${ DOUBLE_QUOTE ~ inner ~ DOUBLE_QUOTE }
+sq_value = ${ SINGLE_QUOTE ~ inner ~ SINGLE_QUOTE }
+prop_value = { dq_value|sq_value|number|boolean|list|options }
+property = { name ~ "=" ~ prop_value }
+options = { "list(" ~ property* ~ ")" }
+list = { "[" ~ ((prop_value) ~ ","?)* ~ "]" }
+file = {
+    SOI ~
+    START? ~ OPEN? ~ lang ~ COMMA? ~ WHITESPACE? ~ ((property) ~ COMMA? ~ WHITESPACE?)* ~ CLOSE? ~ START? ~
+    EOI
+}
+

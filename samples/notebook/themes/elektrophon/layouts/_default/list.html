@@ -1,0 +1,7 @@
+<section class="section">
+    <div class="container">
+      {{ range sort .Paginator.Pages }}
+      {{ partial "summary.html" . }}
+      {{ end }}
+    </div>
+</section>

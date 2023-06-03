@@ -1,0 +1,17 @@
+{{ $message := .Get "message" }}
+{{ $inner := trim .Inner "\n" }}
+
+{{ if or (ne $message "") (ne $inner "")  }}
+<article class="message is-danger">
+  {{ if (ne $message "") }}
+  <div class="message-header is-family-monospace">
+    {{ .Get "message" }}
+  </div>
+  {{ end }}
+  {{ if (ne .Inner "")  }}
+  <div class="message-body is-family-monospace pre">
+    {{ .Inner }}
+  </div>
+  {{ end }}
+</article>
+{{ end }}

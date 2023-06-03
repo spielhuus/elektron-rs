@@ -1,9 +1,10 @@
 use std::collections::HashMap;
+use std::path::Path;
 
-use crate::error::Error;
-use crate::sexp::{SexpParser, State};
+use super::parser::{SexpParser, State};
 
 use super::model::LibrarySymbol;
+use crate::error::Error;
 
 pub struct LibraryParser<I> {
     iter: I,
@@ -49,8 +50,9 @@ pub trait LibraryIterator<T>: Iterator<Item = T> + Sized {
 
 impl<T, I: Iterator<Item = T>> LibraryIterator<T> for I {}
 
+#[derive(Clone)]
 pub struct Library {
-    cache: HashMap<String, LibrarySymbol>,
+    pub cache: HashMap<String, LibrarySymbol>,
     pathlist: Vec<String>,
 }
 
@@ -61,6 +63,19 @@ impl Library {
             pathlist,
         }
     }
+
+    pub fn from(filename: String) -> Self {
+        let file = Path::new(&filename).file_name().unwrap().to_str().unwrap().to_string();
+        let mut cache: HashMap<String, LibrarySymbol> = HashMap::new();
+        if let Ok(doc) = SexpParser::load(filename.as_str()) {
+            for symbol in doc.iter().node() {
+                let t: Vec<&str> = file.split('.').collect();
+                cache.insert(format!("{}:{}", t[0], symbol.lib_id), symbol.clone());
+            }
+        }
+        Self { cache, pathlist: vec!() }
+    }
+    
     pub fn get(&mut self, name: &str) -> Result<LibrarySymbol, Error> {
         if self.cache.contains_key(name) {
             return Ok(self.cache.get(name).unwrap().clone());
@@ -68,16 +83,31 @@ impl Library {
         let t: Vec<&str> = name.split(':').collect();
         for path in &self.pathlist {
             let filename = &format!("{}/{}.kicad_sym", path, t[0]);
-            let doc = SexpParser::load(filename).unwrap();
-
-            for symbol in doc.iter().node() {
-                self.cache
-                    .insert(format!("{}:{}", t[0], symbol.lib_id), symbol.clone());
-            }
-            if self.cache.contains_key(name) {
-                return Ok(self.cache.get(name).unwrap().clone());
+            if let Ok(doc) = SexpParser::load(filename) {
+                for symbol in doc.iter().node() {
+                    self.cache
+                        .insert(format!("{}:{}", t[0], symbol.lib_id), symbol.clone());
+                }
+                if self.cache.contains_key(name) {
+                    return Ok(self.cache.get(name).unwrap().clone());
+                }
             }
         }
         Err(Error::LibraryNotFound(name.to_string())) //TODO format string
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Library;
+
+    #[test]
+    fn load_symbols() {
+        let mut library = Library::new(vec![
+            String::from("files/symbols"),
+            String::from("files/other_symbols"),
+        ]);
+        assert!(library.get("Amplifier_Operational:AD8015").is_ok());
+        assert!(library.get("elektrophon:4007N").is_ok());
     }
 }

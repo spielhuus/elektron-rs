@@ -3,6 +3,10 @@ name = "elektron"
 version = "0.1.0"
 edition = "2021"
 
+# [[bin]]
+# name = "elektron"
+# test = false
+
 [lib]
 name = "elektron"
 crate-type = ["rlib", "cdylib"]
@@ -14,39 +18,45 @@ crate-type = ["rlib", "cdylib"]
 # codegen-units = 1
 
 [dependencies]
-pyo3 = { version = "0.16.5", features = ["extension-module"] }
-thiserror = "1.0.32"
+pyo3 = { version = "0.17", features = ["auto-initialize"] }
+thiserror = "1.0"
 lazy_static = "1.4.0"
-regex = "1.6.0"
+regex = "1.7.0"
+indexmap = "1.9"
+itertools = "0.10.5"
+clap = { version = "4", features = ["derive"] }
+comfy-table = "6.1"
+viuer = "0.6"
 rust-fuzzy-search = "0.1.1"
-ndarray = "0.15.4"
-itertools = "0.10.3"
-comfy-table = "6.0.0"
-clap = { version = "3", features = ["derive"] }
-json = "0.12.4"
-png = "0.17.5"
-svg = "0.10.0"
-pdf = "0.7.2"
-cairo-rs = { version = "0.15.11", features = ["svg", "png", "pdf"] }
-pangocairo = "0.15.1"
-rand = "0.8.5"
-viuer = "0.6.1"
-libloading = "0.7.3"
-diff = "0.1.13"
-petgraph = "0.6.2"
-plotters = "0.3.4"
-
-[build-dependencies]
-bindgen = "0.60.1"
-
-[build-system]
-requires = ["setuptools", "wheel", "setuptools-rust"]
-
-[features]
-default = ["pyo3/extension-module"]
+ndarray = "0.15"
+json = "0.12"
+diff = "0.1"
+pest = "2.5"
+pest_derive = "2.5"
+tectonic = "0.12"
+pangocairo = "0.16"
+simplecss = "0.2.1"
+cairo-rs = { version = "0.16", features = ["svg", "png", "pdf"] }
+png = "0.17"
+svg = "0.13"
+pdf = "0.8"
+poppler-rs = "0.20.0"
+plotters = "0.3"
+plotters-svg = "0.3"
+rand = "0.8"
+yaml-rust = "0.4"
+xlsxwriter = "0.5"
+tempfile = "3.3"
+anyhow = "1.0"
+byteorder = "1.4"
+hound = "3.5"
+chrono = "0.4"
+bit-set = "0.5"
+#elektron_ngspice = { version="0.1", path="../../elektron_ngspice" }
+elektron_ngspice = "0.1"
 
 [dependencies.uuid]
-version = "1.1.2"
+version = "1.2"
 features = [
     "v4",                # Lets you generate random UUIDs
     "fast-rng",          # Use a faster (but still sufficiently random) RNG

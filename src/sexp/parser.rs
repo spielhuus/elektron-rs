@@ -109,7 +109,7 @@ impl<'a> SexpIter<'a> {
                         loop {
                             // collect the characters to the next quote
                             if let Some(ch) = self.chars.next() {
-                                if ch.1 as char == '"' && last_char != '\\' {
+                                if ch.1 == '"' && last_char != '\\' {
                                     break;
                                 } else {
                                     last_char = ch.1;
@@ -203,7 +203,10 @@ impl<'a> Iterator for SexpIter<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::sexp::parser::{SexpParser, State};
+    use crate::sexp::{
+        parser::{SexpParser, State},
+        Pcb,
+    };
 
     #[test]
     fn check_index() {
@@ -470,7 +473,7 @@ mod tests {
     }
     #[test]
     fn next_siebling() {
-        let doc = SexpParser::load("samples/files/summe/summe.kicad_sch").unwrap();
+        let doc = SexpParser::load("files/summe/summe.kicad_sch").unwrap();
         let mut count = 0;
         let mut iter = doc.iter();
 
@@ -511,8 +514,7 @@ mod tests {
 
     #[test]
     fn search() {
-        let doc =
-            SexpParser::load("samples/files/symbols/Amplifier_Operational.kicad_sym").unwrap();
+        let doc = SexpParser::load("files/symbols/Amplifier_Operational.kicad_sym").unwrap();
         let mut count = 0;
         let mut iter = doc.iter();
 
@@ -535,5 +537,10 @@ mod tests {
             }
         }
         assert_eq!(count, 1);
+    }
+    #[test]
+    fn parse_panel() {
+        let _doc = Pcb::load("files/panel.kicad_pcb").unwrap();
+        // assert_eq!(2, doc.pages());
     }
 }

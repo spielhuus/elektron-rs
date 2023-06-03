@@ -1,0 +1,38 @@
+<h2 class="is-subtitle">BOM</h2>
+
+{{ range $key, $value := $.Page.Params.bom }}
+<h3 class="is-subtitle">{{ $key }}</h3>
+<table class="table is-striped is-hoverable is-narrow bom">
+        <col style="width:10%">
+        <col style="width:20%">
+        <col style="width:20%">
+        <col style="width:1%">
+        <col style="width:49%">
+    <thead>
+    <tr>
+        <td> #</td>
+        <td> reference </td>
+        <td> value </td>
+        <td></td>
+        <td> description </td>
+    </tr>    
+</thead>
+<tbody>
+    {{ range $value }}
+    <tr>
+        <td>{{ .amount }}</td>
+        <td>
+            {{ .references }}
+        </td>
+        <td>{{ .value }}</td>
+        {{ if ne .datasheet "~" }}
+            <td></td>
+        {{ else }}
+            <td></td>
+        {{ end }}
+        <td>{{ .description }}</td>
+    </tr>
+    {{ end }}    
+</tbody>
+</table>
+{{ end }}    

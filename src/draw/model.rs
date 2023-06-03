@@ -1,329 +1,432 @@
-#![allow(clippy::borrow_deref_ref)]
+///Model for the schema drawings. 
 use std::collections::HashMap;
 
-use ndarray::Array1;
-use pyo3::prelude::*;
-use pyo3::types::PyDict;
+///Dot position
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum DotPosition {
+    Start,
+    End,
+}
 
+impl From<&str> for DotPosition {
+    fn from(position: &str) -> Self {
+        let position = position.to_lowercase();
+        if position == "start" {
+            Self::Start
+        } else {
+            Self::End
+        }
+    }
+}
+
+///Label position
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum LabelPosition {
+    North,
+    South,
+    West,
+    East,
+    NorthWest,
+    NorthEast,
+    SouthWest,
+    SouthEast,
+}
+
+impl From<&str> for LabelPosition {
+    fn from(position: &str) -> Self {
+        let position = position.to_lowercase();
+        if position == "north" || position == "n" {
+            Self::North
+        } else if position == "south" || position == "s" {
+            Self::South
+        } else if position == "west" || position == "w" {
+            Self::West
+        } else if position == "east" || position == "e" {
+            Self::East
+        } else if position == "northeast" || position == "ne" {
+            Self::NorthEast
+        } else if position == "northwest" || position == "nw" {
+            Self::NorthWest
+        } else if position == "southeast" || position == "se" {
+            Self::SouthEast
+        } else if position == "southwest" || position == "sw" {
+            Self::SouthWest
+        } else {
+            Self::North
+        }
+    }
+}
+
+///Direction enum
 #[derive(Debug, Clone)]
 pub enum Direction {
-    Up,
-    Down,
     Left,
     Right,
+    Up,
+    Down,
 }
 
-#[pyclass]
-#[derive(Debug, Clone)]
-pub struct Line {
-    pub direction: Direction,
-    pub length: f64,
-    pub atref: Option<String>,
-    pub atpin: Option<String>,
-    pub atdot: Option<Dot>,
-    pub tox: Option<Array1<f64>>,
-    pub toy: Option<Array1<f64>>,
+impl From<&str> for Direction {
+    fn from(direction: &str) -> Self {
+        if direction == "right" {
+            Direction::Right
+        } else if direction == "up" {
+            Direction::Up
+        } else if direction == "down" {
+            Direction::Down
+        } else {
+            Direction::Left
+        }
+    }
 }
-#[pymethods]
-impl Line {
-    #[new]
-    fn new() -> Self {
-        //(Self, DrawBase) {
-        // (Line { direction: String::from("left"), length: 2.54 }, DrawBase::new())
-        Line {
-            direction: Direction::Right,
-            length: 2.54,
-            atref: None,
-            atpin: None,
-            atdot: None,
-            tox: None,
-            toy: None,
+
+///At enum, can be an absolute position, Pin or a Dot.
+#[derive(Debug, Clone, PartialEq)]
+pub enum At {
+    Pos((f64, f64)),
+    Pin(String, String),
+    Dot(String),
+}
+
+///Attributes for the elements.
+#[derive(Debug, Clone)]
+pub enum Attribute {
+    Anchor(String),
+    Direction(Direction),
+    Id(String),
+    Mirror(String),
+    Length(f64),
+    Rotate(f64),
+    Tox(At),
+    Toy(At),
+    Property(String),
+    Dot(Vec<DotPosition>)
+}
+
+///Attributes trait
+pub trait Attributes {
+    ///Add a new attribute to an element.
+    fn push(&mut self, attr: Attribute);
+}
+
+///Properties trait
+pub trait Properties {
+    ///Add a new property to an element
+    fn insert(&mut self, key: &str, value: &str);
+    ///Get the property
+    fn get_property(&self, key: &str) -> Option<&String>;
+}
+
+///Label Element
+#[derive(Debug)]
+pub struct Label {
+    ///The Label name.
+    name: Option<String>,
+    ///The Label Attributes.
+    pub attributes: Vec<Attribute>,
+}
+
+impl Label {
+    ///Create a new empty label.
+    pub fn new() -> Self {
+        Self {
+            name: None,
+            attributes: Vec::new(),
         }
     }
-    pub fn up<'py>(mut slf: PyRefMut<'py, Self>, _py: Python) -> PyRefMut<'py, Self> {
-        slf.direction = Direction::Up;
-        slf
+    ///Add the name to the Label.
+    pub fn add_name(&mut self, name: String) -> &mut Self {
+        self.name = Some(name);
+        self
     }
-    pub fn down<'py>(mut slf: PyRefMut<'py, Self>, _py: Python) -> PyRefMut<'py, Self> {
-        slf.direction = Direction::Down;
-        slf
+    ///Get the label name.
+    pub fn get_name(&self) -> Option<String> {
+        self.name.clone()
     }
-    pub fn left<'py>(mut slf: PyRefMut<'py, Self>, _py: Python) -> PyRefMut<'py, Self> {
-        slf.direction = Direction::Left;
-        slf
-    }
-    pub fn right<'py>(mut slf: PyRefMut<'py, Self>, _py: Python) -> PyRefMut<'py, Self> {
-        slf.direction = Direction::Right;
-        slf
-    }
-    pub fn length<'py>(mut slf: PyRefMut<'py, Self>, _py: Python, len: f64) -> PyRefMut<'py, Self> {
-        slf.length = len;
-        slf
-    }
-    pub fn at<'py>(
-        mut slf: PyRefMut<'py, Self>,
-        _py: Python,
-        reference: &'_ PyAny,
-        pin: Option<&'_ PyAny>,
-    ) -> PyRefMut<'py, Self> {
-        let dot: Result<Dot, PyErr> = reference.extract();
-        if let Ok(dot) = dot {
-            slf.atdot = Some(dot);
-            return slf;
-        }
-        if let Some(pin) = pin {
-            let reference: Result<String, PyErr> = reference.extract();
-            let pin: Result<String, PyErr> = pin.extract();
-            if let (Ok(reference), Ok(pin)) = (&reference, pin) {
-                slf.atref = Some(reference.to_string());
-                slf.atpin = Some(pin);
-                return slf;
+    ///Set the Label angle.
+    pub fn angle(&self) -> f64 {
+        for i in &self.attributes {
+            if let Attribute::Rotate(angle) = i {
+                return *angle;
             }
         }
-        panic!("unknown type for at: {:?}", reference);
+        0.0
     }
-    pub fn tox<'py>(
-        mut slf: PyRefMut<'py, Self>,
-        _py: Python,
-        element: &'_ PyAny,
-    ) -> PyRefMut<'py, Self> {
-        let dot: Result<Dot, PyErr> = element.extract();
-        if let Ok(dot) = dot {
-            slf.tox = Some(Array1::from_vec(dot.pos));
-            return slf;
-        }
-        /* if let Some(pin) = pin {
-        let reference: Result<String, PyErr> = reference.extract();
-        let pin: Result<String, PyErr> = pin.extract();
-        if let (Ok(reference), Ok(pin)) = (&reference, pin) {
-         slf.atref = Some(reference.to_string());
-         slf.atpin = Some(pin);
-         return slf;
-        }
-        } */
-        panic!("unknown type for at: {:?}", element);
-    }
-    pub fn toy<'py>(
-        mut slf: PyRefMut<'py, Self>,
-        _py: Python,
-        element: &'_ PyAny,
-    ) -> PyRefMut<'py, Self> {
-        let dot: Result<Dot, PyErr> = element.extract();
-        if let Ok(dot) = dot {
-            slf.toy = Some(Array1::from_vec(dot.pos));
-            return slf;
-        }
-        /* if let Some(pin) = pin {
-        let reference: Result<String, PyErr> = reference.extract();
-        let pin: Result<String, PyErr> = pin.extract();
-        if let (Ok(reference), Ok(pin)) = (&reference, pin) {
-         slf.atref = Some(reference.to_string());
-         slf.atpin = Some(pin);
-         return slf;
-        }
-        } */
-        panic!("unknown type for at: {:?}", element);
-    }
-    /* pub fn tox<'py>(mut slf: PyRefMut<'py, Self>, _py: Python, element: f64) -> PyRefMut<'py, Self> {
-         slf.x_pos = element;
-         slf
-    }
-    pub fn toy<'py>(mut slf: PyRefMut<'py, Self>, _py: Python, element: f64) -> PyRefMut<'py, Self> {
-         slf.x_pos = element;
-         slf
-    } */
 }
 
-#[pyclass]
+impl Default for Label {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Attributes for Label {
+    fn push(&mut self, attr: Attribute) {
+        self.attributes.push(attr);
+    }
+}
+
+///NoConnect Element
+#[derive(Debug)]
+pub struct Nc {
+    ///The NoConnect Attributes.
+    pub attributes: Vec<Attribute>,
+}
+
+impl Nc {
+    ///Create a new empty label.
+    pub fn new() -> Self {
+        Self {
+            attributes: Vec::new(),
+        }
+    }
+}
+
+impl Default for Nc {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Attributes for Nc {
+    fn push(&mut self, attr: Attribute) {
+        self.attributes.push(attr);
+    }
+}
+///The Symbol element.
+#[derive(Debug)]
+pub struct Symbol {
+    ///Symbol reference.
+    reference: Option<String>,
+    ///Symbol library id.
+    lib_id: Option<String>,
+    ///Symbol properties.
+    pub properties: HashMap<String, String>,
+    ///Symbol attributes.
+    pub attributes: Vec<Attribute>,
+    ///Symbol label position.
+    pub label: Option<LabelPosition>,
+}
+
+impl Symbol {
+    ///Create a new empty Symbol.
+    pub fn new() -> Self {
+        Self {
+            reference: None,
+            lib_id: None,
+            properties: HashMap::new(),
+            attributes: Vec::new(),
+            label: None,
+        }
+    }
+    ///Set the Symbol reference.
+    pub fn set_reference(&mut self, reference: String) {
+        self.reference = Some(reference);
+    }
+    ///Set the Symbol library id.
+    pub fn set_lib_id(&mut self, lib_id: String) {
+        self.lib_id = Some(lib_id);
+    }
+    ///Get the reference.
+    pub fn get_reference(&self) -> Option<String> {
+        self.reference.clone()
+    }
+    ///Get the library id.
+    pub fn get_lib_id(&self) -> Option<String> {
+        self.lib_id.clone()
+    }
+    ///Set the Symbol angle.
+    pub fn angle(&self) -> f64 {
+        for i in &self.attributes {
+            if let Attribute::Rotate(angle) = i {
+                return *angle;
+            }
+        }
+        0.0
+    }
+    ///Get the length.
+    pub fn length(&self) -> Option<f64> {
+        for i in &self.attributes {
+            if let Attribute::Length(len) = i {
+                return Some(*len);
+            }
+        }
+        None
+    }
+    ///Get tox.
+    pub fn tox(&self) -> Option<&At> {
+        for i in &self.attributes {
+            if let Attribute::Tox(at) = i {
+                return Some(at);
+            }
+        }
+        None
+    }
+    ///Get toy.
+    pub fn toy(&self) -> Option<&At> {
+        for i in &self.attributes {
+            if let Attribute::Toy(at) = i {
+                return Some(at);
+            }
+        }
+        None
+    }
+    ///Get the anchor pin.
+    pub fn anchor(&self) -> Option<String> {
+        for i in &self.attributes {
+            if let Attribute::Anchor(a) = i {
+                return Some(a.clone());
+            }
+        }
+        None
+    }
+    ///Get symbol mirror, None if not set.
+    pub fn mirror(&self) -> Option<String> {
+        for i in &self.attributes {
+            if let Attribute::Mirror(m) = i {
+                return Some(m.clone());
+            }
+        }
+        None
+    }
+    ///Set the label position.
+    pub fn label(&self) -> Option<LabelPosition> {
+        for i in &self.attributes {
+            if let Attribute::Property(m) = i {
+                return Some(LabelPosition::from(m.as_str()));
+            }
+        }
+        None
+    }
+}
+
+impl Default for Symbol {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Properties for Symbol {
+    fn insert(&mut self, key: &str, value: &str) {
+        self.properties.insert(key.to_string(), value.to_string());
+    }
+    fn get_property(&self, key: &str) -> Option<&String> {
+        self.properties.get(key)
+    }
+}
+
+impl Attributes for Symbol {
+    fn push(&mut self, attr: Attribute) {
+        self.attributes.push(attr);
+    }
+}
+
+///Junction.
 #[derive(Debug, Clone)]
 pub struct Dot {
-    pub pos: Vec<f64>,
-    pub atref: Option<String>,
-    pub atpin: Option<String>,
+    ///Dot attributes.
+    pub attributes: Vec<Attribute>,
 }
-#[pymethods]
+
 impl Dot {
-    #[new]
-    fn new() -> Self {
-        Dot {
-            pos: vec![0.0, 0.0],
-            atref: None,
-            atpin: None,
+    ///Create a new empty dot.
+    pub fn new() -> Self {
+        Self {
+            attributes: Vec::new(),
         }
     }
-    pub fn at<'py>(
-        mut slf: PyRefMut<'py, Self>,
-        _py: Python,
-        reference: &'_ PyAny,
-        pin: Option<&'_ PyAny>,
-    ) -> PyRefMut<'py, Self> {
-        if let Some(pin) = pin {
-            let reference: Result<String, PyErr> = reference.extract();
-            let pin: Result<String, PyErr> = pin.extract();
-            if let (Ok(reference), Ok(pin)) = (&reference, pin) {
-                slf.atref = Some(reference.to_string());
-                slf.atpin = Some(pin);
-                return slf;
+    ///Get the ID, the ID is used as key to find a Dot.
+    pub fn id(&self) -> Option<String> {
+        for i in &self.attributes {
+            if let Attribute::Id(id) = i {
+                return Some(id.clone());
             }
         }
-        panic!("unknown type for at: {:?}", reference);
-    }
-}
-#[pyclass]
-#[derive(Debug, Clone)]
-pub struct Label {
-    pub name: String,
-    pub angle: f64,
-}
-#[pymethods]
-impl Label {
-    #[new]
-    pub fn new(name: String) -> Self {
-        Label { name, angle: 0.0 }
-    }
-    pub fn rotate<'py>(
-        mut slf: PyRefMut<'py, Self>,
-        _py: Python,
-        angle: f64,
-    ) -> PyRefMut<'py, Self> {
-        slf.angle = angle;
-        slf
+        None
     }
 }
 
-#[pyclass]
-#[derive(Debug, Clone)]
-pub struct Element {
-    pub reference: String,
-    pub library: String,
-    pub value: String,
-    pub unit: u32,
-    pub args: Option<HashMap<String, String>>,
-    pub angle: f64,
-    pub pin: u32,
-    pub atref: Option<String>,
-    pub atpin: Option<String>,
-    pub atdot: Option<Dot>,
-    pub endpos: Option<Array1<f64>>,
-    pub mirror: Option<String>,
+impl Default for Dot {
+    fn default() -> Self {
+        Self::new()
+    }
 }
-#[pymethods]
-impl Element {
-    #[new]
-    #[args(kwargs = "**")]
-    pub fn new(
-        reference: String,
-        library: String,
-        value: String,
-        unit: u32,
-        kwargs: Option<&PyDict>,
-    ) -> Self {
-        let args = if let Some(args) = kwargs {
-            let mut myargs: HashMap<String, String> = HashMap::new();
-            for (k, v) in args {
-                myargs.insert(k.to_string(), v.to_string());
-            }
-            Some(myargs)
-        } else {
-            None
-        };
-        Element {
-            reference,
-            library,
-            value,
-            unit,
-            args,
-            angle: 0.0,
-            pin: 1,
-            atref: None,
-            atpin: None,
-            atdot: None,
-            endpos: None,
-            mirror: None,
+
+impl Attributes for Dot {
+    fn push(&mut self, attr: Attribute) {
+        self.attributes.push(attr);
+    }
+}
+
+///Draw a Wire from the actual posistion to position.
+#[derive(Debug, Clone)]
+pub struct To {
+    ///The Attributes.
+    pub attributes: Vec<Attribute>,
+}
+
+impl To {
+    ///Create a new empty To.
+    pub fn new() -> Self {
+        Self {
+            attributes: Vec::new(),
         }
     }
-    pub fn anchor<'py>(mut slf: PyRefMut<'py, Self>, _py: Python, pin: u32) -> PyRefMut<'py, Self> {
-        slf.pin = pin;
-        slf
-    }
-    pub fn rotate<'py>(
-        mut slf: PyRefMut<'py, Self>,
-        _py: Python,
-        angle: f64,
-    ) -> PyRefMut<'py, Self> {
-        slf.angle = angle;
-        slf
-    }
-    pub fn at<'py>(
-        mut slf: PyRefMut<'py, Self>,
-        _py: Python,
-        reference: &'_ PyAny,
-        pin: Option<&'_ PyAny>,
-    ) -> PyRefMut<'py, Self> {
-        let dot: Result<Dot, PyErr> = reference.extract();
-        if let Ok(dot) = dot {
-            slf.atdot = Some(dot);
-            return slf;
-        }
-        if let Some(pin) = pin {
-            let reference: Result<String, PyErr> = reference.extract();
-            let pin: Result<String, PyErr> = pin.extract();
-            if let (Ok(reference), Ok(pin)) = (&reference, pin) {
-                slf.atref = Some(reference.to_string());
-                slf.atpin = Some(pin);
-                return slf;
+    ///Get the Wire length.
+    pub fn length(&self) -> Option<f64> {
+        for i in &self.attributes {
+            if let Attribute::Length(length) = i {
+                return Some(*length);
             }
         }
-        panic!("unknown type for at: {:?}", reference);
+        None
     }
-    pub fn tox<'py>(
-        mut slf: PyRefMut<'py, Self>,
-        _py: Python,
-        element: &'_ PyAny,
-    ) -> PyRefMut<'py, Self> {
-        let dot: Result<Dot, PyErr> = element.extract();
-        if let Ok(dot) = dot {
-            slf.endpos = Some(Array1::from_vec(dot.pos));
-            return slf;
+    ///Get the direction.
+    pub fn direction(&self) -> &Direction {
+        for i in &self.attributes {
+            if let Attribute::Direction(direction) = i {
+                return direction;
+            }
         }
-        /* if let Some(pin) = pin {
-        let reference: Result<String, PyErr> = reference.extract();
-        let pin: Result<String, PyErr> = pin.extract();
-        if let (Ok(reference), Ok(pin)) = (&reference, pin) {
-         slf.atref = Some(reference.to_string());
-         slf.atpin = Some(pin);
-         return slf;
-        }
-        } */
-        panic!("unknown type for at: {:?}", element);
+        &Direction::Left
     }
-    pub fn toy<'py>(
-        mut slf: PyRefMut<'py, Self>,
-        _py: Python,
-        element: &'_ PyAny,
-    ) -> PyRefMut<'py, Self> {
-        let dot: Result<Dot, PyErr> = element.extract();
-        if let Ok(dot) = dot {
-            slf.endpos = Some(Array1::from_vec(dot.pos));
-            return slf;
+    ///Get the tox position.
+    pub fn tox(&self) -> Option<&At> {
+        for i in &self.attributes {
+            if let Attribute::Tox(at) = i {
+                return Some(at);
+            }
         }
-        /* if let Some(pin) = pin {
-        let reference: Result<String, PyErr> = reference.extract();
-        let pin: Result<String, PyErr> = pin.extract();
-        if let (Ok(reference), Ok(pin)) = (&reference, pin) {
-         slf.atref = Some(reference.to_string());
-         slf.atpin = Some(pin);
-         return slf;
-        }
-        } */
-        panic!("unknown type for at: {:?}", element);
+        None
     }
-    pub fn mirror<'py>(
-        mut slf: PyRefMut<'py, Self>,
-        _py: Python,
-        mirror: String,
-    ) -> PyRefMut<'py, Self> {
-        slf.mirror = Some(mirror);
-        slf
+    ///Get the toy position.
+    pub fn toy(&self) -> Option<&At> {
+        for i in &self.attributes {
+            if let Attribute::Toy(at) = i {
+                return Some(at);
+            }
+        }
+        None
+    }
+    ///Get the dot positions.
+    pub fn dot(&self) -> Option<&Vec<DotPosition>> {
+        for i in &self.attributes {
+            if let Attribute::Dot(dot) = i {
+                return Some(dot);
+            }
+        }
+        None
+    }
+}
+
+impl Default for To {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Attributes for To {
+    fn push(&mut self, attr: Attribute) {
+        self.attributes.push(attr);
     }
 }

@@ -4,7 +4,7 @@ use crate::error::Error;
 
 use super::model::{
     Bus, BusEntry, Effects, Footprint, FpArc, FpCircle, FpLine, FpText, GlobalLabel, GrLine,
-    GrText, HierarchicalLabel, Junction, Label, Layers, LibrarySymbol, Model, Net, NoConnect, Pad,
+    GrText, HierarchicalLabel, Junction, Label, Layers, LibrarySymbol, Model, NoConnect, Pad,
     Polyline, Property, Segment, Sheet, SheetInstance, Stroke, Symbol, SymbolInstance, Text,
     TitleBlock, Via, Wire, Zone,
 };
@@ -109,9 +109,10 @@ impl SexpWriter for Property {
         out.write_all(self.key.as_bytes())?;
         out.write_all(b"\" \"")?;
         out.write_all(self.value.as_bytes())?;
-        out.write_all(b"\" (id ")?;
+        /* out.write_all(b"\" (id ")?;
         out.write_all(self.id.to_string().as_bytes())?;
-        out.write_all(b") (at ")?;
+        out.write_all(b") (at ")?; */
+        out.write_all(b"\" (at ")?;
         out.write_all(self.at.get(0).unwrap().to_string().as_bytes())?;
         out.write_all(b" ")?;
         out.write_all(self.at.get(1).unwrap().to_string().as_bytes())?;
@@ -166,6 +167,9 @@ impl SexpWriter for Label {
         out.write_all(self.at.get(1).unwrap().to_string().as_bytes())?;
         out.write_all(b" ")?;
         out.write_all(self.angle.to_string().as_bytes())?;
+        if self.fields_autoplaced {
+        out.write_all(b" (fields_autoplaced)")?;
+        }
         out.write_all(b")\n")?;
         self.effects.write(out, indent + 1)?;
         out.write_all(b"\n")?;
@@ -489,8 +493,7 @@ impl SexpWriter for LibrarySymbol {
                         out.write_all("  ".repeat(indent + 2).as_bytes())?;
                         out.write_all(b"(text \"")?;
                         out.write_all(text.text.as_bytes())?;
-                        out.write_all(b"\" (at )")?;
-
+                        out.write_all(b"\" (at ")?;
                         out.write_all(text.at.get(0).unwrap().to_string().as_bytes())?;
                         out.write_all(b" ")?;
                         out.write_all(text.at.get(1).unwrap().to_string().as_bytes())?;
@@ -507,9 +510,9 @@ impl SexpWriter for LibrarySymbol {
             for pin in &s.pin {
                 out.write_all("  ".repeat(indent + 2).as_bytes())?;
                 out.write_all(b"(pin ")?;
-                out.write_all(pin.pin_type.as_bytes())?;
+                out.write_all(pin.pin_type.to_string().as_bytes())?;
                 out.write_all(b" ")?;
-                out.write_all(pin.pin_graphic_style.as_bytes())?;
+                out.write_all(pin.pin_graphic_style.to_string().as_bytes())?;
                 out.write_all(b" (at ")?;
                 out.write_all(pin.at.get(0).unwrap().to_string().as_bytes())?;
                 out.write_all(b" ")?;
@@ -533,7 +536,7 @@ impl SexpWriter for LibrarySymbol {
                 out.write_all(b"(number \"")?;
                 out.write_all(pin.number.0.as_bytes())?;
                 out.write_all(b"\" ")?;
-                pin.name.1.write(out, 0)?;
+                pin.number.1.write(out, 0)?;
                 out.write_all(b")\n")?;
                 out.write_all("  ".repeat(indent + 2).as_bytes())?;
                 out.write_all(b")\n")?;
@@ -585,9 +588,9 @@ impl SexpWriter for Sheet {
         for pin in &self.pin {
             out.write_all("  ".repeat(indent + 1).as_bytes())?;
             out.write_all(b"(pin \"")?;
-            out.write_all(pin.pin_type.as_bytes())?;
+            out.write_all(pin.pin_type.to_string().as_bytes())?;
             out.write_all(b"\" ")?;
-            out.write_all(pin.pin_graphic_style.as_bytes())?;
+            out.write_all(pin.pin_graphic_style.to_string().as_bytes())?;
             out.write_all(b" (at ")?;
             out.write_all(pin.at.get(0).unwrap().to_string().as_bytes())?;
             out.write_all(b" ")?;
@@ -621,9 +624,9 @@ impl SexpWriter for Symbol {
         out.write_all(self.at.get(1).unwrap().to_string().as_bytes())?;
         out.write_all(b" ")?;
         out.write_all(self.angle.to_string().as_bytes())?;
-        if !self.mirror.is_empty() {
+        if let Some(mirror) = &self.mirror {
             out.write_all(b") (mirror ")?;
-            out.write_all(self.mirror.join(" ").as_bytes())?;
+            out.write_all(mirror.as_bytes())?;
         }
         out.write_all(b") (unit ")?;
         out.write_all(self.unit.to_string().as_bytes())?;
@@ -633,6 +636,8 @@ impl SexpWriter for Symbol {
         out.write_all(if self.in_bom { b"yes" } else { b"no" })?;
         out.write_all(b") (on_board ")?;
         out.write_all(if self.on_board { b"yes" } else { b"no" })?;
+        out.write_all(b") (dnp ")?;
+        out.write_all(if self.do_not_place { b"yes" } else { b"no" })?;
         out.write_all(b")")?;
         if self.fields_autoplaced {
             out.write_all(b" (fields_autoplaced)")?;
@@ -694,9 +699,9 @@ impl SexpWriter for Layers {
     fn write(&self, out: &mut dyn Write, indent: usize) -> Result<(), Error> {
         out.write_all("  ".repeat(indent).as_bytes())?;
         out.write_all(b"(")?;
-        out.write_all(self.ordinal.to_string().as_bytes())?;
+        out.write_all(self.id.to_string().as_bytes())?;
         out.write_all(b" \"")?;
-        out.write_all(self.canonical_name.as_bytes())?;
+        out.write_all(self.canonical_name.to_string().as_bytes())?;
         out.write_all(b"\" ")?;
         out.write_all(self.layertype.as_bytes())?;
         if let Some(user_name) = &self.user_name {
@@ -718,7 +723,7 @@ impl SexpWriter for Footprint {
             out.write_all(b" locked")?;
         }
         out.write_all(b" (layer \"")?;
-        out.write_all(self.layer.as_bytes())?;
+        out.write_all(self.layer.to_string().as_bytes())?;
         out.write_all(b"\")\n")?;
         out.write_all("  ".repeat(indent + 1).as_bytes())?;
         out.write_all(b"(tedit ")?;
@@ -779,6 +784,7 @@ impl SexpWriter for Footprint {
 }
 impl SexpWriter for FpText {
     fn write(&self, out: &mut dyn Write, indent: usize) -> Result<(), Error> {
+        println!("FpText: {}", self.at);
         out.write_all("  ".repeat(indent).as_bytes())?;
         out.write_all(b"(fp_text ")?;
         out.write_all(self.key.as_bytes())?;
@@ -788,9 +794,9 @@ impl SexpWriter for FpText {
         out.write_all(self.at.get(0).unwrap().to_string().as_bytes())?;
         out.write_all(b" ")?;
         out.write_all(self.at.get(1).unwrap().to_string().as_bytes())?;
-        if self.angle != -1.0 {
+        if let Some(angle) = self.angle {
             out.write_all(b" ")?;
-            out.write_all(self.angle.to_string().as_bytes())?;
+            out.write_all(angle.to_string().as_bytes())?;
         }
         out.write_all(b") (layer \"")?;
         out.write_all(self.layer.as_bytes())?;
@@ -922,7 +928,7 @@ impl SexpWriter for Pad {
         out.write_all(b"\" ")?;
         out.write_all(self.padtype.as_bytes())?;
         out.write_all(b" ")?;
-        out.write_all(self.padshape.as_bytes())?;
+        out.write_all(self.padshape.to_string().as_bytes())?;
         out.write_all(b" ")?;
         if self.locked {
             out.write_all(b"locked ")?;
@@ -1021,7 +1027,7 @@ impl SexpWriter for Segment {
         out.write_all(self.width.to_string().as_bytes())?;
         out.write_all(b")")?;
         out.write_all(b" (layer \"")?;
-        out.write_all(self.layer.as_bytes())?;
+        out.write_all(self.layer.to_string().as_bytes())?; //TODO: must be get_name
         out.write_all(b"\")")?;
         out.write_all(b" (net ")?;
         out.write_all(self.net.to_string().as_bytes())?;

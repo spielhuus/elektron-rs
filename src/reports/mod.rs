@@ -1,5 +1,5 @@
-mod bom;
-//mod erc;
-
-pub use self::bom::{bom, BomItem};
-//pub use self::erc::{Erc, ErcError};
+//! Various reports for Schemas and PCBs.
+pub mod bom;
+pub mod drc;
+pub mod erc;
+pub mod mouser;
