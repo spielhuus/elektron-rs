@@ -173,7 +173,7 @@ jobs:
       #     rustup show
     - name: build windows 32bit binaries
       if: matrix.os == 'windows'
-      run: python setup.py dist
+      run: python setup.py sdist
       # run: cibuildwheel --output-dir dist
       # env:
       #   CIBW_BUILD: 'cp3${{ matrix.python-version }}-win32'
