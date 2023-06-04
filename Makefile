@@ -38,7 +38,7 @@ $(VENV)/bin/activate: requirements.txt
 
 clean:
 	cargo clean
-	python src/plot/css/generate.py clean
+	#python src/plot/css/generate.py clean
 	rm -rf build
 	rm -rf elektron.egg-info
 	rm -rf $(VENV)
