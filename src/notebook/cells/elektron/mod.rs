@@ -88,6 +88,7 @@ impl CellWrite<ElektronCell> for CellWriter {
                         }
                     }
                     writeln!(out, "bom_missing:").unwrap();
+                    let mut count = 0;
                     for item in missing {
                         writeln!(out, "    -").unwrap();
                         writeln!(out, "       amount: {}", item.amount).unwrap();
@@ -96,7 +97,9 @@ impl CellWrite<ElektronCell> for CellWriter {
                             .unwrap();
                         writeln!(out, "       description: {}", item.description).unwrap();
                         writeln!(out, "       footprint: {}", item.footprint).unwrap();
+                        count += 1;
                     }
+                    writeln!(out, "  count: {}", count).unwrap();
                     Ok(())
                 } else {
                     Err(Error::NoInputFile())
