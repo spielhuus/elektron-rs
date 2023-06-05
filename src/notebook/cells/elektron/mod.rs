@@ -88,6 +88,7 @@ impl CellWrite<ElektronCell> for CellWriter {
                         }
                     }
                     writeln!(out, "bom_missing:").unwrap();
+                    writeln!(out, "  items:").unwrap();
                     let mut count = 0;
                     for item in missing {
                         writeln!(out, "    -").unwrap();
