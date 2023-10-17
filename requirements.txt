@@ -1,11 +1,3 @@
-#git+https://github.com/PyO3/setuptools-rust@main
-setuptools-rust
-setuptools
-wheel
-matplotlib==3.5.3
-ipympl
-matplotlib-backend-kitty
-numpy
-scipy
-sympy
 sphinx-press-theme
+sphinx
+

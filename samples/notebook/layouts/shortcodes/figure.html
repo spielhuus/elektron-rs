@@ -1,7 +1,12 @@
 {{ $align := .Get "align" }}
 {{ $cap := .Get "cap" }}
+{{ $path := .Get "path" }}
 
-<div class="figure py-6" align="{{ $align }}">
-  {{ .Inner }}
+<div class="content  {{ if eq .Params.align "right" }}is-pulled-right ml-6 mt-0{{ else }}pt-6 has-text-centered{{ end }}">
+  <span class="spotlight" data-src="{{ $path }}" data-fit="contain">
+    <a href="{{ $path }}">
+      <img src="{{ $path }}">
+    </a>
+  </span>
   {{ if $cap }}<p>{{ $cap }}</p>{{ end }}
 </div>

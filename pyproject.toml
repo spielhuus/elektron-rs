@@ -1,3 +1,37 @@
+[project]
+name = "elektron"
+version = "1.0"
+authors = [
+    {name = "spielhuus", email = "spielhuus@gmail.com"},
+]
+description = "programmatically create electronic projects"
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = ["electronics", "circuit"]
+license = {text = "BSD-3-Clause"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "matplotlib",
+    "matplotlib-backend-kitty",
+]
+
 [build-system]
-requires = ["setuptools", "wheel", "setuptools-rust"]
-#dependencies = ["numpy", "pynvim"]
+requires = ["setuptools", "setuptools-rust"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["elektron"]
+
+[[tool.setuptools-rust.ext-modules]]
+target = "elektron.elektron"
+py-limited-api = "auto"
+binding = "PyO3"
+
+[[tool.setuptools-rust.bins]]
+target = "elektron"
+args = ["--profile", "release-lto", "--no-default-features"]
+features = ["auto-initialize"]
+quiet = true

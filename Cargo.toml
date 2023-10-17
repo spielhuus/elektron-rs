@@ -3,62 +3,47 @@ name = "elektron"
 version = "0.1.0"
 edition = "2021"
 
-# [[bin]]
-# name = "elektron"
-# test = false
+[[bin]]
+name = "elektron"
+path = "src/cli/src/main.rs"
+test = false
 
 [lib]
 name = "elektron"
-crate-type = ["rlib", "cdylib"]
+path = "src/cli/src/lib.rs"
+crate-type = ["cdylib"]
 
-# [profile.release]
-# # or "z"
-# opt-level = "s"
-# lto = "fat"
-# codegen-units = 1
+[profile.release-lto]
+inherits = "release"
+lto = true
 
 [dependencies]
-pyo3 = { version = "0.19", features = ["auto-initialize"] }
+sexp = { path = "src/sexp" }
+sexp_macro = { path = "src/sexp_macro" }
+simulation = { path = "src/simulation" }
+reports = { path = "src/reports" }
+plotter = { path = "src/plotter" }
+draw = { path = "src/draw"}
+notebook = { path = "src/notebook" }
+elektron_ngspice = { path = "src/ngspice" }
+
+pyo3 = { version = "0.20" }
 thiserror = "1.0"
-lazy_static = "1.4.0"
-regex = "1.8"
-indexmap = "2"
+ndarray = "0.15"
 itertools = "0.11"
+rand = "0.8"
+json = "0.12"
 clap = { version = "4", features = ["derive"] }
 comfy-table = "7"
-viuer = "0.6"
+viuer = "0.7"
 rust-fuzzy-search = "0.1.1"
-ndarray = "0.15"
-json = "0.12"
-diff = "0.1"
-pest = "2.7"
-pest_derive = "2.7"
-tectonic = "0.14"
-pangocairo = "0.17"
-simplecss = "0.2"
-cairo-rs = { version = "0.17", features = ["svg", "png", "pdf"] }
-png = "0.17"
-svg = "0.13"
-pdf = "0.8"
-poppler-rs = "0.21.0"
-plotters = "0.3"
-plotters-svg = "0.3"
-rand = "0.8"
-yaml-rust = "0.4"
-xlsxwriter = "0.6"
-tempfile = "3.6"
-anyhow = "1.0"
-byteorder = "1.4"
-hound = "3.5"
-chrono = "0.4"
-bit-set = "0.5"
-#elektron_ngspice = { version="0.1", path="../../elektron_ngspice" }
-elektron_ngspice = "0.1"
+tempfile = "3"
+colored = "2"
 
-[dependencies.uuid]
-version = "1.3"
-features = [
-    "v4",                # Lets you generate random UUIDs
-    "fast-rng",          # Use a faster (but still sufficiently random) RNG
-    "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
-] 
+[build-dependencies]
+pyo3-build-config = "0.20"
+
+[features]
+extension-module = ["pyo3/extension-module"]
+auto-initialize = ["pyo3/auto-initialize"]
+default = ["extension-module"]

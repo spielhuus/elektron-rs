@@ -5,22 +5,24 @@ import matplotlib
 matplotlib.use('module://matplotlib-backend-kitty')
 import matplotlib.pyplot as plt
 
-from elektron import Circuit, Draw, Element, Label, Line, Dot, Simulation
+from elektron import Draw, Element, Label, Line, Dot
 
-draw = (Draw(["/usr/share/kicad/symbols"])
-    + Label("INPUT").rotate(180)
-    + Line().length(2.54) + (in_dot := Dot())
-    + Element("R2", "Device:R", value="180k", unit=1).rotate(90)
-    + Element("C1", "Device:C", value="68n", unit=1).rotate(90)
-    + (u1_dot_in := Dot())
-    + Element("U1", "4xxx:4069", value="U1", unit=1,
+draw = Draw(["/usr/share/kicad/symbols"])
+draw + Label("INPUT").rotate(180)
+draw + Line().length(2.54)
+draw + (in_dot := Dot())
+draw + Element("R2", "Device:R", value="180k", unit=1).rotate(90)
+draw + Element("C1", "Device:C", value="68n", unit=1).rotate(90)
+draw + (u1_dot_in := Dot())
+draw + Element("U1", "4xxx:4069", value="U1", unit=1,
               Spice_Netlist_Enabled='Y',
               Spice_Primitive='X',
               Spice_Model='4069UB',
               Spice_Node_Sequence="1 2 14 7").anchor(1)
-    + (u1_dot_out := Dot())
-    + Element("C3", "Device:C", value="33n").rotate(90)
-    + (u2_dot_in := Dot())
+draw   + (u1_dot_out := Dot())
+draw    + Element("C3", "Device:C", value="33n").rotate(90)
+draw    + (u2_dot_in := Dot())
+(draw
     + Element("U2", "4xxx:4069", value="U1", unit=1,
               Spice_Netlist_Enabled='Y',
               Spice_Primitive='X',
@@ -71,8 +73,8 @@ draw + Element("R5", "Device:R", value="100k").at(out_dot) + Element("GND", "pow
       + Element("+5V", "power:+5V", value="+5V", on_schema=False).at("U2", "14")
       + Element("GND", "power:GND", value="GND", on_schema=False).at("U2", "7"))
 
-# draw.write("4069.kicad_sch")
-draw.plot(filename="4069.svg", scale=10, netlist=True, theme="Mono")
+draw.write("4069.kicad_sch")
+# draw.plot(filename="4069.svg", scale=10, netlist=True, theme="Mono")
 
 # circuit = draw.circuit(["files/spice"])
 # circuit.voltage("1", "+5V", "GND", "DC 5V")

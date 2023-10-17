@@ -2,26 +2,31 @@
 {{ $x := .Get "x" }}
 {{ $y_list := .Get "y" }}
 {{ $y_range_list := .Get "yRange" }}
-{{ $y_range_size := split (.Get "ySize") "," }}
+{{ $y_range_size := .Get "ySize" }}
 {{ $range_x := .Get "xDomain" }}
 {{ $range_y := .Get "yDomain" }}
 {{ $width := .Get "width" }}
 {{ $height := .Get "height" }}
 {{ $color := .Get "color" }}
 {{ $align := .Get "align" }}
+{{ $xlabel := .Get "xLabel" }}
+{{ $ylabel := .Get "yLabel" }}
 {{ $ytype := .Get "yType" }}
 {{ $xtype := .Get "xType" }}
+{{ $range := .Get "range" }}
 {{ $colors := split (.Get "colors") "," }}
 
 {{ $data := newScratch }}
 
-{{ range (split $y_list ",") }}
-  {{ $key_list := (shuffle (slice "a" "b" "c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m" "n" "o" "p" "q" "r" "s" "t" "u" "v" "w" "x" "y" "z")) }}
-  {{ $key := "" }}
-  {{ range first 10 $key_list }}
-    {{ $key = printf "%s" $key | printf "%s%s" . | printf "%s" }}
+{{ with $y_list }}
+  {{ range (split . ",") }}
+    {{ $key_list := (shuffle (slice "a" "b" "c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m" "n" "o" "p" "q" "r" "s" "t" "u" "v" "w" "x" "y" "z")) }}
+    {{ $key := "" }}
+    {{ range first 10 $key_list }}
+      {{ $key = printf "%s" $key | printf "%s%s" . | printf "%s" }}
+    {{ end }}
+    {{ $data.SetInMap "y" $key . }}
   {{ end }}
-  {{ $data.SetInMap "y" $key . }}
 {{ end }}
 
 {{ if ne $y_range_list "" }}
@@ -36,6 +41,7 @@
 {{ end }}
 
 {{ $data.Set "color" 0 }}
+
 <div class="content has-text-centered my-3">
   <div class="columns is-centered">
     <div class="column is-full">
@@ -50,38 +56,33 @@
         <label for="check_{{ $key }}">{{ $val }}</label>
         {{ $data.Add "color" 1 }}
         {{ end }}
-
         {{ range $key, $val := ($data.Get "y_range") }}
         <input type="checkbox" style="accent-color: {{ index $colors ($data.Get "color") }};" name="{{ $key }}" value="{{ $key }}" id="check_{{ $key }}" checked>
         <label for="check_{{ $key }}">{{ $val }}</label>
-        <br>
         {{ $data.Add "color" 1 }}
         {{ end }}
       <fieldset>
-      {{ $data.Set "range_index" 0 }}
-      {{ if ne $y_range_list "" }}
-        {{ range $k, $v := ($data.Get "y_range") }}
-          {{ $data.Set "range" 0 }}
-          <input type="range" min="0" max="{{ index $y_range_size ($data.Get "range_index") }}" value="0" id="range_{{ $k | safeJS }}">
-          <label for="range_{{ $k }}">{{ $v }}</label>
-          {{ $data.Add "range_index" 1 }}
-        {{ end }}
+      {{ with $y_range_list  }}
+        <input type="range" min="0" max="{{ $y_range_size }}" value="0" id="range_{{ $key | safeJS }}">
+        <label for="range_{{ $key }}">{{ $range }}</label>
       {{ end }}
     </div>
   </div>
+  {{ with .Get "cap"}}
+  <div class="columns is-centered">{{ . }}</div>
+  {{ end }}
 </div>
 
 <script type="text/javascript">
 {{ .Inner | safeJS }};
 
 function LineChart_{{ $key | safeJS }}(data, {
-  x = ([x]) => x, // given d in data, returns the (temporal) x-value
-  y = ([, y]) => y, // given d in data, returns the (quantitative) y-value
+  // x_data, // = ([x]) => x, // given d in data, returns the (temporal) x-value
   defined, // for gaps in data
   curve = d3.curveLinear, // method of interpolation between points
   marginTop = 20, // top margin, in pixels
   marginRight = 30, // right margin, in pixels
-  marginBottom = 30, // bottom margin, in pixels
+  marginBottom = 40, // bottom margin, in pixels
   marginLeft = 40, // left margin, in pixels
   width = {{ $width | safeJS }}, // outer width, in pixels
   height = {{ $height | safeJS }}, // outer height, in pixels
@@ -92,7 +93,6 @@ function LineChart_{{ $key | safeJS }}(data, {
   yDomain = [{{ $range_y | safeJS }}], // [ymin, ymax]
   yRange = [height - marginBottom, marginTop], // [bottom, top]
   yFormat, // a format specifier string for the y-axis
-  yLabel, // a label for the y-axis
   color = "currentColor", // stroke color of line
   strokeLinecap = "round", // stroke line cap of the line
   strokeLinejoin = "round", // stroke line join of the line
@@ -105,26 +105,16 @@ function LineChart_{{ $key | safeJS }}(data, {
   const plotHeight = height - marginTop - marginBottom
 
   const svgLine = d3.create("svg")
-      .attr("width", width)
-      .attr("height", height)
-      .attr("viewBox", [0, 0, width, height])
-      .attr("style", "max-width: 100%; height: auto; height: intrinsic;");
+    .attr("width", width)
+    .attr("height", height)
+    .attr("viewBox", [0, 0, width, height])
+    .attr("style", "max-width: 100%; height: auto; height: intrinsic;");
 
   var x = xType().domain(xDomain).range([0, plotWidth]);
   var y = yType().domain(yDomain).range([plotHeight, 0]);
 
-  //var x = d3.scaleLog().domain(xDomain).range([0, plotWidth]);
-  //var y = d3.scaleLinear().domain(yDomain).range([plotHeight, 0]); 
-
-  var line = d3.line()
-    .x(function(d, i) {
-      return x(data['time'][i]);
-    })
-    .y(function(d, i) {
-      return y(data['bp'][i]);
-    });
-
   let plotGroup = svgLine.append("g")
+    .attr("id", "svg_{{ $key }}")
     .attr("transform", "translate(" + marginLeft + "," + marginTop + ")")
 
   let g = plotGroup.append('g');
@@ -141,41 +131,64 @@ function LineChart_{{ $key | safeJS }}(data, {
     .attr("transform", "translate(" + marginLeft + ",0)")
     .call(yAxis);
 
+  {{ with $xlabel }}
+  g.append("text")
+    .attr("class", "label")
+    .attr("text-anchor", "middle")
+    .attr("font-size", 1)
+    .attr("x", plotWidth / 2)
+    .attr("y", plotHeight + 35)
+    .text({{ . }});
+  {{ end }}
+
+  {{ with $ylabel }}
+  g.append("text")
+    .attr("class", "label")
+    .attr("x", -plotHeight/2)
+    .attr("text-anchor", "middle")
+    .attr("dy", ".75em")
+    .attr("transform", "rotate(-90)")
+    .text({{ . }});
+  {{ end }}
+
   {{ $data.Set "color" 0 }}
-  {{ range $ykey, $val := ($data.Get "y_range") }}
-  function update_range_{{ $ykey | safeJS }}(res) {
-    var valuerange_{{ (trim $ykey " ") | safeJS }} = d3.line()
+
+  function update_range(res) {
+   d3.json("_files/{{ $key }}_" + res + ".json").then((data) => {
+    {{ range $ykey, $val := ($data.Get "y_range") }}
+      LineChart_{{ $key | safeJS }}.plotGroup.selectAll(".line_{{ (trim $ykey " ") | safeJS }}").remove();
+      valuerange_{{ (trim $ykey " ") | safeJS }} = d3.line()
+        .x(function(d, i) { return x(data['{{ $x | safeJS }}'][i]); })
+        .y(function(d, i) { return y(data['{{ (trim $val " ") | safeJS }}'][i]); });
+
+      g.append("path")      // Add the valueline2 path.
+        .attr("class", "line_{{ (trim $ykey " ") | safeJS }} plotline")
+        .attr("fill", "none")
+        .attr("stroke", {{ index $colors ($data.Get "color") }})
+        .attr("transform", "translate(" + marginLeft + ",0)")
+        .attr("d", valuerange_{{ (trim $ykey " ") | safeJS }}(data['{{ $x | safeJS }}']));
+      
+      {{ $data.Add "color" 1 }}
+     {{ end }}
+    });
+  }
+  LineChart_{{ $key | safeJS }}.update_range = update_range;
+  
+  {{ with ($data.Get "y") }}
+   {{ range $key, $val := . }}
+    valueline_{{ (trim $key " ") | safeJS }} = d3.line()
       .x(function(d, i) { return x(data['{{ $x | safeJS }}'][i]); })
-      .y(function(d, i) { console.log(res); return y(data['{{ (trim $val " ") | safeJS }}_'+res][i]); });
+      .y(function(d, i) { return y(data['{{ (trim $val " ") | safeJS }}'][i]); });
 
     g.append("path")      // Add the valueline2 path.
-      .attr("class", "line_{{ (trim $ykey " ") | safeJS }}")
+      .attr("class", "line_{{ (trim $key " ") | safeJS }} plotline")
       .attr("fill", "none")
       .attr("stroke", {{ index $colors ($data.Get "color") }})
-      .attr("stroke-width", 2)
       .attr("transform", "translate(" + marginLeft + ",0)")
-      .attr("d", valuerange_{{ (trim $ykey " ") | safeJS }}(data['{{ $x | safeJS }}']));
-    
-    {{ $data.Add "color" 1 }}
-  }
-  LineChart_{{ $key | safeJS }}.update_range_{{ $ykey | safeJS }} = update_range_{{ $ykey | safeJS }};
+      .attr("d", valueline_{{ (trim $key " ") | safeJS }}(data['{{ $x | safeJS }}']));
+      
+      {{ $data.Add "color" 1 }}
   {{ end }}
-  
-
-  {{ range $key, $val := ($data.Get "y") }}
-  var valueline_{{ (trim $key " ") | safeJS }} = d3.line()
-    .x(function(d, i) { console.log(x(data['{{ $x | safeJS }}'][i])); return x(data['{{ $x | safeJS }}'][i]); })
-    .y(function(d, i) { console.log(y(data['{{ (trim $val " ") | safeJS }}'][i])); return y(data['{{ (trim $val " ") | safeJS }}'][i]); });
-
-  g.append("path")      // Add the valueline2 path.
-    .attr("class", "line_{{ (trim $key " ") | safeJS }}")
-    .attr("fill", "none")
-    .attr("stroke", {{ index $colors ($data.Get "color") }})
-    .attr("stroke-width", 2)
-    .attr("transform", "translate(" + marginLeft + ",0)")
-    .attr("d", valueline_{{ (trim $key " ") | safeJS }}(data['{{ $x | safeJS }}']));
-    
-    {{ $data.Add "color" 1 }}
   {{ end }}
 
   LineChart_{{ $key | safeJS }}.plotGroup = plotGroup;
@@ -184,19 +197,25 @@ function LineChart_{{ $key | safeJS }}(data, {
 }
 
 
-{{ $key | safeJS }}_chart = LineChart_{{ $key | safeJS }}({{ $key | safeJS }}, {
-  x: d => d.{{ $x | safeJS }},
-  y: d => d.{{ $x | safeJS }},
-  yLabel: "↑ Daily close ($)",
-  width: 800,
-  height: 500,
-  color: {{ $color }}
+d3.json("_files/{{ $key }}_0.json").then((data) => {
+  {{ $key | safeJS }}_chart = LineChart_{{ $key | safeJS }}(data, { //{{ $key | safeJS }}, {
+    x: data, //d => d.{{ $x | safeJS }},
+    y: d => d.{{ $x | safeJS }},
+    width: {{ $width }},
+    height: {{ $height }},
+    color: {{ $color }}
+  });
+
+  d3.select(".d3_{{ $key }}").node().appendChild({{ $key | safeJS }}_chart);
+  LineChart_{{ $key | safeJS }}.update_range(0);
 })
 
-d3.select(".d3_{{ $key }}").node().appendChild({{ $key | safeJS }}_chart);
+d3.select("#range_{{ $key | safeJS }}").on("input", function() {
+    LineChart_{{ $key | safeJS }}.update_range(this.value);
+});
 
 {{ range $ykey, $val := ($data.Get "y") }}
-d3.select("#check_{{ $ykey | safeJS }}").on("input", function(evend) {
+d3.select("#check_{{ $ykey | safeJS }}").on("input", function(event) {
   if (event.currentTarget.checked) {
     LineChart_{{ $key | safeJS }}.plotGroup.selectAll(".line_{{ (trim $ykey " ") | safeJS }}").style("opacity", 1);
   } else {
@@ -205,11 +224,6 @@ d3.select("#check_{{ $ykey | safeJS }}").on("input", function(evend) {
 });
 {{ end }}
 
-{{ range $ykey, $val := ($data.Get "y_range") }}
-LineChart_{{ $key | safeJS }}.update_range_{{ $ykey | safeJS }}(0);
-d3.select("#range_{{ $ykey | safeJS }}").on("input", function() {
-    LineChart_{{ $key | safeJS }}.plotGroup.selectAll(".line_{{ (trim $ykey " ") | safeJS }}").remove();
-    LineChart_{{ $key | safeJS }}.update_range_{{ $ykey | safeJS }}(this.value);
-});
-{{ end }}
 </script>
+
+
