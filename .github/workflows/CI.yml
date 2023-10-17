@@ -148,7 +148,7 @@ jobs:
       if: matrix.os == 'ubuntu'
       run: |
         sudo apt-get install -y -qq libngspice0 libngspice0-dev libpango1.0 libpango1.0-dev libcairo2 libcairo2-dev libpoppler-glib-dev libgraphite2-dev
-        python src/plot/css/generate.py build
+        cd src/plotter && python src/css/generate.py build
 
     - name: build ${{ matrix.platform || matrix.os }} binaries
       run: python setup.py sdist
