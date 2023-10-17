@@ -141,7 +141,7 @@ jobs:
 
     - name: install python dependencies
       run: |
-        pip install -U setuptools wheel twine cibuildwheel
+        pip install -U setuptools build wheel twine cibuildwheel
         pip install -r requirements.txt
 
     - name: build sdist
@@ -151,7 +151,7 @@ jobs:
         cd src/plotter && python src/css/generate.py build
 
     - name: build ${{ matrix.platform || matrix.os }} binaries
-      run: python setup.py sdist
+      run: python -m build
       # run: cibuildwheel --output-dir dist
       # env:
       #   CIBW_BUILD: 'cp3${{ matrix.python-version }}-*'
@@ -173,7 +173,7 @@ jobs:
       #     rustup show
     - name: build windows 32bit binaries
       if: matrix.os == 'windows'
-      run: python setup.py sdist
+      run: python -m build
       # run: cibuildwheel --output-dir dist
       # env:
       #   CIBW_BUILD: 'cp3${{ matrix.python-version }}-win32'
