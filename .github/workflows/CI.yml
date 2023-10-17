@@ -117,8 +117,8 @@ jobs:
         include:
         - os: ubuntu
           platform: linux
-        - os: windows
-          ls: dir
+#        - os: windows
+#          ls: dir
 
     runs-on: ${{ format('{0}-latest', matrix.os) }}
     steps:
@@ -169,9 +169,9 @@ jobs:
       #     pip install -U setuptools-rust &&
       #     curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=nightly --profile=minimal -y &&
       #     rustup show
-    - name: build windows 32bit binaries
-      if: matrix.os == 'windows'
-      run: python -m build
+#    - name: build windows 32bit binaries
+#      if: matrix.os == 'windows'
+#      run: python -m build
       # run: cibuildwheel --output-dir dist
       # env:
       #   CIBW_BUILD: 'cp3${{ matrix.python-version }}-win32'
