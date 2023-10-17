@@ -1,2 +1,4 @@
+graft src
+
 include Cargo.toml
-recursive-include src/cli *.rs
+exclude src/elektron.egg-info
