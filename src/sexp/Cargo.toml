@@ -1,0 +1,15 @@
+[package]
+name = "sexp"
+version = "0.2.0"
+edition = "2021"
+
+[lib]
+name = "sexp"
+
+[dependencies]
+sexp_macro = { path = "../sexp_macro" }
+thiserror = "1"
+lazy_static = "1"
+regex = "1"
+ndarray = "0"
+log = "0.4"

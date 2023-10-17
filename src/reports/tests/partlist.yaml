@@ -1,0 +1,16 @@
+- "Multilayer Ceramic Capacitors MLCC":
+  - footprint: "Capacitor_SMD:C_0805_2012Metric_Pad1.18x1.45mm_HandSolder"
+  - value: "0.1u"
+  - mouser: "asd"
+  - datasheet: http://datasheet.com/capacitor.pdf
+- "Multilayer Ceramic Capacitors MLCC":
+  - footprint: "Capacitor_SMD:C_0805_2012Metric_Pad1.18x1.45mm_HandSolder"
+  - value: "100p"
+  - mouser: "adfg"
+- "Metal Film Resistors - Through Hole (L=3.6 mm, D=1.6 mm, 1%)":
+  - footprint: "Resistor_THT:R_Axial_DIN0204_L3.6mm_D1.6mm_P2.54mm_Vertical"
+  - value: "10"
+  - mouser: "asd"
+- "Audio Jack":
+  - footprint: "elektrophon:Jack_3.5mm_WQP-PJ398SM_Vertical"
+  - value: "*"

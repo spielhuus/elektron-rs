@@ -1,0 +1,33 @@
+<table class="table is-striped is-hoverable is-narrow bom">
+        <col style="width:10%">
+        <col style="width:10%">
+        <col style="width:5%">
+        <col style="width:5%">
+        <col style="width:5%">
+        <col style="width:5%">
+    <thead>
+    <tr>
+        <td> name </td>
+        <td> date </td>
+        <td> version</td>
+        <td> erc </td>
+        <td> drc </td>
+        <td> bom  </td>
+    </tr>    
+</thead>
+<tbody>
+    {{ range .Site.Taxonomies.categories.module }}
+    {{ $erc := int .Page.Params.erc.count }}
+    {{ $drc := int .Page.Params.drc.count }}
+    {{ $bom := int .Page.Params.bom_missing.count }}
+    <tr>
+        <td><a href="{{ .Page.RelPermalink }}">{{ .Page.Title }}</a></td>
+        <td>{{ .Page.Date.Format "2 January 2006" }}</td>
+        <td>{{ .Page.Param "version" }}</td>
+        <td class="{{ if gt $erc 0 }} has-background-danger {{ else }} has-background-success {{ end }}">{{ $erc }}</td>
+        <td class="{{ if gt $drc 0 }} has-background-danger {{ else }} has-background-success {{ end }}">{{ $drc }}</td>
+        <td class="{{ if gt $bom 0 }} has-background-danger {{ else }} has-background-success {{ end }}">{{ $bom }}</td>
+    </tr>
+    {{ end }}    
+</tbody>
+</table>

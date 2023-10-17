@@ -1,0 +1,15 @@
+[package]
+name = "sexp_macro"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "sexp_macro"
+path = "src/lib.rs"
+proc-macro = true
+
+[dependencies]
+syn = { version = "2", features = ["full"] }
+quote = "1.0.7"
+proc-macro2 = "1.0.23"
+proc-macro-error = "1.0.0"

@@ -1,0 +1,513 @@
+<svg height="210mm" viewBox="0 0 297 210" width="297mm" xmlns="http://www.w3.org/2000/svg">
+<g id="name">
+<path class="schema-outline " d="M31.75,26.42 L26.67,26.42 L26.67,24.38 L31.75,24.38 L31.75,26.42 z" fill="none"/>
+<path class="schema-outline " d="M37.59,27.43 L37.59,23.37" fill="none"/>
+<path class="schema-outline " d="M36.07,27.43 L36.07,23.37" fill="none"/>
+<path class="schema-outline fill-background" d="M44.45,21.59 L44.45,29.21 L52.07,25.4 L44.45,21.59"/>
+<path class="schema-outline " d="M60.45,27.43 L60.45,23.37" fill="none"/>
+<path class="schema-outline " d="M58.93,27.43 L58.93,23.37" fill="none"/>
+<path class="schema-outline " d="M45.72,11.68 L50.8,11.68 L50.8,13.72 L45.72,13.72 L45.72,11.68 z" fill="none"/>
+<path class="schema-outline " d="M62.48,31.75 L64.52,31.75 L64.52,26.67 L62.48,26.67 L62.48,31.75 z" fill="none"/>
+<path class="schema-outline " d="M63.5,33.02 L63.5,34.29 L64.77,34.29 L63.5,35.56 L62.23,34.29 L63.5,34.29" fill="none"/>
+<path class="schema-outline fill-background" d="M53.34,43.18 L63.5,43.18 L63.5,58.42 L53.34,58.42 L53.34,43.18 z" fill="none"/>
+<path class="schema-outline " d="M57.66,36.83 L58.42,35.56" fill="none"/>
+<path class="schema-outline " d="M58.42,38.1 L58.42,35.56" fill="none"/>
+<path class="schema-outline " d="M58.42,35.56 L59.18,36.83" fill="none"/>
+<path class="schema-outline " d="M58.42,63.5 L58.42,64.77 L59.69,64.77 L58.42,66.04 L57.15,64.77 L58.42,64.77" fill="none"/>
+<text alignment-baseline="middle" class="schema-label" text-anchor="end" transform="translate(25.4,26.4) rotate(0)">
+INPUT
+</text>
+<text alignment-baseline="middle" class="schema-property" text-anchor="middle" transform="translate(29.21,20.38) rotate(-90)">
+R1
+</text>
+<text alignment-baseline="middle" class="schema-property" text-anchor="middle" transform="translate(29.21,22.38) rotate(-90)">
+100k
+</text>
+<path class="schema-pin" d="M25.4,25.4 L26.67,25.4"/>
+<path class="schema-pin" d="M33.02,25.4 L31.75,25.4"/>
+<text alignment-baseline="middle" class="schema-property" text-anchor="start" transform="translate(36.83,19.37) rotate(-90)">
+C1
+</text>
+<text alignment-baseline="middle" class="schema-property" text-anchor="start" transform="translate(36.83,21.37) rotate(-90)">
+47n
+</text>
+<path class="schema-pin" d="M33.02,25.4 L35.81,25.4"/>
+<path class="schema-pin" d="M40.64,25.4 L37.85,25.4"/>
+<text alignment-baseline="middle" class="schema-property" text-anchor="middle" transform="translate(48.26,15.59) rotate(0)">
+U1
+</text>
+<text alignment-baseline="middle" class="schema-property" text-anchor="middle" transform="translate(48.26,17.59) rotate(0)">
+U1
+</text>
+<text alignment-baseline="middle" class="schema-property" text-anchor="middle" transform="translate(48.26,19.59) rotate(0)">
+
+</text>
+<path class="schema-pin" d="M40.64,25.4 L44.45,25.4"/>
+<text alignment-baseline="middle" class="schema-label" text-anchor="middle" transform="translate(42.545,24.799999999999997) rotate(0)">
+1
+</text>
+<path class="schema-pin" d="M55.88,25.4 L52.07,25.4"/>
+<text alignment-baseline="middle" class="schema-label" text-anchor="middle" transform="translate(53.975,24.799999999999997) rotate(0)">
+2
+</text>
+<text alignment-baseline="middle" class="schema-property" text-anchor="start" transform="translate(59.69,19.37) rotate(-90)">
+C2
+</text>
+<text alignment-baseline="middle" class="schema-property" text-anchor="start" transform="translate(59.69,21.37) rotate(-90)">
+1u
+</text>
+<path class="schema-pin" d="M55.88,25.4 L58.67,25.4"/>
+<path class="schema-pin" d="M63.5,25.4 L60.71,25.4"/>
+<path class="schema-wire" d="M63.5,25.4 L66.04,25.4"/>
+<text alignment-baseline="middle" class="schema-label" text-anchor="start" transform="translate(66.04,24.4) rotate(0)">
+OUTPUT
+</text>
+<path class="schema-wire" d="M55.88,25.4 L55.88,12.7"/>
+<path class="schema-wire" d="M55.88,12.7 L52.07,12.7"/>
+<path class="schema-wire" d="M44.45,12.7 L40.64,12.7"/>
+<text alignment-baseline="middle" class="schema-property" text-anchor="middle" transform="translate(48.26,7.68) rotate(-270)">
+R2
+</text>
+<text alignment-baseline="middle" class="schema-property" text-anchor="middle" transform="translate(48.26,9.68) rotate(-270)">
+100k
+</text>
+<path class="schema-pin" d="M52.07,12.7 L50.8,12.7"/>
+<path class="schema-pin" d="M44.45,12.7 L45.72,12.7"/>
+<path class="schema-wire" d="M40.64,12.7 L40.64,25.4"/>
+<text alignment-baseline="middle" class="schema-property" text-anchor="middle" transform="translate(65.52,28.21) rotate(180)">
+R3
+</text>
+<text alignment-baseline="middle" class="schema-property" text-anchor="middle" transform="translate(65.52,30.21) rotate(180)">
+1Meg
+</text>
+<path class="schema-pin" d="M63.5,25.4 L63.5,26.67"/>
+<path class="schema-pin" d="M63.5,33.02 L63.5,31.75"/>
+<text alignment-baseline="middle" class="schema-property" text-anchor="middle" transform="translate(63.5,37.56) rotate(0)">
+GND
+</text>
+<path class="schema-pin" d="M63.5,33.02 L63.5,33.02"/>
+<text alignment-baseline="middle" class="schema-label" text-anchor="middle" transform="translate(64.1,33.02) rotate(-90)">
+1
+</text>
+<text alignment-baseline="middle" class="schema-property" text-anchor="middle" transform="translate(64.5,48.8) rotate(180)">
+U1
+</text>
+<text alignment-baseline="middle" class="schema-property" text-anchor="middle" transform="translate(64.5,50.8) rotate(180)">
+CD4069
+</text>
+<text alignment-baseline="middle" class="schema-property" text-anchor="middle" transform="translate(64.5,52.8) rotate(180)">
+
+</text>
+<path class="schema-pin" d="M58.42,38.1 L58.42,43.18"/>
+<text alignment-baseline="middle" class="schema-label" text-anchor="middle" transform="translate(59.02,40.64) rotate(-90)">
+14
+</text>
+<path class="schema-pin" d="M58.42,63.5 L58.42,58.42"/>
+<text alignment-baseline="middle" class="schema-label" text-anchor="middle" transform="translate(59.02,60.96) rotate(-90)">
+7
+</text>
+<text alignment-baseline="middle" class="schema-property" text-anchor="middle" transform="translate(58.42,33.56) rotate(0)">
++5V
+</text>
+<path class="schema-pin" d="M58.42,38.1 L58.42,38.1"/>
+<text alignment-baseline="middle" class="schema-label" text-anchor="middle" transform="translate(59.02,38.1) rotate(-90)">
+1
+</text>
+<text alignment-baseline="middle" class="schema-property" text-anchor="middle" transform="translate(58.42,68.04) rotate(0)">
+GND
+</text>
+<path class="schema-pin" d="M58.42,63.5 L58.42,63.5"/>
+<text alignment-baseline="middle" class="schema-label" text-anchor="middle" transform="translate(59.02,63.5) rotate(-90)">
+1
+</text>
+<circle class="schema-pin-decoration" cx="52.07" cy="25.4" r="0.5"/>
+<circle class="schema-junction fill-outline" cx="40.64" cy="25.4" r="0.4"/>
+<circle class="schema-junction fill-outline" cx="55.88" cy="25.4" r="0.4"/>
+<circle class="schema-junction fill-outline" cx="63.5" cy="25.4" r="0.4"/>
+</g>
+<style>
+<![CDATA[
+
+
+
+
+
+.schema-border {
+  stroke: rgb(132, 0, 0);
+  stroke-width: 0.25;
+  font: 1pt osifont, mono;
+}
+.schema-outline {
+  stroke: rgb(132, 0, 0);
+  stroke-width: 0.35;
+}
+.schema-junction {
+  stroke: rgb(132, 0, 0);
+  fill: rgb(0, 150, 0);
+  stroke-width: 0.25;
+}
+.schema-pin-decoration {
+  stroke: rgb(0, 150, 0);
+  fill: rgb(245, 241, 237);
+  stroke-width: 0.25;
+}
+.no-connect {
+  stroke: rgb(0, 0, 132);
+  stroke-width: 0.2;
+}
+.schema-pin {
+  stroke: rgb(132, 0, 0);
+  stroke-width: 0.35;
+}
+.schema-wire {
+  stroke: rgb(0, 150, 0);
+  stroke-width: 0.25;
+}
+.schema-polyline {
+  stroke: rgb(132, 0, 0);
+  stroke-width: 0.1;
+}
+.fill-background {
+  fill: rgb(255, 255, 194);
+}
+.fill-outline {
+  fill: rgb(132, 0, 0);
+}
+.schema-property {
+    font: 1.25pt osifont, mono;
+    fill: rgb(0, 100, 100)
+}
+.schema-pin-name {
+    font: 0.8pt Verdana, Helvetica, Arial, sans-serif;
+    fill: rgb(0, 100, 100)
+}
+.schema-netname {
+    font: 0.8pt Verdana, Helvetica, Arial, sans-serif;
+    fill: rgb(0, 100, 100)
+}
+.schema-pin-number {
+    font: 0.8pt Verdana, Helvetica, Arial, sans-serif;
+    fill: rgb(169, 0, 0)
+}
+.text-sheet {
+    font: 1.8pt osifont, mono;
+}
+.text-title {
+    font: 1.8pt osifont, mono;
+    fill: rgb(0, 100, 100)
+}
+.text-subtitle {
+    font: 1.8pt osifont, mono;
+    fill: rgb(0, 100, 100)
+}
+.text-header {
+    font: 2.5pt osifont, mono;
+    fill: rgb(0, 100, 100)
+}
+.schema-label {
+    font: 1.25pt osifont, mono;
+    fill: rgb(132, 0, 132)
+}
+.schema-text {
+    font: 1pt osifont, mono;
+}
+.schema-bus {
+    stroke: rgb(0, 0, 132);
+    stroke-width: 0.25;
+}
+.schema-bus-entry {
+    stroke: rgb(0, 0, 132);
+    stroke-width: 0.18;
+}
+.not-found {
+    stroke: red;
+    stroke-width: 0.1;
+}
+.opaque {
+    stroke-opacity: .5;
+    fill-opacity: .5;
+}
+
+.test {
+  stroke: rgb(255,165,0);
+}
+
+
+
+
+
+
+
+.anchor {
+  stroke: rgb(255, 38, 226);
+}
+.aux_items {
+  stroke: rgb(255, 255, 255);
+}
+.B_Adhes {
+  stroke: rgb(0, 0, 132);
+}
+.B_CrtYd {
+  stroke: rgb(255, 38, 226);
+}
+.B_Fab {
+  stroke: rgb(88, 93, 132);
+}
+.B_Mask {
+  stroke: rgba(2, 255, 238, 0.400);
+}
+.B_Paste {
+  stroke: rgb(0, 194, 194);
+}
+.B_SilkS {
+  stroke: rgb(232, 178, 167);
+}
+.background {
+  stroke: rgb(0, 16, 35);
+}
+.Cmts_User {
+  stroke: rgb(89, 148, 220);
+}
+.B_Cu {
+  stroke: rgb(77, 127, 196);
+}
+.F_Cu {
+  stroke: rgb(200, 52, 52);
+}
+ .in1 {
+  stroke: rgb(127, 200, 127);
+}
+.in10 {
+  stroke: rgb(237, 124, 51);
+}
+      .in11 {
+stroke: rgb(91, 195, 235);
+}
+      .in12 {
+stroke: rgb(247, 111, 142);
+}
+      .in13 {
+stroke: rgb(167, 165, 198);
+}
+      .in14 {
+stroke: rgb(40, 204, 217);
+}
+      .in15 {
+stroke: rgb(232, 178, 167);
+}
+      .in16 {
+stroke: rgb(242, 237, 161);
+}
+      .in17 {
+stroke: rgb(237, 124, 51);
+}
+      .in18 {
+stroke: rgb(91, 195, 235);
+}
+      .in19 {
+stroke: rgb(247, 111, 142);
+}
+      .in2 {
+stroke: rgb(206, 125, 44);
+}
+      .in20 {
+stroke: rgb(167, 165, 198);
+}
+      .in21 {
+stroke: rgb(40, 204, 217);
+}
+      .in22 {
+stroke: rgb(232, 178, 167);
+}
+      .in23 {
+stroke: rgb(242, 237, 161);
+}
+      .in24 {
+stroke: rgb(237, 124, 51);
+}
+      .in25 {
+stroke: rgb(91, 195, 235);
+}
+      .in26 {
+stroke: rgb(247, 111, 142);
+}
+      .in27 {
+stroke: rgb(167, 165, 198);
+}
+      .in28 {
+stroke: rgb(40, 204, 217);
+}
+      .in29 {
+stroke: rgb(232, 178, 167);
+}
+      .in3 {
+stroke: rgb(79, 203, 203);
+}
+      .in30 {
+stroke: rgb(242, 237, 161);
+}
+      .in4 {
+stroke: rgb(219, 98, 139);
+}
+      .in5 {
+stroke: rgb(167, 165, 198);
+}
+      .in6 {
+stroke: rgb(40, 204, 217);
+}
+      .in7 {
+stroke: rgb(232, 178, 167);
+}
+      .in8 {
+stroke: rgb(242, 237, 161);
+}
+.in9 { 
+  stroke: rgb(141, 203, 129);
+}
+.cursor {
+stroke: rgb(255, 255, 255);
+}
+    .drc {
+stroke: rgb(194, 194, 194);
+}
+.drc_error {
+  stroke: rgba(215, 91, 107, 0.800);
+}
+.drc_exclusion {
+  stroke: rgb(255, 255, 255);
+}
+drc_warning {
+  stroke: rgba(255, 208, 66, 0.902); 
+}
+    .dwgs_user {
+stroke: rgb(194, 194, 194);
+}
+    .eco1_user {
+stroke: rgb(180, 219, 210);
+}
+    .eco2_user {
+stroke: rgb(216, 200, 82);
+}
+.Edge_Cuts {
+    stroke: rgb(208, 210, 205);
+}
+.F_Adhes {
+    stroke: rgb(132, 0, 132);
+}
+.F_CrtYd {
+    stroke: rgb(255, 0, 245);
+}
+.F_Fab {
+    stroke: rgb(175, 175, 175);
+}
+.F_Mask {
+  stroke: rgba(216, 100, 255, 0.400);
+}
+.F_Paste {
+  rgba(180, 160, 154, 0.902);
+}
+.F_SilkS {
+ stroke: rgb(242, 237, 161);
+}
+.footprint_text_back {
+  font: 0.8pt Verdana, Helvetica, Arial, sans-serif;
+  fill: rgb(0, 0, 132);
+}
+.footprint_text_front {
+  font: 0.8pt Verdana, Helvetica, Arial, sans-serif;
+  fill: rgb(194, 194, 194);
+}
+.footprint_text_invisible {
+  font: 0.8pt Verdana, Helvetica, Arial, sans-serif;
+  fill: rgb(132, 132, 132);
+}
+.grid {
+  stroke: rgb(132, 132, 132);
+}
+.grid_axes {
+  stroke: rgb(194, 194, 194);
+}
+.margin {
+  stroke: rgb(255, 38, 226);
+}
+.microvia {
+  stroke: rgb(0, 132, 132);
+}
+.no_connect {
+  stroke: rgb(0, 0, 132);
+}
+.pad_back {
+  stroke: rgb(77, 127, 196);
+  stroke-width: 0.25;
+}
+.pad_front {
+  stroke: rgb(200, 52, 52);
+  stroke-width: 0.25;
+}
+.pad_plated_hole {
+  stroke: rgb(194, 194, 0);
+  stroke-width: 0.25;
+}
+.pad_through_hole {
+  stroke: rgb(227, 183, 46);
+  stroke-width: 0.25;
+}
+.plated_hole {
+  stroke: rgb(26, 196, 210);
+}
+.ratsnest {
+  stroke: rgba(245, 255, 213, 0.702);
+}
+.select_overlay {
+  stroke: rgb(4, 255, 67);
+}
+.through_via {
+  stroke: rgb(236, 236, 236);
+}
+.user_1 {
+  stroke: rgb(194, 194, 194);
+}
+    .user_2 {
+stroke: rgb(89, 148, 220);
+}
+    .user_3 {
+stroke: rgb(180, 219, 210);
+}
+    .user_4 {
+stroke: rgb(216, 200, 82);
+}
+    .user_5 {
+stroke: rgb(194, 194, 194);
+}
+    .user_6 {
+stroke: rgb(89, 148, 220);
+}
+    .user_7 {
+stroke: rgb(180, 219, 210);
+}
+    .user_8 {
+stroke: rgb(216, 200, 82);
+}
+    .user_9 {
+stroke: rgb(232, 178, 167);
+}
+    .via_blind_buried {
+stroke: rgb(187, 151, 38);
+}
+    .via_hole {
+stroke: rgb(227, 183, 46);
+}
+    .via_micro {
+stroke: rgb(0, 132, 132);
+}
+    .via_through {
+stroke: rgb(236, 236, 236);
+}
+
+//"worksheet": "rgb(200, 114, 171)"
+
+
+
+]]>
+</style>
+</svg>

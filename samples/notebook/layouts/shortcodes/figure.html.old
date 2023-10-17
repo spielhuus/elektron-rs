@@ -1,0 +1,7 @@
+{{ $align := .Get "align" }}
+{{ $cap := .Get "cap" }}
+
+<div class="figure py-6" align="{{ $align }}">
+  {{ .Inner }}
+  {{ if $cap }}<p>{{ $cap }}</p>{{ end }}
+</div>

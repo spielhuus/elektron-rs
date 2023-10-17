@@ -1,0 +1,80 @@
+.schema-border {
+  stroke: rgb(132, 0, 0);
+  stroke-width: 0.25;
+  font: 1pt osifont, mono;
+}
+.schema-outline {
+  stroke: rgb(0, 0, 0);
+  stroke-width: 0.35;
+}
+.schema-junction {
+    stroke: rgb(0, 0, 0);
+    fill: rgb(0, 0, 0);
+    stroke-width: 0.25;
+}
+.no-connect {
+        stroke: rgb(0, 0, 0);
+        stroke-width: 0.1;
+}
+.schema-pin {
+  stroke: rgb(0, 0, 0);
+  stroke-width: 0.25;
+}
+.schema-wire {
+    stroke: rgb(0, 0, 0);
+    stroke-width: 0.25;
+}
+.schema-polyline {
+  stroke: rgb(0, 0, 0);
+  stroke-width: 0.1;
+}
+.fill-background {
+  fill: rgb(255, 255, 255);
+}
+.fill-outline {
+  fill: rgb(0, 0, 0);
+}
+.schema-property {
+    font: 1.25pt osifont, mono;
+}
+.schema-pin-name {
+    font: 1.0pt osifont, mono;
+}
+.schema-pin-number {
+    font: 0.8pt osifont, mono;
+}
+.text-sheet {
+    font: 1.8pt osifont, mono;
+}
+.text-title {
+    font: 1.8pt osifont, mono;
+}
+.text-subtitle {
+    font: 1.8pt osifont, mono;
+}
+.text-header {
+    font: 2.5pt osifont, mono;
+}
+.schema-label {
+    font: 1.25pt osifont, mono;
+    alignment-baseline: middle;
+}
+.schema-text {
+    font: 1pt osifont, mono;
+}
+.schema-bus {
+    stroke: green;
+    stroke-width: 0.25;
+}
+.schema-bus-entry {
+    stroke: green;
+    stroke-width: 0.18;
+}
+.schema-netname {
+    font: 2pt osifont, mono;
+    color: rgb(132, 0, 0);
+}
+.not-found {
+        stroke: red;
+        stroke-width: 0.1;
+}
