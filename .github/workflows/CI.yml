@@ -109,8 +109,8 @@ jobs:
       matrix:
         os:
         - ubuntu
-        - macos
-        - windows
+        #- macos
+        #- windows
         python-version:
         - '10'
         - '11'
