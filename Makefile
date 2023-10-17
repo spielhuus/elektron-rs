@@ -52,6 +52,7 @@ clean:
 	rm -rf src/elektron/__pycache__
 	rm -rf build
 	rm -rf target
+	rm -rf dist
 
 $(VENV)/bin/elektron: $(VENV)/bin/activate $(SOURCES)
 	$(PYTHON) -m pip install -e .
