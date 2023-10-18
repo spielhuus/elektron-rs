@@ -107,7 +107,9 @@ jobs:
 
     - name: build ${{ matrix.platform || matrix.os }} binaries
       # run: python -m build
-      run: cibuildwheel --output-dir dist
+      run: >
+        - echo ${{ steps.cp310.outputs.python-path }}
+        - cibuildwheel --output-dir dist
       env:
         CIBW_BUILD: 'cp3${{ matrix.python-version }}-*'
         CIBW_SKIP: '*-win32'
