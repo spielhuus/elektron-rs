@@ -124,7 +124,7 @@ jobs:
           rustup show
         CIBW_BEFORE_BUILD_LINUX: >
           pip install -U setuptools-rust &&
-          apt-get install -y -qq libngspice0 libngspice0-dev libpango1.0 libpango1.0-dev libcairo2 libcairo2-dev libpoppler-glib-dev libgraphite2-dev &&
+          #apt-get install -y -qq libngspice0 libngspice0-dev libpango1.0 libpango1.0-dev libcairo2 libcairo2-dev libpoppler-glib-dev libgraphite2-dev &&
           curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=nightly --profile=minimal -y &&
           rustup show
       
