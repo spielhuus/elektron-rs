@@ -28,7 +28,7 @@ jobs:
             rustup default nightly &&
             rustup show
           CIBW_BEFORE_BUILD_LINUX: >
-            find /opt &&
+            find /opt -iname "*libpython*" &&
             yum -y install openssl-devel openssl-libs libicu libicu-devel graphite2 \
                            graphite2-devel cairo cairo-devel cairo-gobject cairo-gobject-devel \
                            pango  pango-devel poppler poppler-devel clang \
