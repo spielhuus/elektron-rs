@@ -22,7 +22,7 @@ jobs:
         # to supply options, put them in 'env', like:
         env:
           CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH"'
-          CIBW_MANYLINUX_X86_64_IMAGE: = 'manylinux_2_28'
+          CIBW_MANYLINUX_X86_64_IMAGE: = 'manylinux_2_24'
           CIBW_BEFORE_BUILD: >
             pip install -U setuptools-rust &&
             rustup default nightly &&
