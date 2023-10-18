@@ -22,12 +22,13 @@ jobs:
         # to supply options, put them in 'env', like:
         env:
           CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH"'
+          CIBW_MANYLINUX_X86_64_IMAGE: = 'manylinux_2_28'
           CIBW_BEFORE_BUILD: >
             pip install -U setuptools-rust &&
             rustup default nightly &&
             rustup show
           CIBW_BEFORE_BUILD_LINUX: >
-            apt install openssl-devel openssl-libs libicu libicu-devel graphite2 \
+            yum -y install openssl-devel openssl-libs libicu libicu-devel graphite2 \
                            graphite2-devel cairo cairo-devel cairo-gobject cairo-gobject-devel \
                            pango  pango-devel poppler poppler-devel clang \
                            gcc bison flex libtool autoconf automake gcc libX11 libX11-devel libXaw libXaw-devel readline readline-devel &&
