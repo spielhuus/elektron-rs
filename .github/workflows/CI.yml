@@ -123,7 +123,9 @@ jobs:
           rustup default nightly &&
           rustup show
         CIBW_BEFORE_BUILD_LINUX: >
-          yum -y install openssl-devel.x86_64 openssl-libs.x86_64 libicu.x86_64 libicu-devel.x86_64 graphite2.x86_64 graphite2-devel.x86_64 &&
+          yum -y install openssl-devel.x86_64 openssl-libs.x86_64 libicu.x86_64 libicu-devel.x86_64 graphite2.x86_64 \
+                         graphite2-devel.x86_64 cairo.x86_64 cairo-devel.x86_64  pango.x86_64  pango-devel.x86_64 \
+                         poppler.x86_64 poppler-devel.x86_64 &&
           pip install -U setuptools-rust &&
           curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=nightly --profile=minimal -y &&
           rustup show
