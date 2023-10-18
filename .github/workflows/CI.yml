@@ -131,7 +131,7 @@ jobs:
           tar xfz ngspice.tar.gz && cd ngspice-41 &&
           mkdir release &&
           cd release &&
-          ../configure  --with-readline=yes --disable-debug &&
+          ../configure --with-ngshared --enable-xspice --disable-debug --enable-cider --enable-osdi --enable-openmp &&
           make &&
           make install &&
           pip install -U setuptools-rust &&
