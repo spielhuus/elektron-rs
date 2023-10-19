@@ -13,7 +13,6 @@ on:
 permissions:
   contents: read
 
-
 jobs:
   linux:
     runs-on: ubuntu-latest
@@ -102,7 +101,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     if: "startsWith(github.ref, 'refs/tags/')"
-    needs: [linux, windows, macos, sdist]
+    #needs: [linux, windows, macos, sdist]
     steps:
       - uses: actions/download-artifact@v3
         with:
