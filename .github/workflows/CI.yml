@@ -10,8 +10,8 @@ on:
   pull_request:
   workflow_dispatch:
 
-permissions:
-  contents: read
+#permissions:
+#  contents: read
 
 jobs:
   linux:
@@ -28,7 +28,7 @@ jobs:
           
       - name: Install dependencies
         run: |
-          apt -y install openssl-devel openssl-libs libicu libicu-devel graphite2 \
+          sudo apt -y install openssl-devel openssl-libs libicu libicu-devel graphite2 \
                  graphite2-devel cairo cairo-devel cairo-gobject cairo-gobject-devel \
                  pango  pango-devel poppler poppler-devel clang \
                  gcc bison flex libtool autoconf automake gcc libX11 libX11-devel libXaw libXaw-devel readline readline-devel &&
@@ -38,7 +38,7 @@ jobs:
           cd release &&
           ../configure --with-ngshared --enable-xspice --disable-debug --enable-cider --enable-osdi --enable-openmp &&
           make &&
-          make install
+          sudo make install
           
       - name: Build wheels
         uses: PyO3/maturin-action@v1
