@@ -17,21 +17,15 @@ dependencies = [
     "matplotlib-backend-kitty",
 ]
 
+[project.scripts]
+elektron = "elektron:main"
+
 [build-system]
-requires = ["setuptools", "setuptools-rust"]
-build-backend = "setuptools.build_meta"
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
 
-[tool.setuptools.packages.find]
-where = ["src"]
-include = ["elektron"]
+[tool.maturin]
+features = ["pyo3/extension-module"]
+python-source = "src"
+module-name = "elektron"
 
-[[tool.setuptools-rust.ext-modules]]
-target = "elektron.elektron"
-py-limited-api = "auto"
-binding = "PyO3"
-
-[[tool.setuptools-rust.bins]]
-target = "elektron"
-args = ["--profile", "release-lto", "--no-default-features"]
-features = ["auto-initialize"]
-quiet = true

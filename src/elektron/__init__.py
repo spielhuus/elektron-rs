@@ -13,6 +13,72 @@ import sys, os
 import tempfile
 import pcbnew
 
+import argparse
+from .elektron import make_bom, plot, convert, make_erc, make_drc, make_spice, search
+
+def main():
+    # create the top-level parser
+    parser = argparse.ArgumentParser(prog='elektron')
+    sub_parsers = parser.add_subparsers(help='sub-command help', dest="command")
+
+    # create the sub parsers
+    parser_bom = sub_parsers.add_parser('bom', help='generate bom from kicad schema')
+    parser_bom.add_argument('--input', type=str, required=True, help='path to kicad schema')
+    parser_bom.add_argument('--output', type=str, required=False, help='output as json file')
+    parser_bom.add_argument('--group', action='store_true', help='group symbols')
+    parser_bom.add_argument('--partlist', type=str, required=False, help='path to partlist file')
+
+    parser_plot = sub_parsers.add_parser('plot', help='plot kicad schema or PCB')
+    parser_plot.add_argument('--input', type=str, required=True, help='path to kicad schema')
+    parser_plot.add_argument('--output', type=str, required=False, help='output as json file')
+
+    parser_convert = sub_parsers.add_parser('convert', help='Convert a markdown notebook file.')
+    parser_convert.add_argument('--input', type=str, required=True, help='path to input markdown file.')
+    parser_convert.add_argument('--output', type=str, required=False, help='path to the output markdown file.')
+
+    parser_erc = sub_parsers.add_parser('erc', help='Run the ERC checks for a schema file.')
+    parser_erc.add_argument('--input', type=str, required=True, help='path to input schema file.')
+    parser_erc.add_argument('--output', type=str, required=False, help='the result from the checks')
+    
+    parser_drc = sub_parsers.add_parser('drc', help='Run the the DRC checks for a PCB file.')
+    parser_drc.add_argument('--input', type=str, required=True, help='path to input PCB file.')
+    parser_drc.add_argument('--output', type=str, required=False, help='the result from the checks')
+    
+    parser_spice = sub_parsers.add_parser('spice', help='Create the spice netlist for the schema.')
+    parser_spice.add_argument('--input', type=str, required=True, help='path to input Schema file.')
+    parser_spice.add_argument('--output', type=str, required=False, help='the result from the checks, default print to console.')
+    parser_spice.add_argument('--path', action='append', required=True, dest='spice_path', help='The spice library path.')
+
+    parser_search = sub_parsers.add_parser('search', help='Search Kicad Symbol.')
+    parser_search.add_argument('--term', type=str, required=True, help='The search term.')
+    parser_search.add_argument('--path', action='append', required=True, dest='sym_path', help='The symbol library path.')
+
+    args = parser.parse_args()
+
+    try:
+        if(args.command == 'plot'):
+                plot(args.input, args.output)
+
+        elif(args.command == 'bom'):
+            make_bom(args.input, args.group, args.output, args.partlist)
+        elif(args.command == 'convert'):
+            convert(args.input, args.output)
+        elif(args.command == 'erc'):
+            make_erc(args.input, args.output)
+        elif(args.command == 'drc'):
+            make_drc(args.input, args.output)
+        elif(args.command == 'spice'):
+            make_spice(args.input, args.spice_path, args.output)
+        elif(args.command == 'search'):
+            search(args.term, args.sym_path)
+        else:
+            print(args)
+    except Exception as inst:
+        print(inst)
+    os._exit(0)
+
+
+
 PLOTS = []
 
 def plots():

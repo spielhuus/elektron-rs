@@ -3,11 +3,6 @@ name = "elektron_rs"
 version = "0.1.0"
 edition = "2021"
 
-[[bin]]
-name = "elektron"
-path = "src/cli/src/main.rs"
-test = false
-
 [lib]
 name = "elektron"
 path = "src/cli/src/lib.rs"
@@ -45,5 +40,4 @@ pyo3-build-config = "0.20"
 
 [features]
 extension-module = ["pyo3/extension-module"]
-auto-initialize = ["pyo3/auto-initialize"]
 default = ["extension-module"]
