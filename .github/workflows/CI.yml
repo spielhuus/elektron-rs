@@ -18,8 +18,7 @@ jobs:
     - name: Build wheels
       uses: PyO3/maturin-action@v1
       with:
-        command: build
-        args: --release
+        args: --release --out dist --find-interpreter
         target: ${{ matrix.target }}
         manylinux: auto
         before-script-linux: |
