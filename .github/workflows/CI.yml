@@ -20,7 +20,7 @@ jobs:
       with:
         target: ${{ matrix.target }}
         manylinux: auto
-        args: --release --out dist -m python/Cargo.toml
+        args: --release --out dist -m Cargo.toml
         before-script-linux: |
             yum -y install openssl-devel openssl-libs libicu libicu-devel graphite2 \
                            graphite2-devel cairo cairo-devel cairo-gobject cairo-gobject-devel \
