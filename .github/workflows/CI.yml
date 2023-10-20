@@ -20,8 +20,8 @@ jobs:
       with:
         command: build
         args: --release
-        #target: ${{ matrix.target }}
-        #manylinux: auto
+        target: ${{ matrix.target }}
+        manylinux: auto
         before-script-linux: |
             yum -y install openssl-devel openssl-libs libicu libicu-devel graphite2 \
                            graphite2-devel cairo cairo-devel cairo-gobject cairo-gobject-devel \
