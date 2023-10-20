@@ -14,116 +14,18 @@ on:
 #  contents: read
 
 jobs:
-  linux:
+  linux-wheels:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        #target: [x86_64, x86, aarch64, armv7, s390x, ppc64le]
-        target: [x86_64]
+    container: quay.io/pypa/manylinux1_x86_64
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-          
-      - name: Install dependencies
-        run: |
-          sudo apt-get update &&
-          sudo apt-get -y install libssl3 libssl-dev libicu70 libicu-dev libgraphite2-3 libgraphite2-dev &&
-          curl -L https://sourceforge.net/projects/ngspice/files/ng-spice-rework/41/ngspice-41.tar.gz/download -o ngspice.tar.gz &&
-          tar xfz ngspice.tar.gz && cd ngspice-41 &&
-          mkdir release &&
-          cd release &&
-          ../configure --with-ngshared --enable-xspice --disable-debug --enable-cider --enable-osdi --enable-openmp &&
-          make &&
-          sudo make install
-          
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1
-        with:
-          target: ${{ matrix.target }}
-          args: --release --out dist --find-interpreter
-          sccache: 'true'
-          manylinux: auto
-      - name: Upload wheels
-        uses: actions/upload-artifact@v3
-        with:
-          name: wheels
-          path: dist
-
-#  windows:
-#    runs-on: windows-latest
-#    strategy:
-#      matrix:
-#        target: [x64, x86]
-#    steps:
-#      - uses: actions/checkout@v3
-#      - uses: actions/setup-python@v4
-#        with:
-#          python-version: '3.10'
-#          architecture: ${{ matrix.target }}
-#      - name: Build wheels
-#        uses: PyO3/maturin-action@v1
-#        with:
-#          target: ${{ matrix.target }}
-#          args: --release --out dist --find-interpreter
-#          sccache: 'true'
-#      - name: Upload wheels
-#        uses: actions/upload-artifact@v3
-#        with:
-#          name: wheels
-#          path: dist
-#
-#  macos:
-#    runs-on: macos-latest
-#    strategy:
-#      matrix:
-#        target: [x86_64, aarch64]
-#    steps:
-#      - uses: actions/checkout@v3
-#      - uses: actions/setup-python@v4
-#        with:
-#          python-version: '3.10'
-#      - name: Build wheels
-#        uses: PyO3/maturin-action@v1
-#        with:
-#          target: ${{ matrix.target }}
-#          args: --release --out dist --find-interpreter
-#          sccache: 'true'
-#      - name: Upload wheels
-#        uses: actions/upload-artifact@v3
-#        with:
-#          name: wheels
-#          path: dist
-
-  sdist:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Build sdist
-        uses: PyO3/maturin-action@v1
-        with:
-          command: sdist
-          args: --out dist
-      - name: Upload sdist
-        uses: actions/upload-artifact@v3
-        with:
-          name: wheels
-          path: dist
-
-  release:
-    name: Release
-    runs-on: ubuntu-latest
-    if: "startsWith(github.ref, 'refs/tags/')"
-    #needs: [linux, windows, macos, sdist]
-    steps:
-      - uses: actions/download-artifact@v3
-        with:
-          name: wheels
-      - name: Publish to PyPI
-        uses: PyO3/maturin-action@v1
-        env:
-          MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-        with:
-          command: upload
-          args: --non-interactive --skip-existing *
+     - uses: actions/checkout@v1
+     - name: Build wheels
+       run: |
+         curl https://sh.rustup.rs -sSf | sh -s -- -y
+         source $HOME/.cargo/env
+         rustup default nightly-2019-12-11
+         bash .github/workflows/build-wheels.sh
+     - uses: actions/upload-artifact@v1
+       with:
+         name: linux-wheels
+         path: wheelhouse/
