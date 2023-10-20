@@ -9,7 +9,7 @@ name = "reports"
 [dependencies]
 sexp = { path = "../sexp" }
 simulation = { path = "../simulation" }
-pyo3 = { version = "0.20", features = ["auto-initialize"] }
+pyo3 = { version = "0.20" }
 thiserror = "1.0"
 lazy_static = "1.4.0"
 regex = "1.10"

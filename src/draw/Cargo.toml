@@ -14,7 +14,7 @@ thiserror = "1.0"
 lazy_static = "1.4.0"
 regex = "1.10"
 ndarray = "0.15"
-pyo3 = { version = "0.20", features = ["auto-initialize"] }
+pyo3 = { version = "0.20" }
 
 [dependencies.uuid]
 version = "1.4"

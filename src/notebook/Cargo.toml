@@ -22,7 +22,7 @@ json = "0.12"
 # diff = "0.1"
 pest = "2.7"
 pest_derive = "2.7"
-pyo3 = { version = "0.20", features = ["auto-initialize"] }
+pyo3 = { version = "0.20" }
 tectonic = "0.14"
 rand = "0.8"
 # pangocairo = "0.18"
