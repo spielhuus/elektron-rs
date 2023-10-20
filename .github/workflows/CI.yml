@@ -27,12 +27,12 @@ jobs:
                            pango  pango-devel poppler poppler-devel clang \
                            gcc bison flex libtool autoconf automake gcc libX11 libX11-devel libXaw libXaw-devel readline readline-devel &&
             curl -L https://sourceforge.net/projects/ngspice/files/ng-spice-rework/41/ngspice-41.tar.gz/download -o ngspice.tar.gz &&
-            tar xfz ngspice.tar.gz && cd ngspice-41 &&
+            tar xfz ngspice.tar.gz && pushd ngspice-41 &&
             mkdir release &&
             cd release &&
             ../configure --with-ngshared --enable-xspice --disable-debug --enable-cider --enable-osdi --enable-openmp &&
             make &&
-            make install
+            make install && popd
     - name: Upload wheels
       uses: actions/upload-artifact@v3
       with:
