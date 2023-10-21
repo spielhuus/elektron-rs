@@ -1,3 +1,19 @@
+//! Library to parse and write the Kicad sexp files.
+//!
+//! # Examples
+//!
+//! Load a Kicad schema:
+//!
+//! ```
+//! use sexp::{SexpParser, SexpTree};
+//! 
+//! let doc = SexpParser::load("tests/summe.kicad_sch").unwrap();
+//! let tree = SexpTree::from(doc.iter()).unwrap();
+//! let root = tree.root().unwrap();
+//!
+//! assert_eq!("kicad_sch", root.name);
+//! ```
+
 /// Parse and access sexp files.
 use std::{fs, io::Write, str::CharIndices};
 
@@ -11,7 +27,7 @@ pub use math::{Shape, Transform};
 
 ///Kicad schema file version
 pub const KICAD_SCHEMA_VERSION: &str = "20211123";
-///Kicad schema generator.
+///Kicad schema generator name.
 pub const KICAD_SCHEMA_GENERATOR: &str = "elektron";
 
 ///Constants for the element names.
