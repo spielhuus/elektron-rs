@@ -21,7 +21,7 @@ jobs:
         args: --release --out dist --find-interpreter
         target: ${{ matrix.target }}
         manylinux: manylinux_2_28
-        before-script-linux: |
+        before-script-linux: >
             yum -y install devtoolset-11-gcc openssl-devel openssl-libs libicu libicu-devel graphite2 \
                            graphite2-devel cairo cairo-devel cairo-gobject cairo-gobject-devel \
                            pango  pango-devel poppler poppler-devel clang \
