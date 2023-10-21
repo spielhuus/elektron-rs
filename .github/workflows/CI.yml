@@ -22,10 +22,11 @@ jobs:
         target: ${{ matrix.target }}
         manylinux: manylinux_2_28
         before-script-linux: >
-            yum -y install gcc openssl-devel openssl-libs libicu libicu-devel graphite2 \
+            yum -y install gcc clang openssl-devel openssl-libs libicu libicu-devel graphite2 \
                            graphite2-devel cairo cairo-devel cairo-gobject cairo-gobject-devel \
-                           pango  pango-devel poppler poppler-devel clang \
-                           gcc bison flex libtool autoconf automake gcc libX11 libX11-devel libXaw libXaw-devel readline readline-devel &&
+                           pango pango-devel poppler poppler-devel poppler-glib \
+                           gcc bison flex libtool autoconf automake gcc libX11 libX11-devel libXaw \
+                           libXaw-devel readline readline-devel &&
             curl -L https://sourceforge.net/projects/ngspice/files/ng-spice-rework/41/ngspice-41.tar.gz/download -o ngspice.tar.gz &&
             tar xfz ngspice.tar.gz && pushd ngspice-41 &&
             mkdir release &&
