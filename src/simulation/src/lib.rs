@@ -1,4 +1,4 @@
-/// Parse and access sexp files.
+//! Run ngspice simulations from shema.
 mod error;
 mod circuit;
 mod netlist;

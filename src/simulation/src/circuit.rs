@@ -1,3 +1,17 @@
+//! Circuit struct to create the spice directives.
+//!
+//! # Examples
+//!
+//! ```
+//! use sexp::{SexpParser, SexpTree};
+//! 
+//! let doc = SexpParser::load("tests/summe.kicad_sch").unwrap();
+//! let tree = SexpTree::from(doc.iter()).unwrap();
+//! let root = tree.root().unwrap();
+//!
+//! assert_eq!("kicad_sch", root.name);
+//! ```
+
 use crate::error::Error;
 
 use indexmap::IndexMap;
@@ -26,6 +40,7 @@ enum CircuitItem {
     V(String, String, String, String),
 }
 
+///The Circuit struct represents a ngspice netlist.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Circuit {
     name: String,
@@ -36,7 +51,6 @@ pub struct Circuit {
     pub options: IndexMap<String, String>,
 }
 
-///The Circuit struct represents a ngspice netlist.
 impl Circuit {
     pub fn new(name: String, pathlist: Vec<String>) -> Self {
         Self {

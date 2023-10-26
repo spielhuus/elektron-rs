@@ -63,6 +63,7 @@ impl DrcItem {
 /// * `document` - A PCB struct.
 /// * `return`   - Vec<DrcItem> with the errors.
 ///
+//TODO set the paths 
 pub fn drc(document: String) -> Result<Vec<DrcItem>, Error> {
     let mut rng = rand::thread_rng();
     let num: u32 = rng.gen();

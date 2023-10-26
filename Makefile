@@ -1,6 +1,7 @@
 VENV = $(shell pwd)/.venv
 PYTHON = $(VENV)/bin/python3
 PIP = $(VENV)/bin/pip
+MATURIN = $(VENV)/bin/maturin
 
 $(TARGET): $(VENV)/bin/activate 
 SOURCES = $(shell find src/**/src -name "*.rs") src/elektron/__init__.py
@@ -55,22 +56,14 @@ clean:
 	rm -rf dist
 
 $(VENV)/bin/elektron: $(VENV)/bin/activate $(SOURCES)
-	$(PYTHON) -m pip install -e .
+	# $(PYTHON) -m pip install -e .
+	${MATURIN} develop
 
 test: $(VENV)/bin/activate $(SOURCES)
-	cd src/ngspice && cargo test
-	cd src/sexp && cargo test
-	cd src/sexp_macro && cargo test
-	cd src/simulation && cargo test
-	cd src/reports && cargo test
-	cd src/plotter && cargo test
-	cd src/draw && cargo test
-	cd src/notebook && cargo test
-	cargo test
+	cargo test --workspace
 
 doc: $(VENV)/bin/activate $(SOURCES)
-	#cd src/elektron_rs/ && cargo doc --lib --no-deps
-	cargo doc --lib
+	cargo doc --workspace --no-deps --lib
 	$(SPHINXBUILD) "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) 
 	
 # sdist: $(VENV)/bin/activate

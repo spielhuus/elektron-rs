@@ -78,7 +78,8 @@ impl Simulation {
         let mut cb = Cb::new();
         let ng = NgSpice::new(&mut cb)?;
 
-        ng.circuit(self.circuit.to_str(true).unwrap())?;
+        match ng.circuit(self.circuit.to_str(true).unwrap()) {
+        }
         for c in &self.circuit.controls {
             ng.command(c)?;
         }

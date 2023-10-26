@@ -279,6 +279,9 @@ pub fn make_spice(input: &str, path: Vec<String>, output: Option<String>) -> Res
 /// * `return`   - possible error.
 #[pyfunction]
 pub fn convert(input: &str, output: &str) -> Result<(), Error> {
+
+    env_logger::init();
+
     check_directory(&output).unwrap();
 
     //prepare env for notebook output

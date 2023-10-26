@@ -1,14 +1,35 @@
-/// Run ngspice simulation.
 use std::collections::HashMap;
+use log::{debug, log_enabled, Level};
 
-use elektron_ngspice::{Callbacks, ComplexSlice, NgSpice};
+use elektron_ngspice::{Callbacks, ComplexSlice, NgSpice, NgSpiceError};
 
 use crate::{circuit::Circuit, error::Error};
 
+macro_rules! handle_error {
+   ($cmd:expr, $cb:expr) => {
+        match $cmd {
+            Ok(_) => {}
+            Err(error) => match error {
+                elektron_ngspice::NgSpiceError::Unknown(code) => {
+                    return Err(NgSpiceError::Spice(code, $cb.strs.join("\n")).into());
+                }
+                _ => {
+                    return Err(error.into());
+                }
+            },
+        }
+    };
+}
+
+///The callback message buffer
 pub struct Cb {
+    ///The string buffer
     strs: Vec<String>,
+    ///last status
     status: i32,
+    ///unloaded
     unload: bool,
+    ///quited
     quit: bool,
 }
 
@@ -44,24 +65,29 @@ impl Callbacks for Cb {
     }
 }
 
+///# The Simulation struct
+///
+/// ## Examples
+///
+/// Load a Kicad schema:
+///
+/// ```
+/// use sexp::{SexpParser, SexpTree};
+/// 
+/// let doc = SexpParser::load("tests/summe.kicad_sch").unwrap();
+/// let tree = SexpTree::from(doc.iter()).unwrap();
+/// let root = tree.root().unwrap();
+///
+/// assert_eq!("kicad_sch", root.name);
+/// ```
 pub struct Simulation {
     pub circuit: Circuit,
     pub buffer: Option<Vec<String>>,
 }
 
-/// simulate the circuit with ngspice
-/// TODO circuit models are imported twice
-/// TODO create simulatio file
 impl Simulation {
-    /*
-    """
-    Add a subcircuit.
-    :param circuit: Circuit to add.
-    :type circuit: Circuit
-    :return: None
-    :rtype: None
-    """ */
 
+    ///### Create new simulation from circuit.
     pub fn new(circuit: Circuit) -> Self {
         Self {
             circuit,
@@ -69,13 +95,19 @@ impl Simulation {
         }
     }
 
+    ///Run the stored commands.
+    ///
+    ///the commands can be added with xxx.
     pub fn run(&self) -> Result<HashMap<String, HashMap<String, Vec<f64>>>, Error> {
+        if log_enabled!(Level::Debug)  {
+            debug!("run commands:\n{}", self.circuit.controls.join("\n"));
+        }
         let mut cb = Cb::new();
         let ng = NgSpice::new(&mut cb)?;
 
-        ng.circuit(self.circuit.to_str(true).unwrap())?;
+        handle_error!(ng.circuit(self.circuit.to_str(true).unwrap()), cb);
         for c in &self.circuit.controls {
-            ng.command(c)?;
+            handle_error!(ng.command(c), cb);
         }
         let mut plot_result: HashMap<String, HashMap<String, Vec<f64>>> = HashMap::new();
         for plot in ng.all_plots()? {
@@ -105,12 +137,19 @@ impl Simulation {
         Ok(plot_result)
     }
 
+    ///Operating Point Analysis
+    ///
+    /// Compute the DC operating point of the circuit with inductors 
+    /// shorted and capacitorsopened.
     pub fn op(&mut self) -> Result<HashMap<String, Vec<f64>>, Error> {
-        let mut c = Cb::new();
-        let ngspice = NgSpice::new(&mut c)?;
+        if log_enabled!(Level::Debug)  {
+            debug!("run operating point:\n{}", self.circuit.controls.join("\n"));
+        }
+        let mut cb = Cb::new();
+        let ngspice = NgSpice::new(&mut cb)?;
         let circ = self.circuit.to_str(true)?;
-        ngspice.circuit(circ)?;
-        ngspice.command("op")?;
+        handle_error!(ngspice.circuit(circ), cb);
+        handle_error!(ngspice.command("op"), cb);
         let plot = ngspice.current_plot()?;
         let res = ngspice.all_vecs(plot.as_str())?;
         let mut map: HashMap<String, Vec<f64>> = HashMap::new();
@@ -134,21 +173,32 @@ impl Simulation {
             };
             map.insert(name, data1);
         }
-        self.buffer = Some(c.strs.clone());
+        self.buffer = Some(cb.strs.clone());
         Ok(map)
     }
 
+    ///Transient analysis.
+    ///
+    /// ## Arguments
+    /// * `step`   - the starting frequency.
+    /// * `stop`    - the final frequency.
+    /// * `start`  - number of points per decade.
+    ///
+    ///Reference in the [ngspice Documentation](https://ngspice.sourceforge.io/docs/ngspice-41-manual.pdf) in chapter 15.3.10.
     pub fn tran(
         &mut self,
         step: &str,
         stop: &str,
         start: &str,
     ) -> Result<HashMap<String, Vec<f64>>, Error> {
-        let mut c = Cb::new();
-        let ngspice = NgSpice::new(&mut c)?;
+        if log_enabled!(Level::Debug)  {
+            debug!("run transient analysis: step:{}, stop={}, start={}", step, stop, start);
+        }
+        let mut cb = Cb::new();
+        let ngspice = NgSpice::new(&mut cb)?;
         let circ = self.circuit.to_str(true)?;
-        ngspice.circuit(circ)?;
-        ngspice.command(format!("tran {} {} {}", step, stop, start).as_str())?;
+        handle_error!(ngspice.circuit(circ), cb);
+        handle_error!(ngspice.command(format!("tran {} {} {}", step, stop, start).as_str()), cb);
         let plot = ngspice.current_plot()?;
         let res = ngspice.all_vecs(plot.as_str())?;
         let mut map: HashMap<String, Vec<f64>> = HashMap::new();
@@ -172,10 +222,19 @@ impl Simulation {
             };
             map.insert(name, data1);
         }
-        self.buffer = Some(c.strs.clone());
+        self.buffer = Some(cb.strs.clone());
         Ok(map)
     }
 
+    ///Small-Signal AC Analysis
+    ///
+    /// ## Arguments
+    /// * `start_frequency`   - the starting frequency.
+    /// * `stop_frequency`    - the final frequency.
+    /// * `number_of_points`  - number of points per decade.
+    /// * `variation`         - type [dec, oct, lin]
+    ///
+    ///Reference in the [ngspice Documentation](https://ngspice.sourceforge.io/docs/ngspice-41-manual.pdf) in chapter 15.3.1.
     pub fn ac(
         &mut self,
         start_frequency: &str,
@@ -183,11 +242,14 @@ impl Simulation {
         number_of_points: u32,
         variation: &str,
     ) -> Result<HashMap<String, Vec<f64>>, Error> {
-        let mut c = Cb::new();
-        let ngspice = NgSpice::new(&mut c)?;
+        if log_enabled!(Level::Debug)  {
+            debug!("run ac analysis: start frequency:{}, stop frequency={}, points={}, variation={}", start_frequency, stop_frequency, number_of_points, variation);
+        }
+        let mut cb = Cb::new();
+        let ngspice = NgSpice::new(&mut cb)?;
         let circ = self.circuit.to_str(true)?;
-        ngspice.circuit(circ)?;
-        ngspice
+        handle_error!(ngspice.circuit(circ), cb);
+        handle_error!(ngspice
             //DEC ND FSTART FSTOP
             .command(
                 format!(
@@ -195,7 +257,7 @@ impl Simulation {
                     variation, number_of_points, start_frequency, stop_frequency
                 )
                 .as_str(),
-            )?;
+            ), cb);
         let plot = ngspice.current_plot()?;
         let res = ngspice.all_vecs(plot.as_str())?;
         let mut map: HashMap<String, Vec<f64>> = HashMap::new();
@@ -223,7 +285,7 @@ impl Simulation {
                 panic!("Can not run ac with schema.");
             }
         }
-        self.buffer = Some(c.strs.clone());
+        self.buffer = Some(cb.strs.clone());
         Ok(map)
     }
 }

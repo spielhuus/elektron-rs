@@ -1,4 +1,3 @@
-///Parse spice netlist from a sexp schema document.
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -19,7 +18,7 @@ use sexp::{
 };
 
 ///return the pin name, pin and unit number from a libary symbol.
-pub fn pin_names(symbol: &Sexp) -> Result<HashMap<String, (Sexp, usize)>, Error> {
+fn pin_names(symbol: &Sexp) -> Result<HashMap<String, (Sexp, usize)>, Error> {
     let mut pins = HashMap::new();
     for symbol in symbol.query(el::SYMBOL) {
         let unit = utils::unit_number(symbol.get(0).unwrap());

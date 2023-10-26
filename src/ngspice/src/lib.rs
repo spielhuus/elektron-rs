@@ -61,6 +61,8 @@ pub enum NgSpiceError {
     NulError,
     #[error("Integral conversion failed.")]
     TryFromIntFailed,
+    #[error("Spice Error: {0}\n{1}")]
+    Spice(i32, String),
 }
 
 pub struct NgSpice<'a, C> {
@@ -230,6 +232,7 @@ impl<'a, C: Callbacks> NgSpice<'a, C> {
             if ret == 0 {
                 Ok(())
             } else {
+                println!("Command Error: {}", ret);
                 Err(ret.into())
             }
         }
@@ -245,6 +248,7 @@ impl<'a, C: Callbacks> NgSpice<'a, C> {
         buf.push(std::ptr::null_mut());
         unsafe {
             let res = self.ngspice.ngSpice_Circ(buf.as_mut_ptr());
+            println!("finish");
             for b in buf {
                 if !b.is_null() {
                     drop(CString::from_raw(b));

@@ -3,6 +3,18 @@ name = "elektron_rs"
 version = "0.1.0"
 edition = "2021"
 
+[workspace]
+members = [
+    "src/simulation",
+    "src/reports",
+    "src/plotter",
+    "src/draw",
+    "src/notebook",
+    "src/sexp",
+    "src/sexp_macro",
+    "src/ngspice",
+]
+
 [lib]
 name = "elektron"
 path = "src/cli/src/lib.rs"
@@ -34,6 +46,8 @@ viuer = "0.7"
 rust-fuzzy-search = "0.1.1"
 tempfile = "3"
 colored = "2"
+log = "0.4"
+env_logger = "0.10"
 
 [build-dependencies]
 pyo3-build-config = "0.20"

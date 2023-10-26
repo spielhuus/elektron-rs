@@ -1,3 +1,4 @@
+maturin
 sphinx-press-theme
 sphinx
 
