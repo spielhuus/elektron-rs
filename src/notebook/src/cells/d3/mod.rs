@@ -220,7 +220,7 @@ impl CellWrite<D3Cell> for CellWriter {
             .collect::<Vec<&str>>();
 
         let (min_x, max_x) = if let Some(ArgType::String(xdomain)) = args.get("xDomain") {
-            let tokens: Vec<&str> = xdomain.split(',').into_iter().map(|t| t.trim()).collect();
+            let tokens: Vec<&str> = xdomain.split(',').map(|t| t.trim()).collect();
             if tokens.len() == 2 {
                 if let (Ok(min), Ok(max)) = (tokens[0].parse::<f64>(), tokens[1].parse::<f64>()) {
                     Ok((min, max))
@@ -239,7 +239,7 @@ impl CellWrite<D3Cell> for CellWriter {
         }?;
 
         let (min_y, max_y) = if let Some(ArgType::String(ydomain)) = args.get("yDomain") {
-            let tokens: Vec<&str> = ydomain.split(',').into_iter().map(|t| t.trim()).collect();
+            let tokens: Vec<&str> = ydomain.split(',').map(|t| t.trim()).collect();
             if tokens.len() == 2 {
                 if let (Ok(min), Ok(max)) = (tokens[0].parse::<f64>(), tokens[1].parse::<f64>()) {
                     Ok((min, max))

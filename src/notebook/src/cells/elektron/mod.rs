@@ -2,9 +2,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::path::Path;
 
-use crate::{
-    check_directory,
-};
+use crate::check_directory;
 
 use reports::{ 
     drc, erc, bom::BomItem,
@@ -131,14 +129,14 @@ impl CellWrite<ElektronCell> for CellWriter {
                             for item in res {
                                 count += 1;
                                 writeln!(out, "    -").unwrap();
-                                writeln!(out, "       id: {}", item.id.to_string()).unwrap();
-                                writeln!(out, "       severity: {}", item.severity.to_string())
+                                writeln!(out, "       id: {}", item.id).unwrap();
+                                writeln!(out, "       severity: {}", item.severity)
                                     .unwrap();
-                                writeln!(out, "       title: {}", item.title.to_string()).unwrap();
+                                writeln!(out, "       title: {}", item.title).unwrap();
                                 writeln!(
                                     out,
                                     "       description: {}",
-                                    item.description.to_string()
+                                    item.description
                                 )
                                 .unwrap();
                                 writeln!(out, "       pos:").unwrap();

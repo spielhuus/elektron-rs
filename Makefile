@@ -38,14 +38,15 @@ $(VENV)/bin/activate: requirements.txt
 	@[ -z "${PCBNEWSO}" ] && (echo "not linking pcbnew") || ln -s $(PCBNEWSO) $(VENV)/lib/python$(PYVERSION)/site-packages/_pcbnew.so
 
 clean:
-	cd src/ngspice && cargo clean
-	cd src/sexp && cargo clean
-	cd src/sexp_macro && cargo clean
-	cd src/simulation && cargo clean
-	cd src/reports && cargo clean
-	cd src/plotter && cargo clean
-	cd src/draw && cargo clean
-	cd src/notebook && cargo clean
+#	cd src/ngspice && cargo clean
+#	cd src/sexp && cargo clean
+#	cd src/sexp_macro && cargo clean
+#	cd src/simulation && cargo clean
+#	cd src/reports && cargo clean
+#	cd src/plotter && cargo clean
+#	cd src/draw && cargo clean
+#	cd src/notebook && cargo clean
+#
 	cargo clean
 	rm -rf $(VENV)
 	rm -rf src/elektron_rs.egg-info

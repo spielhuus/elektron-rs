@@ -456,28 +456,8 @@ impl PyDraw {
         }
 
         if let Some(filename) = filename {
-            let mut buffer = File::create(filename)?;
-            /* if filename.ends_with(".png") {
-                Plotter::png(
-                    PlotOptions::new(&self.draw.schema, &mut buffer)
-                        .id(id) TODO:
-                        .border(border)
-                        .theme(theme)
-                        .scale(scale)
-                        .netlist(netlist),
-                )?;
-            } else if filename.ends_with(".pdf") {
-                Plotter::pdf(
-                    PlotOptions::new(&self.draw.schema, &mut buffer)
-                        .id(id) TODO:
-                        .border(border)
-                        .theme(theme)
-                        .scale(scale)
-                        .netlist(netlist),
-                )?;
-            } else { */
             let svg_plotter = SvgPlotter::new(id, Some(Themer::new(theme)));
-            let mut buffer = File::create(&filename).unwrap();
+            let mut buffer = File::create(filename).unwrap();
             svg_plotter.plot(
                 &self.draw.schema,
                 &mut buffer,
@@ -486,15 +466,6 @@ impl PyDraw {
                 pages,
                 netlist,
             )?;
-            /* Plotter::svg(
-                PlotOptions::new(&self.draw.schema, &mut buffer)
-                    .id(id) //TODO:
-                    .border(border)
-                    .theme(theme)
-                    .scale(scale)
-                    .netlist(netlist),
-            )?; */
-            //}
             return Ok(None);
         } else {
             let nb = if let Ok(nb) = std::env::var("ELEKTRON_NOTEBOOK") {

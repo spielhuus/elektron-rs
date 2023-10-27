@@ -652,6 +652,7 @@ pub struct Feedback {
     pub height: f64,
     pub dot: Option<Vec<String>>,
 }
+
 #[pymethods]
 impl Feedback {
     #[new]

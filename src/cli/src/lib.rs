@@ -282,7 +282,7 @@ pub fn convert(input: &str, output: &str) -> Result<(), Error> {
 
     env_logger::init();
 
-    check_directory(&output).unwrap();
+    check_directory(output).unwrap();
 
     //prepare env for notebook output
     std::env::set_var("ELEKTRON_NOTEBOOK", "true");
@@ -293,7 +293,7 @@ pub fn convert(input: &str, output: &str) -> Result<(), Error> {
 
     let out: Box<dyn Write> = Box::new(BufWriter::new(File::create(&tmppath).unwrap()));
     let mut runner = Document::new();
-    let res = runner.parse(&input);
+    let res = runner.parse(input);
     match res {
         Ok(_) => {
             if let Err(err) = runner.run(
@@ -314,7 +314,7 @@ pub fn convert(input: &str, output: &str) -> Result<(), Error> {
                 return Err(Error::IoError(format!(
                     "Can not process markdown file {} ({})",
                     input,
-                    err.to_string()
+                    err
                 )));
             }
         }
@@ -322,7 +322,7 @@ pub fn convert(input: &str, output: &str) -> Result<(), Error> {
             return Err(Error::IoError(format!(
                 "Can not open markdown file {} ({})",
                 input,
-                err.to_string()
+                err
             )));
         }
     }
@@ -330,7 +330,7 @@ pub fn convert(input: &str, output: &str) -> Result<(), Error> {
         Err(Error::IoError(format!(
             "Can not write destination markdown file {} ({})",
             output,
-            err.to_string()
+            err
         )))
     } else {
         Ok(())

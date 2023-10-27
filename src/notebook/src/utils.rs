@@ -7,7 +7,6 @@ use rand::{
 pub fn newlines(input: String) -> String {
     input
         .lines()
-        .into_iter()
         .collect::<Vec<&str>>()
         .join("<br/>")
 }
@@ -62,8 +61,11 @@ mod tests {
             .map(char::from)
             .collect();
 
-        assert!(rand_string1.chars().any(|c| matches!(c, 'a'..='z')));
-        assert!(rand_string2.chars().any(|c| matches!(c, 'a'..='z')));
+        /* TODO assert!(rand_string1.chars().any(|c| matches!(c, 'a'..='z')));
+        assert!(rand_string2.chars().any(|c| matches!(c, 'a'..='z'))); */
+
+        assert!(rand_string1.chars().any(|c| c.is_ascii_lowercase()));
+        assert!(rand_string2.chars().any(|c| c.is_ascii_lowercase()));
         assert_ne!(rand_string1, rand_string2);
     }
 }

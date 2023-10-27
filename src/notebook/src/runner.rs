@@ -131,7 +131,7 @@ impl Document {
                         ),
                         Error::VariableNotFound(e) => error(
                             &mut out,
-                            format!("Variable {} not found", e.to_string()).as_str(),
+                            format!("Variable {} not found", e).as_str(),
                             &[],
                             &HashMap::new(),
                         ),
@@ -183,7 +183,7 @@ impl Document {
                             &mut out,
                             format!(
                                 "can not get variable {} from python context.",
-                                e.to_string()
+                                e
                             )
                             .as_str(),
                             &[],
