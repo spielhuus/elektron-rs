@@ -123,7 +123,7 @@ unsafe extern "C" fn controlled_exit<C: Callbacks>(
     let spice = &mut *(context as *mut NgSpice<C>);
     let cb = &mut spice.callbacks;
     spice.exited = true;
-    cb.controlled_exit(status as i32, unload, quit);
+    cb.controlled_exit(status, unload, quit);
     0
 }
 

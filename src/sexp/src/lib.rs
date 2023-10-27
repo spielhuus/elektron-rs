@@ -1,8 +1,13 @@
 //! Library to parse and write the Kicad sexp files.
 //!
+//! The library provides low level acces to the sexp nodes, no model for the kicad data provided.
+//! There are little changes of the sexp structure in every kicad release. For this library not
+//! all datas in the sexp file are used. With this approach we can, hopefully, this library is 
+//! stable over kicad releases.
+//!
 //! # Examples
 //!
-//! Load a Kicad schema:
+//! Load a Kicad schema and access the root node:
 //!
 //! ```
 //! use sexp::{SexpParser, SexpTree};
@@ -99,17 +104,17 @@ impl std::fmt::Display for PaperSize {
 impl std::convert::From<&String> for PaperSize {
     fn from(size: &String) -> Self {
         if size == "A5" {
-            return Self::A5;
+            Self::A5
         } else if size == "A4" {
-            return Self::A4;
+            Self::A4
         } else if size == "A3" {
-            return Self::A3;
+            Self::A3
         } else if size == "A2" {
-            return Self::A2;
+            Self::A2
         } else if size == "A1" {
-            return Self::A1;
+            Self::A1
         } else {
-            return Self::A0;
+            Self::A0
         }
     }
 }
@@ -249,7 +254,7 @@ impl Sexp {
     pub fn query<'a>(&'a self, q: &'a str) -> impl Iterator<Item = &Sexp> + 'a {
         self.nodes.iter().filter_map(move |n|  //TODO only move q https://rust-unofficial.github.io/patterns/idioms/pass-var-to-closure.html
             if let SexpAtom::Node(node) = n {
-                if &node.name == q {
+                if node.name == q {
                     Some(node)
                 } else {
                     None
@@ -262,7 +267,7 @@ impl Sexp {
     pub fn query_mut<'a>(&'a mut self, q: &'a str) -> impl Iterator<Item = &mut Sexp> + 'a {
         self.nodes.iter_mut().filter_map(move |n|  //TODO only move q https://rust-unofficial.github.io/patterns/idioms/pass-var-to-closure.html
             if let SexpAtom::Node(node) = n {
-                if &node.name == q {
+                if node.name == q {
                     Some(node)
                 } else {
                     None
@@ -274,7 +279,7 @@ impl Sexp {
     pub fn has(&self, q: &str) -> bool {
         self.nodes.iter().filter_map(|n| {
             if let SexpAtom::Node(node) = n {
-                if &node.name == q {
+                if node.name == q {
                     Some(node)
                 } else {
                     None
@@ -317,7 +322,7 @@ impl Sexp {
     pub fn has_property(&self, q: &str) -> bool {
         for p in self.query(el::PROPERTY) {
             let name: String = p.get(0).unwrap();
-            if &name == q {
+            if name == q {
                 return true;
             }
         }
@@ -388,7 +393,8 @@ impl<'a> SexpTree {
     }
 }
 
-///Get a sexp property node.
+///Get a sexp property node or value.
+///
 pub trait SexpProperty<E> {
     fn property(&self, q: &str) -> Option<E>;
 }
@@ -398,7 +404,7 @@ impl SexpProperty<String> for Sexp {
     fn property(&self, q: &str) -> Option<String> {
         for p in self.query(el::PROPERTY) {
             let name: String = p.get(0).unwrap();
-            if &name == q {
+            if name == q {
                 let value: String = p.get(1).unwrap();
                 return Some(value);
             }
@@ -406,12 +412,13 @@ impl SexpProperty<String> for Sexp {
         None
     }
 }
+
 ///Get a sexp property node, return the element.
 impl SexpProperty<Sexp> for Sexp {
     fn property(&self, q: &str) -> Option<Sexp> {
         for p in self.query(el::PROPERTY) {
             let name: String = p.get(0).unwrap();
-            if &name == q {
+            if name == q {
                 return Some(p.clone());
             }
         }
@@ -587,14 +594,14 @@ impl SexpValueQuery<bool> for Sexp {
     fn value(&self, q: &str) -> Option<bool> {
         if let Some(node) = self.query(q).next() {
             if let Some(value) = <Sexp as SexpValuesQuery<Vec<String>>>::values(node).get(0) {
-                return Some(value == &"true" || value == &"yes");
+                return Some(value == "true" || value == "yes");
             }
         }
         Some(false)
     }
     fn get(&self, index: usize) -> Option<bool> {
         if let Some(value) = <Sexp as SexpValuesQuery<Vec<String>>>::values(self).get(index) {
-            return Some(value == &"true" || value == &"yes");
+            return Some(value == "true" || value == "yes");
         }
         Some(false)
     }
@@ -869,7 +876,7 @@ pub mod utils {
     use ndarray::{s, Array1};
     use regex::Regex;
 
-    pub fn at<'a>(element: &'a Sexp) -> Option<Array1<f64>> {
+    pub fn at(element: &Sexp) -> Option<Array1<f64>> {
         Some(
             <Sexp as SexpValueQuery<Array1<f64>>>::value(element, el::AT)
                 .unwrap()
@@ -877,7 +884,7 @@ pub mod utils {
         )
     }
 
-    pub fn angle<'a>(element: &'a Sexp) -> Option<f64> {
+    pub fn angle(element: &Sexp) -> Option<f64> {
         element.query(el::AT).next().unwrap().get(2)
     }
 
@@ -908,7 +915,7 @@ pub mod utils {
     }
 
     /// Get all the pins of a library symbol.
-    pub fn pins<'a>(root: &'a Sexp, unit: usize) -> Result<Vec<&'a Sexp>, Error> {
+    pub fn pins(root: &Sexp, unit: usize) -> Result<Vec<&Sexp>, Error> {
         let mut items: Vec<&Sexp> = Vec::new();
         for _unit in root.query(el::SYMBOL) {
             let number = unit_number(_unit.get(0).unwrap());

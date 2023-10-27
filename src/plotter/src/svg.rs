@@ -78,7 +78,7 @@ impl<'a> PlotterImpl<'a, SexpTree> for SvgPlotter<'a> {
         for page in schema_pages.iter().sorted() {
             println!("plot page {} '{}'", page.0, page.1);
 
-            if pages.as_ref().is_none() || pages.as_ref().unwrap().contains(&page.0) {
+            if pages.as_ref().is_none() || pages.as_ref().unwrap().contains(page.0) {
                 let document = if border {
                     let paper_size: (f64, f64) =
                         <Sexp as SexpValueQuery<PaperSize>>::value(schema.root().unwrap(), "paper")

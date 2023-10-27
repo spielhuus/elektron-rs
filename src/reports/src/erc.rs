@@ -104,13 +104,13 @@ pub fn erc(input: &str) -> Result<Vec<ErcItem>, Error> {
 /// * `return`   - Vec<ErcItem> with the errors.
 pub fn erc_from_tree(document: &SexpTree) -> Result<Vec<ErcItem>, Error> {
     let mut results = Vec::new();
-    let elements = symbols(&document);
-    results.append(&mut references(&document, &elements));
+    let elements = symbols(document);
+    results.append(&mut references(document, &elements));
     results.append(&mut values(&elements));
-    let netlist = Netlist::from(&document);
+    let netlist = Netlist::from(document);
     match netlist {
         Ok(netlist) => {
-            results.append(&mut pins(&document, &elements, &netlist));
+            results.append(&mut pins(document, &elements, &netlist));
         }
         Err(netlist) => {
             results.push(ErcItem::from(ErcType::Netlist, &netlist.to_string(), arr1(&[])));
@@ -165,7 +165,7 @@ fn pins(
                                                 symbol,
                                                 el::PROPERTY_REFERENCE
                                             ).unwrap(),
-                                            alphabet[(unit - 1) as usize],
+                                            alphabet[unit - 1],
                                             number,
                                         ),
                                         point,
@@ -207,7 +207,7 @@ fn values(elements: &HashMap<String, Vec<&Sexp>>) -> Vec<ErcItem> {
                 let at = utils::at(symbols.first().unwrap()).unwrap();
                 results.push(ErcItem::from(
                     ErcType::ValuesDiffer, 
-                    &<Sexp as SexpProperty<String>>::property(&symbol, el::PROPERTY_REFERENCE).unwrap(),
+                    &<Sexp as SexpProperty<String>>::property(symbol, el::PROPERTY_REFERENCE).unwrap(),
                     at.clone(),
                 ));
             }

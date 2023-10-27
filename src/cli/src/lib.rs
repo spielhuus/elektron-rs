@@ -80,7 +80,7 @@ pub fn make_bom(
     let results = bom::bom(&tree, group, partlist)?;
 
     if let Some(output) = output {
-        if let Some(ext_pos) = output.find(".") {
+        if let Some(ext_pos) = output.find('.') {
             let ext = output.split_at(ext_pos).1;
             if ext == constant::EXT_JSON {
                 let mut data = json::JsonValue::new_array();
@@ -188,11 +188,11 @@ pub fn plot(input: &str, output: Option<&str>) -> Result<(), Error> {
         //load the sexp file.
         let tree = load_sexp(input)?;
         if let Some(output) = output {
-            if let Some(ext_pos) = output.find(".") {
+            if let Some(ext_pos) = output.find('.') {
                 let ext = output.split_at(ext_pos).1;
                 if ext == constant::EXT_SVG {
                     let svg_plotter = SvgPlotter::new(input, Some(Themer::new(Theme::Kicad2020))); //TODO select theme
-                    let mut buffer = File::create(&output).unwrap(); //TODO handle exception
+                    let mut buffer = File::create(output).unwrap(); //TODO handle exception
                     svg_plotter
                         .plot(&tree, &mut buffer, true, 1.0, None, false)
                         .unwrap();

@@ -7,7 +7,7 @@ mod tests {
         fn test_positions() {
             let doc = SexpParser::load("tests/low_pass_filter.kicad_sch").unwrap();
             let tree = SexpTree::from(doc.iter()).unwrap();
-            let positions = Netlist::positions(&tree.root().unwrap()).unwrap();
+            let positions = Netlist::positions(tree.root().unwrap()).unwrap();
             assert_eq!(11, positions.len());
             let mut iter = positions.iter();
             assert_eq!(Point { x: 54.61, y: 83.82 }, iter.next().unwrap().0);
@@ -27,7 +27,7 @@ mod tests {
         fn test_positions_summe() {
             let doc = SexpParser::load("tests/summe.kicad_sch").unwrap();
             let tree = SexpTree::from(doc.iter()).unwrap();
-            let positions = Netlist::positions(&tree.root().unwrap()).unwrap();
+            let positions = Netlist::positions(tree.root().unwrap()).unwrap();
             assert_eq!(521, positions.len());
         }
         #[test]

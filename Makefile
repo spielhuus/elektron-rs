@@ -49,7 +49,7 @@ clean:
 	cargo clean
 	rm -rf $(VENV)
 	rm -rf src/elektron_rs.egg-info
-	rm -rf src/elektron/elektron_rs.cpython-311-x86_64-linux-gnu.so
+	rm -rf src/elektron/elektron.cpython-311-x86_64-linux-gnu.so
 	rm -rf src/elektron/__pycache__
 	rm -rf build
 	rm -rf target

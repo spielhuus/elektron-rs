@@ -3,9 +3,9 @@ use pyo3::{exceptions::PyOSError, PyErr};
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum Error {
     #[error("{0}")]
-    ReportsError(String),
+    Reports(String),
     #[error("The ngspice simulation returns with an error: {0}")]
-    SpiceSimulationError(String),
+    SpiceSimulation(String),
     #[error("Can not plot file: {0}")]
     PlotterError(String),
 
@@ -114,7 +114,7 @@ impl std::convert::From<sexp::Error> for Error {
 }
 impl std::convert::From<simulation::Error> for Error {
     fn from(err: simulation::Error) -> Self {
-        Error::SpiceSimulationError(err.to_string())
+        Error::SpiceSimulation(err.to_string())
     }
 }
 impl std::convert::From<plotter::Error> for Error {
@@ -129,6 +129,6 @@ impl std::convert::From<draw::Error> for Error {
 }
 impl std::convert::From<reports::Error> for Error {
     fn from(err: reports::Error) -> Self {
-        Error::ReportsError(err.to_string())
+        Error::Reports(err.to_string())
     }
 }
