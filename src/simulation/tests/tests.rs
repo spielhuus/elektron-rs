@@ -1,7 +1,9 @@
 mod tests {
     mod netlist {
-        use sexp::{el, SexpParser, SexpProperty, SexpTree, SexpValueQuery};
-        use simulation::{Netlist, NodePositions, Point};
+        extern crate simulation;
+        extern crate sexp;
+        use self::sexp::{el, SexpParser, SexpProperty, SexpTree, SexpValueQuery};
+        use self::simulation::{Netlist, NodePositions, Point};
         use std::{cell::RefCell, rc::Rc};
         #[test]
         fn test_positions() {
@@ -295,8 +297,10 @@ mod tests {
     }
 
     mod circuit {
-        use sexp::{SexpParser, SexpTree};
-        use simulation::{Circuit, Netlist};
+        extern crate simulation;
+        extern crate sexp;
+        use self::sexp::{SexpParser, SexpTree};
+        use self::simulation::{Circuit, Netlist};
         #[test]
         fn test_circuit() {
             let doc = SexpParser::load("tests/low_pass_filter.kicad_sch").unwrap();

@@ -31,7 +31,7 @@ pub enum Lang {
 }
 
 trait LangDispatch {
-    fn cell(&self, arguments: &HashMap<String, ArgType>, code: &Vec<String>)
+    fn cell(&self, arguments: &HashMap<String, ArgType>, code: &[String])
         -> Result<Cell, Error>;
 }
 
@@ -39,22 +39,22 @@ impl LangDispatch for Lang {
     fn cell(
         &self,
         arguments: &HashMap<String, ArgType>,
-        code: &Vec<String>,
+        code: &[String],
     ) -> Result<Cell, Error> {
         match self {
-            Lang::Audio => Ok(Cell::Audio(AudioCell(arguments.clone(), code.clone()))),
-            Lang::Python => Ok(Cell::Python(PythonCell(arguments.clone(), code.clone()))),
-            Lang::Latex => Ok(Cell::Tikz(TikzCell(arguments.clone(), code.clone()))),
-            Lang::Figure => Ok(Cell::Figure(FigureCell(arguments.clone(), code.clone()))),
-            Lang::Plot => Ok(Cell::Plot(PlotCell(arguments.clone(), code.clone()))),
+            Lang::Audio => Ok(Cell::Audio(AudioCell(arguments.clone(), code.to_vec()))),
+            Lang::Python => Ok(Cell::Python(PythonCell(arguments.clone(), code.to_vec()))),
+            Lang::Latex => Ok(Cell::Tikz(TikzCell(arguments.clone(), code.to_vec()))),
+            Lang::Figure => Ok(Cell::Figure(FigureCell(arguments.clone(), code.to_vec()))),
+            Lang::Plot => Ok(Cell::Plot(PlotCell(arguments.clone(), code.to_vec()))),
             Lang::Javascript => Ok(Cell::Javascript(JavascriptCell(
                 arguments.clone(),
-                code.clone(),
+                code.to_vec(),
             ))),
-            Lang::D3 => Ok(Cell::D3(D3Cell(arguments.clone(), code.clone()))),
+            Lang::D3 => Ok(Cell::D3(D3Cell(arguments.clone(), code.to_vec()))),
             Lang::Elektron => Ok(Cell::Elektron(ElektronCell(
                 arguments.clone(),
-                code.clone(),
+                code.to_vec(),
             ))),
             //TODO: Lang::Circuit => Ok(Cell::Circuit(CircuitCell(arguments.clone(), code.clone()))),
             Lang::Unknown(lang) => Err(Error::LanguageNotSupported(lang.to_string())),

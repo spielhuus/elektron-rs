@@ -1,3 +1,4 @@
+VERSION = 0.0.1
 VENV = $(shell pwd)/.venv
 PYTHON = $(VENV)/bin/python3
 PIP = $(VENV)/bin/pip
@@ -27,7 +28,13 @@ else
   extension :=
 endif
 
-all: $(VENV)/bin/elektron
+all: version test doc build ## run test, doc and build target
+
+build: $(VENV)/bin/elektron ## build and local install.
+
+version: 
+	sed -i 's/^version = \".*\"$$/version = \"$(VERSION)\"/g' Cargo.toml
+	sed -i 's/^version = \".*\"$$/version = \"$(VERSION)\"/g' pyproject.toml
 
 $(VENV)/bin/activate: requirements.txt
 	python3 -m venv $(VENV)
@@ -37,35 +44,23 @@ $(VENV)/bin/activate: requirements.txt
 	@[ -z "${PCBNEW}" ] && (echo "not linking pcbnew") || ln -s $(PCBNEW) $(VENV)/lib/python$(PYVERSION)/site-packages/pcbnew.py
 	@[ -z "${PCBNEWSO}" ] && (echo "not linking pcbnew") || ln -s $(PCBNEWSO) $(VENV)/lib/python$(PYVERSION)/site-packages/_pcbnew.so
 
-clean:
-#	cd src/ngspice && cargo clean
-#	cd src/sexp && cargo clean
-#	cd src/sexp_macro && cargo clean
-#	cd src/simulation && cargo clean
-#	cd src/reports && cargo clean
-#	cd src/plotter && cargo clean
-#	cd src/draw && cargo clean
-#	cd src/notebook && cargo clean
-#
+clean: ## remove all build files.
 	cargo clean
 	rm -rf $(VENV)
-	rm -rf src/elektron_rs.egg-info
-	rm -rf src/elektron/elektron.cpython-311-x86_64-linux-gnu.so
-	rm -rf src/elektron/__pycache__
-	rm -rf build
 	rm -rf target
-	rm -rf dist
 
 $(VENV)/bin/elektron: $(VENV)/bin/activate $(SOURCES)
-	# $(PYTHON) -m pip install -e .
 	${MATURIN} develop
 
-test: $(VENV)/bin/activate $(SOURCES)
+test: $(VENV)/bin/activate $(SOURCES) ## run all the test cases.
 	cargo test --workspace
 
-doc: $(VENV)/bin/activate $(SOURCES)
+doc: $(VENV)/bin/activate $(SOURCES) ## create the rust and sphinx documentation.
 	cargo doc --workspace --no-deps --lib
 	$(SPHINXBUILD) "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) 
-	
-# sdist: $(VENV)/bin/activate
-# 	$(PYTHON) setup.py sdist
+
+.PHONY: help
+
+help:
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+

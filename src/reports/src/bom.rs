@@ -9,7 +9,7 @@
 //! let result = bom(&schema, true, Some(String::from("files/partlist.yaml"))).unwrap();
 //! println!("Items not found {:#?}", result.1);
 //!
-use crate::error::Error;
+use crate::Error;
 use sexp::{SexpProperty, SexpTree, SexpValueQuery};
 use std::collections::HashMap;
 use yaml_rust::{Yaml, YamlLoader};

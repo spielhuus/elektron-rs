@@ -1,17 +1,16 @@
 [package]
-name = "elektron_ngspice"
-version = "0.1.4"
-edition = "2021"
+name = "ngspice"
 description = "ngspice bindings for elektron"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/spielhuus/elektron_ngspice"
+version.workspace = true
+edition.workspace = true 
+license.workspace = true
 
 [lib]
-name = "elektron_ngspice"
+name = "ngspice"
 
 [dependencies]
-libloading = "0.7.3"
-thiserror = "1.0"
+libloading = "0.8"
+thiserror.workspace = true
 
 [build-dependencies]
-bindgen = "0.61.0"
+bindgen = "0"

@@ -1,7 +1,8 @@
 [package]
 name = "reports"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true 
+license.workspace = true
 
 [lib]
 name = "reports"
@@ -9,30 +10,14 @@ name = "reports"
 [dependencies]
 sexp = { path = "../sexp" }
 simulation = { path = "../simulation" }
-pyo3 = { version = "0.20" }
-thiserror = "1.0"
-lazy_static = "1.4.0"
-regex = "1.10"
-# indexmap = "2"
-itertools = "0.11"
-ndarray = "0.15"
-# json = "0.12"
-# diff = "0.1"
-# pest = "2.7"
-# pest_derive = "2.7"
-# tectonic = "0.14"
-# pangocairo = "0.18"
-# simplecss = "0.2"
-rand = "0.8"
-yaml-rust = "0.4"
-xlsxwriter = "0.6"
-# tempfile = "3.6"
-colored = "2"
 
-# [dependencies.uuid]
-# version = "1.4"
-# features = [
-#     "v4",                # Lets you generate random UUIDs
-#     "fast-rng",          # Use a faster (but still sufficiently random) RNG
-#     "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
-# ] 
+pyo3.workspace = true
+thiserror.workspace = true
+lazy_static.workspace = true
+regex.workspace = true
+itertools.workspace = true
+ndarray.workspace = true
+rand.workspace = true
+yaml-rust.workspace = true
+xlsxwriter.workspace = true
+colored.workspace = true

@@ -1,11 +1,11 @@
+//!Math utilities for the shapes.
 use std::collections::HashMap;
 
 use lazy_static::lazy_static;
 use ndarray::{arr1, arr2, s, Array, Array1, Array2};
 
 use crate::{
-    {el, utils, Sexp, SexpValueQuery, SexpValuesQuery},
-    error::Error,
+    {el, utils, Sexp, SexpValueQuery, SexpValuesQuery, Error},
 };
 
 macro_rules! round {

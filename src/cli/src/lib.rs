@@ -1,3 +1,21 @@
+extern crate pyo3;
+extern crate comfy_table;
+extern crate itertools;
+extern crate rust_fuzzy_search;
+extern crate tempfile;
+extern crate colored;
+extern crate thiserror;
+extern crate ndarray;
+extern crate rand;
+extern crate draw;
+extern crate ngspice;
+extern crate notebook;
+extern crate plotter;
+extern crate reports;
+extern crate sexp;
+extern crate sexp_macro;
+extern crate simulation;
+
 use pyo3::prelude::*;
 
 use std::{

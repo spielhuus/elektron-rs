@@ -1,5 +1,4 @@
-/// Draw a schema from code
-/// TODO add sheet_intsance
+//! rust backend for the schema drawer
 mod error;
 mod model;
 
@@ -91,8 +90,7 @@ pub fn from_library(
             .clone(),
     ))?;
 
-    let mut count = 0;
-    for item in library.iter() {
+    for (count, item) in library.iter().enumerate() {
         match item {
             SexpAtom::Node(n) => {
                 if n.name == el::PROPERTY {
@@ -122,7 +120,6 @@ pub fn from_library(
                 }
             }
         };
-        count += 1;
     }
 
     Ok(symbol)
@@ -152,10 +149,10 @@ enum PropertyKey {
 }
 
 lazy_static! {
-    pub static ref RE_FROM_TO: regex::Regex = Regex::new(r"([A-Z]+)\[([\d]+)\.\.([\d]+)").unwrap();
-    pub static ref RE_FROM: regex::Regex = Regex::new(r"([A-Z]+)\[([\d]+)\.\.\]").unwrap();
-    pub static ref RE_TO: regex::Regex = Regex::new(r"([A-Z]+)\[\.\.([\d]+)\]").unwrap();
-    pub static ref RE_KEY: regex::Regex = Regex::new(r"([A-Z]+)([\d]+)").unwrap();
+    static ref RE_FROM_TO: regex::Regex = Regex::new(r"([A-Z]+)\[([\d]+)\.\.([\d]+)").unwrap();
+    static ref RE_FROM: regex::Regex = Regex::new(r"([A-Z]+)\[([\d]+)\.\.\]").unwrap();
+    static ref RE_TO: regex::Regex = Regex::new(r"([A-Z]+)\[\.\.([\d]+)\]").unwrap();
+    static ref RE_KEY: regex::Regex = Regex::new(r"([A-Z]+)([\d]+)").unwrap();
 }
 
 impl PropertyKey {
@@ -541,7 +538,7 @@ impl Draw {
             .next()
             .unwrap()
             .push(SexpAtom::Node(lib.clone()))?;
-        return Ok(lib.clone());
+        Ok(lib.clone())
     }
 
     fn align(&self, position: LabelPosition, angle: f64, mirror: String) -> String {
@@ -1010,7 +1007,7 @@ impl Drawer<Symbol> for Draw {
                     panic!("only allow with 2 pins");
                 }
             } else if let Some(endpin) = utils::pin(&lib_symbol, &end_pin) {
-                let pts = Shape::transform(&symbol, &utils::at(&endpin).unwrap());
+                let pts = Shape::transform(&symbol, &utils::at(endpin).unwrap());
                 self.pos = At::Pos((pts[0], pts[1]));
             }
             symbol

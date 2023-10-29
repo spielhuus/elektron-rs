@@ -14,7 +14,7 @@ use crate::{
 };
 use sexp::{
     el, utils, Sexp, SexpProperty, SexpTree, SexpValueQuery, SexpValuesQuery,
-    Shape, Transform,
+    math::{Shape, Transform},
 };
 
 ///return the pin name, pin and unit number from a libary symbol.
@@ -203,7 +203,7 @@ impl<'a> Netlist<'a> {
         let mut positions: Vec<(Point, NodePositions)> = Vec::new();
         //for node in schema.nodes {
         for symbol in schema.children() {
-            if &symbol.name == el::SYMBOL {
+            if symbol.name == el::SYMBOL {
                 let lib_id: String = symbol.value(el::LIB_ID).unwrap();
                 if lib_id.starts_with("Mechanical:") {
                     continue;
@@ -221,19 +221,19 @@ impl<'a> Netlist<'a> {
                     let point: Point = Shape::transform(symbol, &pin_pos).into();
                     positions.push((point, NodePositions::Pin(point, pin, symbol)));
                 }
-            } else if &symbol.name == el::NO_CONNECT {
+            } else if symbol.name == el::NO_CONNECT {
                 let at: Array1<f64> = symbol.value(el::AT).unwrap();
                 positions.push((
                     arr1(&[at[0], at[1]]).into(),
                     NodePositions::NoConnect(Point::new(at[0], at[1])),
                 ));
-            } else if &symbol.name == el::JUNCTION {
+            } else if symbol.name == el::JUNCTION {
                 let at: Array1<f64> = symbol.value(el::AT).unwrap();
                 positions.push((
                     arr1(&[at[0], at[1]]).into(),
                     NodePositions::Junction(Point::new(at[0], at[1])),
                 ));
-            } else if &symbol.name == el::WIRE {
+            } else if symbol.name == el::WIRE {
                 let pts = symbol.query(el::PTS).next().unwrap();
                 let xy = pts.query(el::XY).collect::<Vec<&Sexp>>();
                 let xy1: Array1<f64> = xy.get(0).unwrap().values();
@@ -242,13 +242,13 @@ impl<'a> Netlist<'a> {
                     Point::new(xy1[0], xy1[1]),
                     NodePositions::Wire(Point::new(xy1[0], xy1[1]), Point::new(xy2[0], xy2[1])),
                 ));
-            } else if &symbol.name == el::LABEL {
+            } else if symbol.name == el::LABEL {
                 let at: Array1<f64> = symbol.value(el::AT).unwrap();
                 positions.push((
                     at.clone().into(),
                     NodePositions::Label(Point::new(at[0], at[1]), symbol),
                 ));
-            } else if &symbol.name == el::GLOBAL_LABEL {
+            } else if symbol.name == el::GLOBAL_LABEL {
                 let at: Array1<f64> = symbol.value(el::AT).unwrap();
                 positions.push((
                     at.clone().into(),
@@ -380,11 +380,10 @@ impl<'a> Netlist<'a> {
                 .unwrap();
             let lib = lib_symbols
                 .query(el::SYMBOL)
-                .filter(|s| {
+                .find(|s| {
                     let name: String = s.get(0).unwrap();
                     name == lib_id
                 })
-                .next()
                 .unwrap();
             let my_pins = pin_names(lib).unwrap();
             let mut pin_sequence: Vec<String> = my_pins.keys().map(|s| s.to_string()).collect();

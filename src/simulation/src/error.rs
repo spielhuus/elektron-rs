@@ -20,8 +20,8 @@ impl std::convert::From<std::io::Error> for Error {
         Error::IoError(err.to_string())
     }
 }
-impl std::convert::From<elektron_ngspice::NgSpiceError> for Error {
-    fn from(err: elektron_ngspice::NgSpiceError) -> Self {
+impl std::convert::From<ngspice::NgSpiceError> for Error {
+    fn from(err: ngspice::NgSpiceError) -> Self {
         Error::IoError(err.to_string())
     }
 }

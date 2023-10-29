@@ -1,7 +1,6 @@
 //! Circuit struct to create the spice directives.
 //!
 //! # Examples
-//!
 //! ```
 //! use sexp::{SexpParser, SexpTree};
 //! 
@@ -195,8 +194,7 @@ impl Circuit {
                     return Err(Error::DirectoryError(
                         path.to_string(),
                         e.to_string(),
-                    )
-                    .into())
+                    ))
                 }
             };
             for entry in content {

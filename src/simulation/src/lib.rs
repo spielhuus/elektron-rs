@@ -1,4 +1,4 @@
-//! Run ngspice simulations from shema.
+//! package to run ngspice simulatations.
 mod error;
 mod circuit;
 mod netlist;

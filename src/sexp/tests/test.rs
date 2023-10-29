@@ -3,7 +3,7 @@ mod tests {
     mod parser {
         use sexp::{
             Sexp, SexpParser, SexpTree, State, SexpValueQuery, SexpValuesQuery, utils, el,
-            Shape, Transform, SexpProperty,
+            SexpProperty, math::{Shape, Transform}, 
         };
         use ndarray::{arr1, Array1, s};
         #[test]
@@ -146,11 +146,10 @@ mod tests {
                 .root()
                 .unwrap()
                 .query(el::SYMBOL)
-                .filter(|s| {
+                .find(|s| {
                     let name: String = s.property("Reference").unwrap();
                     name == "R1"
                 })
-                .next()
                 .unwrap();
 
             let lib = utils::get_library(tree.root().unwrap(), "Device:R").unwrap();

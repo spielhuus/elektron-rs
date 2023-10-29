@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use log::{debug, log_enabled, Level};
 
-use elektron_ngspice::{Callbacks, ComplexSlice, NgSpice, NgSpiceError};
+use ngspice::{Callbacks, ComplexSlice, NgSpice, NgSpiceError};
 
 use crate::{circuit::Circuit, error::Error};
 
@@ -10,7 +10,7 @@ macro_rules! handle_error {
         match $cmd {
             Ok(_) => {}
             Err(error) => match error {
-                elektron_ngspice::NgSpiceError::Unknown(code) => {
+                ngspice::NgSpiceError::Unknown(code) => {
                     return Err(NgSpiceError::Spice(code, $cb.strs.join("\n")).into());
                 }
                 _ => {

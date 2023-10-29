@@ -234,8 +234,9 @@ impl Line {
             panic!("line end: points not set!");
         }
     }
-    #[pyo3(signature = (*args, **kwargs))]
-    pub fn set_points(&mut self, args: ((f64, f64), (f64, f64)), kwargs: Option<&PyDict>) {
+    ///Set the points
+    #[pyo3(signature = (*args))]
+    pub fn set_points(&mut self, args: ((f64, f64), (f64, f64))) {
         self.points = Some(args);
     }
 }

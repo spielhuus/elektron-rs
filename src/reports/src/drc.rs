@@ -15,7 +15,7 @@ use std::env::temp_dir;
 use std::io::prelude::*;
 use std::{fmt, fs::File, io::BufReader};
 
-use crate::error::Error;
+use crate::Error;
 
 lazy_static! {
     pub static ref DRC_TITLE_TOKEN: regex::Regex = Regex::new(r"^\[(.*)\]: (.*)$").unwrap();

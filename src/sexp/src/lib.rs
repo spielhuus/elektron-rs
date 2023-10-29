@@ -1,34 +1,62 @@
 //! Library to parse and write the Kicad sexp files.
 //!
 //! The library provides low level acces to the sexp nodes, no model for the kicad data provided.
-//! There are little changes of the sexp structure in every kicad release. For this library not
-//! all datas in the sexp file are used. With this approach we can, hopefully, this library is 
-//! stable over kicad releases.
 //!
 //! # Examples
 //!
-//! Load a Kicad schema and access the root node:
-//!
 //! ```
+//! // load a Kicad schema and access the root node:
 //! use sexp::{SexpParser, SexpTree};
-//! 
 //! let doc = SexpParser::load("tests/summe.kicad_sch").unwrap();
 //! let tree = SexpTree::from(doc.iter()).unwrap();
 //! let root = tree.root().unwrap();
+//! assert_eq!("kicad_sch", root.name);
+//! 
+//! // get all symbol elements from the document:
+//! use sexp::{el, Sexp};
+//! let symbols = root.query(el::SYMBOL).collect::<Vec<&Sexp>>();
+//! assert_eq!(151, symbols.len());
 //!
+//! // find the symbol with the reference "R1":
+//! use sexp::SexpProperty;
+//! let symbol = tree
+//!     .root()
+//!     .unwrap()
+//!     .query(el::SYMBOL)
+//!     .find(|s| {
+//!         let name: String = s.property(el::PROPERTY_REFERENCE).unwrap();
+//!         name == "R1"
+//!     })
+//!     .unwrap();
+//! assert_eq!(String::from("10"), 
+//!             <Sexp as SexpProperty<String>>::property(
+//!                 symbol, 
+//!                 el::PROPERTY_VALUE
+//!             ).unwrap());
+//! ```
+//! create a document:
+//!
+//! ```
+//! use sexp::{sexp, Builder};
+//! let mut tree = sexp!((kicad_sch (version {sexp::KICAD_SCHEMA_VERSION}) (generator "elektron")
+//!     (uuid "e91be4a5-3c12-4daa-bee2-30f8afcd4ab8")
+//!     (paper r"A4")
+//!     (lib_symbols)
+//! ));
+//! let root = tree.root().unwrap();
 //! assert_eq!("kicad_sch", root.name);
 //! ```
+//! In the last example a sexp model was created. The macro is straight forward. 
+//! sexp supports string and quoted string. To define quoted steings directly when you
+//! define raw strings. When a quoted string should be created from a variable 
+//! xxxxxxxxxxxxxx .
 
 /// Parse and access sexp files.
 use std::{fs, io::Write, str::CharIndices};
 
 use ndarray::{arr1, Array1};
 
-pub mod error;
 pub mod math;
-
-pub use error::Error;
-pub use math::{Shape, Transform};
 
 ///Kicad schema file version
 pub const KICAD_SCHEMA_VERSION: &str = "20211123";
@@ -80,6 +108,21 @@ macro_rules! uuid {
     () => {
         Uuid::new_v4().to_string().as_str()
     };
+}
+
+///Enum of sexp error results.
+#[derive(thiserror::Error, Debug, Clone)]
+pub enum Error {
+    ///Can not manipulate file.
+    #[error("{0}:{1}")]
+    SexpError(String, String),
+    #[error("Can not laod content: {0} ({1})")]
+    IoError(String, String),
+}
+impl std::convert::From<std::io::Error> for Error {
+    fn from(err: std::io::Error) -> Self {
+        Error::IoError(String::from("io::Error"), err.to_string())
+    }
 }
 
 /// The paper siues. DIN pagper sizes are used.
@@ -315,7 +358,7 @@ impl Sexp {
                 }
             }
         }
-        Err(Error::NotFound(String::from("element not found"), name.to_string()))
+        Err(Error::SexpError(String::from("element not found"), name.to_string()))
     }
 
     ///Test if node has a property by key.
@@ -347,9 +390,9 @@ impl<'a> SexpTree {
         if let Some(State::StartSymbol(name)) = iter.next() {
             stack.push((name.to_string(), Sexp::from(name.to_string())));
         } else {
-            return Err(Error::ParseError(String::from(
+            return Err(Error::SexpError(String::from(
                 "document does not start with a start symbol.",
-            )));
+            ), String::from("TODO")));
         };
         loop {
             match iter.next() {
@@ -426,13 +469,13 @@ impl SexpProperty<Sexp> for Sexp {
     }
 }
 
-//get sexp values, will be castet to E.
+///get sexp values, will be castet to E.
 pub trait SexpValuesQuery<E> {
     ///Return values from a node.
     fn values(&self) -> E;
 }
 
-//get sexp values as Strings.
+///get sexp values as Strings.
 impl SexpValuesQuery<Vec<String>> for Sexp {
     ///Return values from a node.
     fn values(&self) -> Vec<String> {
@@ -451,7 +494,7 @@ impl SexpValuesQuery<Vec<String>> for Sexp {
     }
 }
 
-//get sexp values as u16.
+///get sexp values as u16.
 impl SexpValuesQuery<Vec<u16>> for Sexp {
     ///Return a single value from a node.
     fn values(&self) -> Vec<u16> {
@@ -475,7 +518,7 @@ impl SexpValuesQuery<Vec<u16>> for Sexp {
     }
 }
 
-//get sexp values as f64.
+///get sexp values as f64.
 impl SexpValuesQuery<Vec<f64>> for Sexp {
     ///Return a single value from a node.
     fn values(&self) -> Vec<f64> {
@@ -499,7 +542,7 @@ impl SexpValuesQuery<Vec<f64>> for Sexp {
     }
 }
 
-//get sexp values as ndarray f64.
+///get sexp values as ndarray f64.
 impl SexpValuesQuery<Array1<f64>> for Sexp {
     ///Return a single value from a node.
     fn values(&self) -> Array1<f64> {
@@ -732,7 +775,7 @@ impl SexpParser {
     pub fn load(filename: &str) -> Result<Self, Error> {
         match fs::read_to_string(filename)  {
             Ok(content) => Ok(Self::from(content)),
-            Err(err) => Err(Error::FileError(filename.to_string(), err.to_string())),
+            Err(err) => Err(Error::IoError(filename.to_string(), err.to_string())),
         }
     }
     pub fn iter(&self) -> SexpIter<'_> {
@@ -869,13 +912,15 @@ impl<'a> Iterator for SexpIter<'a> {
     }
 }
 
+///Utility methods to access some common nodes.
 pub mod utils {
     use super::{el, Sexp, SexpValueQuery};
-    use crate::error::Error;
+    use crate::Error;
     use lazy_static::lazy_static;
     use ndarray::{s, Array1};
     use regex::Regex;
 
+    ///get the position from the at node.
     pub fn at(element: &Sexp) -> Option<Array1<f64>> {
         Some(
             <Sexp as SexpValueQuery<Array1<f64>>>::value(element, el::AT)
@@ -884,12 +929,13 @@ pub mod utils {
         )
     }
 
+    ///get the angle from the at node.
     pub fn angle(element: &Sexp) -> Option<f64> {
         element.query(el::AT).next().unwrap().get(2)
     }
 
     lazy_static! {
-        pub static ref RE: regex::Regex = Regex::new(r"^.*_(\d*)_(\d*)$").unwrap();
+        static ref RE: regex::Regex = Regex::new(r"^.*_(\d*)_(\d*)$").unwrap();
     }
     /// extract the unit number from the subsymbol name
     pub fn unit_number(name: String) -> usize {
@@ -900,8 +946,7 @@ pub mod utils {
         }
     }
 
-    /// Get all the pins of a library symbol.
-    /// pin number can also be Strings.
+    ///get a pin of a library symbol.
     pub fn pin<'a>(root: &'a Sexp, number: &str) -> Option<&'a Sexp> {
         for _unit in root.query(el::SYMBOL) {
             for pin in _unit.query(el::PIN) {
@@ -914,7 +959,7 @@ pub mod utils {
         None
     }
 
-    /// Get all the pins of a library symbol.
+    ///get all the pins of a library symbol.
     pub fn pins(root: &Sexp, unit: usize) -> Result<Vec<&Sexp>, Error> {
         let mut items: Vec<&Sexp> = Vec::new();
         for _unit in root.query(el::SYMBOL) {
@@ -927,13 +972,13 @@ pub mod utils {
         }
         if items.is_empty() {
             let name: String = root.get(0).unwrap();
-            Err(Error::NoPinsFound(name.clone(), unit))
+            Err(Error::SexpError(name.clone(), unit.to_string()))
         } else {
             Ok(items)
         }
     }
 
-    //get the library from the schema document.
+    ///get the library from the schema document.
     pub fn get_library<'a>(root: &'a Sexp, lib_id: &str) -> Option<&'a Sexp> {
         let libraries: &Sexp = root.query("lib_symbols").next().unwrap();
         let lib: Vec<&Sexp> = libraries
@@ -951,7 +996,7 @@ pub mod utils {
     }
 }
 
-///Internal state of the sexp builder.
+/// internal state of the sexp builder.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum BuilderState {
     StartSymbol(String),
@@ -960,9 +1005,17 @@ pub enum BuilderState {
     Text(String),
 }
 
-///Utility to build a sexp document.
+/// utility to build a sexp document.
+///
+///The sruct us used by the sexp macro. 
 pub struct Builder {
     pub nodes: Vec<BuilderState>,
+}
+
+impl Default for Builder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Builder {
@@ -988,7 +1041,7 @@ impl Builder {
         if let Some(BuilderState::StartSymbol(name)) = iter.next() {
             stack.push((name.to_string(), Sexp::from(name.to_string())));
         } else {
-            return Err(Error::ParseError(String::from("Document does not start with a start symbol.")));
+            return Err(Error::SexpError(String::from("Document does not start with a start symbol."), String::from("TODO")));
         };
         loop {
             match iter.next() {
@@ -1024,6 +1077,7 @@ impl Builder {
     }
 }
 
+///call the sexp document builder macro.
 #[macro_export]
 macro_rules! sexp {
    ($($inner:tt)*) => {
@@ -1053,6 +1107,7 @@ const NO_NEW_LINE: [&str; 13] = [
     "length",
 ];
 
+///Write the document to a Write trait.
 pub trait SexpWriter {
     fn write(&self, out: &mut dyn Write, indent: usize) -> Result<bool, Error>;
 }
@@ -1379,7 +1434,7 @@ mod tests {
         let tree = SexpTree::from(doc.iter()).unwrap();
         let root = tree.root().unwrap();
         root.write(&mut std::io::stdout(), 0).unwrap();
-    }
+    } */
     #[test]
     fn build_document() {
         /* (kicad_sch (version 20211123) (generator elektron)
@@ -1408,10 +1463,10 @@ mod tests {
         document.end();
 
         document.end();
-        let tree = document.sexp();
+        let tree = document.sexp().unwrap();
         tree.root().unwrap().write(&mut std::io::stdout(), 0).unwrap();
 
-    } */
+    }
     #[test]
     fn macro_document() {
         let tree = sexp!(("kicad_sch" ("version" {super::KICAD_SCHEMA_VERSION}) ("generator" "elektron")

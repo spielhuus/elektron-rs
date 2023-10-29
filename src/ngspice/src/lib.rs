@@ -243,12 +243,11 @@ impl<'a, C: Callbacks> NgSpice<'a, C> {
             .iter()
             .map(|s| CString::new(s.as_str()).map(|cs| cs.into_raw()))
             .collect::<Result<Vec<*mut i8>, _>>()?;
-            // ngspice wants an empty string and a nullptr
+        // ngspice wants an empty string and a nullptr
         buf.push(CString::new("").unwrap().into_raw());
         buf.push(std::ptr::null_mut());
         unsafe {
             let res = self.ngspice.ngSpice_Circ(buf.as_mut_ptr());
-            println!("finish");
             for b in buf {
                 if !b.is_null() {
                     drop(CString::from_raw(b));

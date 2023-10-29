@@ -1,19 +1,19 @@
 [package]
 name = "simulation"
-version = "0.2.0"
+version.workspace = true
 edition = "2021"
 
 [lib]
 name = "simulation"
 
 [dependencies]
-elektron_ngspice = { path = "../ngspice" }
+ngspice = { path = "../ngspice" }
 sexp_macro = { path = "../sexp_macro" }
 sexp = { path = "../sexp" }
-thiserror = "1.0"
-lazy_static = "1.4.0"
-regex = "1.10"
-indexmap = "2"
-ndarray = "0.15"
-log = "0.4"
-env_logger = "0.10"
+
+thiserror.workspace = true
+lazy_static.workspace = true
+regex.workspace = true
+ndarray.workspace = true
+log.workspace = true
+indexmap.workspace = true

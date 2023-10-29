@@ -12,7 +12,7 @@
 use std::collections::HashMap;
 
 use xlsxwriter::{Workbook, Worksheet};
-use crate::{bom::BomItem, error::Error};
+use crate::{bom::BomItem, Error};
 
 use colored::*;
 

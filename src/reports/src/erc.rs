@@ -12,8 +12,8 @@ use std::{collections::HashMap, fmt};
 use itertools::Itertools;
 use ndarray::{Array1, arr1};
 
-use crate::error::Error;
-use sexp::{Shape, Transform};
+use crate::Error;
+use sexp::math::{Shape, Transform};
 use simulation::{Netlist, Point};
 
 use sexp::{el, utils, Sexp, SexpProperty, SexpTree, SexpValueQuery, SexpParser};

@@ -1,7 +1,8 @@
 [package]
 name = "draw"
-version = "0.2.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true 
+license.workspace = true
 
 [lib]
 name = "draw"
@@ -10,16 +11,10 @@ name = "draw"
 sexp = { path = "../sexp" }
 sexp_macro = { path = "../sexp_macro" }
 reports = { path = "../reports" }
-thiserror = "1.0"
-lazy_static = "1.4.0"
-regex = "1.10"
-ndarray = "0.15"
-pyo3 = { version = "0.20" }
 
-[dependencies.uuid]
-version = "1.4"
-features = [
-    "v4",                # Lets you generate random UUIDs
-    "fast-rng",          # Use a faster (but still sufficiently random) RNG
-    "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
-] 
+thiserror.workspace = true
+lazy_static.workspace = true
+regex.workspace = true
+ndarray.workspace = true
+pyo3.workspace = true 
+uuid.workspace = true
