@@ -1,7 +1,8 @@
 [package]
 name = "plotter"
-version = "0.2.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true 
+license.workspace = true
 
 [lib]
 name = "plotter"
@@ -24,9 +25,9 @@ rand.workspace = true
 font-kit.workspace = true
 pathfinder_geometry.workspace = true
 
-pangocairo = "0.18"
-cairo-rs = { version = "0.18", features = ["svg", "png", "pdf"] }
-png = "0.17"
-svg = "0.14"
-pdf = "0.8"
-simplecss = "0.2"
+pangocairo.workspace = true
+cairo-rs.workspace = true
+png.workspace = true
+svg.workspace = true
+pdf.workspace = true
+simplecss.workspace = true

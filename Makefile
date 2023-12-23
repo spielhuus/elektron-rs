@@ -1,4 +1,4 @@
-VERSION = 0.0.1
+VERSION = 0.0.2
 VENV = $(shell pwd)/.venv
 PYTHON = $(VENV)/bin/python3
 PIP = $(VENV)/bin/pip
