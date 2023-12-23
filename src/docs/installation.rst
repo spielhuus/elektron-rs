@@ -1,12 +1,10 @@
 Installation
 ============
 
-
 Python Version
 --------------
 
 We recommend using the latest version of Python.
-
 
 Dependencies
 ------------
@@ -21,12 +19,25 @@ Optional dependencies
 ~~~~~~~~~~~~~~~~~~~~~
 
 
+Installation from pip
+~~~~~~~~~~~~~~~~~~~~~
+
+schemdraw can be installed from pip using
+
+.. code-block:: bash
+
+    pip install elektron-rs
+
+
 Installation from source
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 Get the source from github:
 
-git clone https://github.com/spielhuus/elektron.git
-cd elektron
-make
-source .venv/bin/activate
+.. code-block:: bash
+
+   git clone https://github.com/spielhuus/elektron.git
+   cd elektron
+   make
+   source .venv/bin/activate
+

@@ -96,7 +96,7 @@ impl Parser {
                         SexpState::Value => {
                             let builder = self.sexp_builder.clone().unwrap();
                             let value = t.to_string();
-                            if value.starts_with("r") {
+                            if value.starts_with('r') {
                                 let value = value.split('"').nth(1).unwrap_or("");
                                 out.push(quote!{
                                     #builder.text(#value);

@@ -58,7 +58,7 @@ mod tests {
                     iter.next(); //take first symbol
                     while let Some(state) = iter.next_siebling() {
                         if let State::StartSymbol(name) = state {
-                            if name == "symbol" {
+                            if name == el::SYMBOL {
                                 if let Some(State::Text(id)) = iter.next() {
                                     if id == "TL072" {
                                         count += 1;
@@ -115,7 +115,7 @@ mod tests {
             let doc = SexpParser::load("tests/summe.kicad_sch").unwrap();
             let tree = SexpTree::from(doc.iter()).unwrap();
             let root = tree.root().unwrap();
-            let res = root.query("symbol").collect::<Vec<&Sexp>>();
+            let res = root.query(el::SYMBOL).collect::<Vec<&Sexp>>();
             assert_eq!(151, res.len());
         }
         #[test]
@@ -123,7 +123,7 @@ mod tests {
             let doc = SexpParser::load("tests/summe.kicad_sch").unwrap();
             let tree = SexpTree::from(doc.iter()).unwrap();
             let root = tree.root().unwrap();
-            let res = root.query("symbol").collect::<Vec<&Sexp>>();
+            let res = root.query(el::SYMBOL).collect::<Vec<&Sexp>>();
             assert_eq!(
                 arr1(&[48.26, 43.18]),
                 utils::at(res.get(0).unwrap()).unwrap()
@@ -134,7 +134,7 @@ mod tests {
             let doc = SexpParser::load("tests/summe.kicad_sch").unwrap();
             let tree = SexpTree::from(doc.iter()).unwrap();
             let root = tree.root().unwrap();
-            let res = root.query("symbol").collect::<Vec<&Sexp>>();
+            let res = root.query(el::SYMBOL).collect::<Vec<&Sexp>>();
             assert_eq!(0.0, utils::angle(res.get(0).unwrap()).unwrap());
         }
         #[test]
@@ -177,11 +177,10 @@ mod tests {
                 .root()
                 .unwrap()
                 .query(el::SYMBOL)
-                .filter(|s| {
+                .find(|s| {
                     let name: String = s.property("Reference").unwrap();
                     name == "R2"
                 })
-                .next()
                 .unwrap();
 
             let lib = utils::get_library(tree.root().unwrap(), "Device:R").unwrap();
@@ -209,11 +208,10 @@ mod tests {
                 .root()
                 .unwrap()
                 .query(el::SYMBOL)
-                .filter(|s| {
+                .find(|s| {
                     let name: String = s.property("Reference").unwrap();
                     name == "R3"
                 })
-                .next()
                 .unwrap();
 
             let lib = utils::get_library(tree.root().unwrap(), "Device:R").unwrap();
@@ -241,11 +239,10 @@ mod tests {
                 .root()
                 .unwrap()
                 .query(el::SYMBOL)
-                .filter(|s| {
+                .find(|s| {
                     let name: String = s.property("Reference").unwrap();
                     name == "R4"
                 })
-                .next()
                 .unwrap();
 
             let lib = utils::get_library(tree.root().unwrap(), "Device:R").unwrap();
@@ -273,11 +270,10 @@ mod tests {
                 .root()
                 .unwrap()
                 .query(el::SYMBOL)
-                .filter(|s| {
+                .find(|s| {
                     let name: String = s.property("Reference").unwrap();
                     name == "R3"
                 })
-                .next()
                 .unwrap();
 
             let lib = utils::get_library(tree.root().unwrap(), "Device:R").unwrap();
@@ -297,48 +293,73 @@ mod tests {
             assert_eq!(arr1(&[63.5, 25.4]), pos);
         }
     }
-    /* mod math {
-        use ndarray::{arr1, s, Array1};
-        use sexp::{el, utils, Sexp, SexpParser, SexpProperty, SexpTree, SexpValueQuery};
-        use sexp::{Shape, Transform};
+    mod math {
+        use ndarray::{arr2, arr1};
+        use sexp::{Builder, SexpParser, SexpTree, SexpValueQuery, SexpProperty, utils, math::{Bounds, CalcArc, MathUtils, normalize_angle}, el};
+
         #[test]
         fn shape_opamp_a() {
-            let doc = Schema::load("files/opamp.kicad_sch").unwrap();
-            let symbol = doc.get_symbol("U1", 1).unwrap();
-            let lib_symbol = doc.get_library("Amplifier_Operational:TL072").unwrap();
+            let doc = SexpParser::load("tests/opamp.kicad_sch").unwrap();
+            let tree = SexpTree::from(doc.iter()).unwrap();
+            let symbol = tree
+                .root()
+                .unwrap()
+                .query(el::SYMBOL)
+                .find(|s| {
+                    let unit: usize = s.value(el::SYMBOL_UNIT).unwrap();
+                    let name: String = s.property("Reference").unwrap();
+                    name == "U1" && unit == 1
+                })
+                .unwrap();
+            let lib_symbol = utils::get_library(tree.root().unwrap(), "Amplifier_Operational:TL072").unwrap();
             let size = symbol.bounds(lib_symbol).unwrap();
             assert_eq!(arr2(&[[-7.62, -5.08], [7.62, 5.08]]), size)
         }
         #[test]
         fn shape_opamp_c() {
-            let doc = Schema::load("files/opamp.kicad_sch").unwrap();
-            let symbol = doc.get_symbol("U1", 3).unwrap();
-            let lib_symbol = doc.get_library("Amplifier_Operational:TL072").unwrap();
+            let doc = SexpParser::load("tests/opamp.kicad_sch").unwrap();
+            let tree = SexpTree::from(doc.iter()).unwrap();
+            let symbol = tree
+                .root()
+                .unwrap()
+                .query(el::SYMBOL)
+                .find(|s| {
+                    let unit: usize = s.value(el::SYMBOL_UNIT).unwrap();
+                    let name: String = s.property("Reference").unwrap();
+                    name == "U1" && unit == 3
+                })
+                .unwrap();
+            let lib_symbol = utils::get_library(tree.root().unwrap(), "Amplifier_Operational:TL072").unwrap();
+
             let size = symbol.bounds(lib_symbol).unwrap();
             assert_eq!(arr2(&[[-2.54, -7.62], [-2.54, 7.62]]), size)
         }
         #[test]
         fn shape_r() {
-            let doc = Schema::load("files/opamp.kicad_sch").unwrap();
-            let symbol = doc.get_symbol("R1", 1).unwrap();
-            let lib_symbol = doc.get_library("Device:R").unwrap();
+            let doc = SexpParser::load("tests/opamp.kicad_sch").unwrap();
+            let tree = SexpTree::from(doc.iter()).unwrap();
+            let symbol = tree
+                .root()
+                .unwrap()
+                .query(el::SYMBOL)
+                .find(|s| {
+                    let name: String = s.property("Reference").unwrap();
+                    name == "R1"
+                })
+                .unwrap();
+            let lib_symbol = utils::get_library(tree.root().unwrap(), "Device:R").unwrap();
+
             let size = symbol.bounds(lib_symbol).unwrap();
             assert_eq!(arr2(&[[-1.016, -3.81], [1.016, 3.81]]), size)
         }
         #[test]
         fn calc_arc() {
-            /* (arc (start 0 0.508) (mid -0.508 0) (end 0 -0.508)
-                (stroke (width 0.1524) (type default) (color 0 0 0 0))
-                (fill (type none))
-            ) */
+            let arc = sexp::sexp!((arc (start "0" "0.508") (mid "-0.508" "0") (end "0" "-0.508")
+                (stroke (width "0.1524") (type "default") (color "0" "0" "0" "0"))
+                (fill (type "none"))
+            ));
 
-            let arc: Arc = Arc {
-                start: arr1(&[0.0, 0.508]),
-                mid: arr1(&[-0.508, 0.0]),
-                end: arr1(&[0.0, -0.508]),
-                stroke: Stroke::new(),
-                fill_type: String::new(),
-            };
+            let arc = arc.root().unwrap();
             assert_eq!(0.508, arc.radius());
             assert_eq!(arr1(&[0.0, 0.0]), arc.center());
             assert_eq!(90.0, arc.start_angle());
@@ -346,29 +367,20 @@ mod tests {
         }
         #[test]
         fn calc_arc_center1() {
-            /* (arc (start 0 0.508) (mid -0.508 0) (end 0 -0.508)
-                (stroke (width 0.1524) (type default) (color 0 0 0 0))
-                (fill (type none))
-            ) */
-
-            let arc: Arc = Arc {
-                start: arr1(&[38.1, -69.85]),
-                mid: arr1(&[31.75, -63.5]),
-                end: arr1(&[25.4, -69.85]),
-                stroke: Stroke::new(),
-                fill_type: String::new(),
-            };
+            let arc = sexp::sexp!((arc (start "38.1" "-69.85") (mid "31.75" "-63.5") (end "25.4" "-69.85")
+                (stroke (width "0.1524") (type "default") (color "0" "0" "0" "0"))
+                (fill (type "none"))
+            ));
+            let arc = arc.root().unwrap();
             assert_eq!(arr1(&[31.75, -69.85]), arc.center());
         }
         #[test]
         fn calc_arc_center2() {
-            let arc: Arc = Arc {
-                start: arr1(&[-44196.0, -38100.0]),
-                mid: arr1(&[-32033.0, 0.0]),
-                end: arr1(&[-44196.0, 38100.0]),
-                stroke: Stroke::new(),
-                fill_type: String::new(),
-            };
+            let arc = sexp::sexp!((arc (start "-44196.0" "-38100.0") (mid "-32033.0" "0.0") (end "-44196.0" "38100.0")
+                (stroke (width "0.1524") (type "default") (color "0" "0" "0" "0"))
+                (fill (type "none"))
+            ));
+            let arc = arc.root().unwrap();
             assert_eq!(arr1(&[-97787.6891803009, 0.0]), arc.center());
         }
         #[test]
@@ -383,11 +395,5 @@ mod tests {
             assert_eq!(arr1(&[0.0, 10.0]), MathUtils::projection(&arr1(&[0.0, 0.0]), 90.0, 10.0));
             assert_eq!(arr1(&[-10.0, 0.0]), MathUtils::projection(&arr1(&[0.0, 0.0]), 180.0, 10.0));
         } 
-        #[test]
-        fn test_angle_to_segment_count() {
-            assert_eq!(14, MathUtils::arc_to_segment_count(200000.0, 5000, 360.0));
-            assert_eq!(21, MathUtils::arc_to_segment_count(450000.0, 5000, 360.0));
-        }
-
-    } */
+    }
 }

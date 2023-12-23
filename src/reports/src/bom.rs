@@ -10,7 +10,7 @@
 //! println!("Items not found {:#?}", result.1);
 //!
 use crate::Error;
-use sexp::{SexpProperty, SexpTree, SexpValueQuery};
+use sexp::{SexpProperty, SexpTree, SexpValueQuery, el};
 use std::collections::HashMap;
 use yaml_rust::{Yaml, YamlLoader};
 
@@ -163,8 +163,8 @@ pub fn bom(
     let mut bom_items: Vec<BomItem> = Vec::new();
     let mut missing_items: Vec<BomItem> = Vec::new();
 
-    for item in document.root()?.query(&"symbol") {
-        let unit: usize = item.value("unit").unwrap_or_else(|| 1);
+    for item in document.root()?.query(el::SYMBOL) {
+        let unit: usize = item.value("unit").unwrap_or(1);
         let lib_id: String = item.value("lib_id").unwrap();
         let on_board: bool = item.value("on_board").unwrap();
         let in_bom: bool = item.value("in_bom").unwrap();
@@ -208,8 +208,8 @@ pub fn bom(
             map.entry(key).or_default().push(item);
         }
         bom_items = map
-            .iter()
-            .map(|(_, value)| {
+            .values()
+            .map(|value| {
                 let mut refs: Vec<String> = Vec::new();
                 for v in value {
                     refs.push(v.references.get(0).unwrap().to_string());

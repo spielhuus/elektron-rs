@@ -277,7 +277,7 @@ impl Dot {
         }
         panic!("unknown type for at: {:?}", reference);
     }
-    pub fn push<'py>(mut slf: PyRefMut<'py, Self>) -> PyRefMut<'py, Self> {
+    pub fn push(mut slf: PyRefMut<Self>) -> PyRefMut<Self> {
         slf.pushed = true;
         slf
     }
@@ -285,7 +285,7 @@ impl Dot {
 
 ///No Connect, used to stisfy the ERC check.
 #[pyclass]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Nc {
     pub pos: Vec<f64>,
     pub atref: Option<(String, String)>,
@@ -564,14 +564,24 @@ impl Element {
         slf.mirror = Some(mirror);
         slf
     }
-    ///place property, possible values are north, n, northeast, ne...
+    ///place property, possible values are offset tuple or position by name: north, n, northeast, ne...
     pub fn label<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
-        pos: String,
+        pos: &'_ PyAny,
     ) -> PyRefMut<'py, Self> {
-        slf.label = Some(pos);
-        slf
+
+        let name: Result<String, PyErr> = pos.extract();
+        if let Ok(name) = name {
+            slf.label = Some(name);
+            return slf;
+        }
+        let offset: Result<(f64, f64), PyErr> = pos.extract();
+        if let Ok(offset) = offset {
+            slf.label = Some(format!("{},{}", offset.0, offset.1));
+            return slf;
+        }
+        panic!("unknown type for label postion: {:?}", pos);
     }
 }
 
@@ -645,7 +655,7 @@ impl Power {
 
 ///Feedback
 #[pyclass]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Feedback {
     pub atref: Option<(String, String)>,
     pub toref: Option<(String, String)>,

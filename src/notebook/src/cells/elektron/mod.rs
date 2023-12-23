@@ -4,16 +4,10 @@ use std::path::Path;
 
 use crate::check_directory;
 
-use reports::{ 
-    drc, erc, bom::BomItem,
-};
+use reports::{bom::BomItem, drc, erc};
 
+use plotter::{gerber, pcb::{LAYERS, plot_pcb}, svg::SvgPlotter, themer::Themer, PlotterImpl};
 use sexp::{SexpParser, SexpTree};
-use plotter::{
-    svg::SvgPlotter,
-    themer::Themer,
-    PlotterImpl, plot_pcb, gerber,
-};
 
 use super::super::cells::{CellWrite, CellWriter};
 use super::super::parser::ArgType;
@@ -46,65 +40,57 @@ impl CellWrite<ElektronCell> for CellWriter {
                 } else {
                     None
                 };
-                if let Some(ArgType::List(input)) = args.get("input") {
-                    let mut missing: Vec<BomItem> = Vec::new();
-                    writeln!(out, "bom:").unwrap();
-                    for input in input {
-                        let input_file = Path::new(&source)
-                            .join(input)
-                            .join(format!("{}.kicad_sch", input))
-                            .to_str()
-                            .unwrap()
-                            .to_string();
+                let Some(ArgType::List(input)) = args.get("input") else {
+                    return Err(Error::NoInputFile());
+                };
+                let mut missing: Vec<BomItem> = Vec::new();
+                writeln!(out, "bom:").unwrap();
+                for input in input {
+                    let input_file = Path::new(&source)
+                        .join(input)
+                        .join(format!("{}.kicad_sch", input))
+                        .to_str()
+                        .unwrap()
+                        .to_string();
 
-                        let doc = SexpParser::load(input_file.as_str()).unwrap();
-                        let tree = SexpTree::from(doc.iter()).unwrap();
-                        let res = reports::bom::bom(&tree, group, partlist.clone());
+                    let doc = SexpParser::load(input_file.as_str()).unwrap();
+                    let tree = SexpTree::from(doc.iter()).unwrap();
+                    let res = reports::bom::bom(&tree, group, partlist.clone());
 
-                        match res {
-                            Ok(res) => {
-                                if let Some(mut m) = res.1 {
-                                    missing.append(&mut m);
-                                }
-                                //output the bom as frontmatter
-                                writeln!(out, "  {}:", input).unwrap();
-                                for item in res.0 {
-                                    writeln!(out, "    -").unwrap();
-                                    writeln!(out, "       amount: {}", item.amount).unwrap();
-                                    writeln!(out, "       value: {}", item.value).unwrap();
-                                    writeln!(
-                                        out,
-                                        "       references: {}",
-                                        item.references.join(" ")
-                                    )
-                                    .unwrap();
-                                    writeln!(out, "       description: {}", item.description)
-                                        .unwrap();
-                                    writeln!(out, "       footprint: {}", item.footprint).unwrap();
-                                }
+                    match res {
+                        Ok(res) => {
+                            if let Some(mut m) = res.1 {
+                                missing.append(&mut m);
                             }
-                            Err(err) => {
-                                panic!("can not create bom: {:?}", err);
+                            //output the bom as frontmatter
+                            writeln!(out, "  {}:", input).unwrap();
+                            for item in res.0 {
+                                writeln!(out, "    -").unwrap();
+                                writeln!(out, "       amount: {}", item.amount).unwrap();
+                                writeln!(out, "       value: {}", item.value).unwrap();
+                                writeln!(out, "       references: {}", item.references.join(" ")).unwrap();
+                                writeln!(out, "       description: {}", item.description).unwrap();
+                                writeln!(out, "       footprint: {}", item.footprint).unwrap();
                             }
                         }
+                        Err(err) => {
+                            return Err(Error::IoError(format!("can not create bom: {:?}", err)));
+                        }
                     }
-                    writeln!(out, "bom_missing:").unwrap();
-                    writeln!(out, "  items:").unwrap();
-                    let mut count = 0;
-                    for item in missing {
-                        writeln!(out, "    -").unwrap();
-                        writeln!(out, "       amount: {}", item.amount).unwrap();
-                        writeln!(out, "       value: {}", item.value).unwrap();
-                        writeln!(out, "       references: {}", item.references.join(" ")).unwrap();
-                        writeln!(out, "       description: {}", item.description).unwrap();
-                        writeln!(out, "       footprint: {}", item.footprint).unwrap();
-                        count += 1;
-                    }
-                    writeln!(out, "  count: {}", count).unwrap();
-                    Ok(())
-                } else {
-                    Err(Error::NoInputFile())
                 }
+                writeln!(out, "bom_missing:").unwrap();
+                writeln!(out, "  items:").unwrap();
+                for item in &missing {
+                    writeln!(out, "    -").unwrap();
+                    writeln!(out, "       amount: {}", item.amount).unwrap();
+                    writeln!(out, "       value: {}", item.value).unwrap();
+                    writeln!(out, "       references: {}", item.references.join(" ")).unwrap();
+                    writeln!(out, "       description: {}", item.description).unwrap();
+                    writeln!(out, "       footprint: {}", item.footprint).unwrap();
+                }
+                writeln!(out, "  count: {}", missing.len()).unwrap();
+                Ok(())
+
             } else if command == "drc" {
                 if let Some(ArgType::List(input)) = args.get("input") {
                     writeln!(out, "drc:").unwrap();
@@ -116,7 +102,6 @@ impl CellWrite<ElektronCell> for CellWriter {
                             .to_str()
                             .unwrap()
                             .to_string();
-
 
                         let res = match drc::drc(input_file) {
                             Ok(res) => res,
@@ -130,15 +115,9 @@ impl CellWrite<ElektronCell> for CellWriter {
                                 count += 1;
                                 writeln!(out, "    -").unwrap();
                                 writeln!(out, "       id: {}", item.id).unwrap();
-                                writeln!(out, "       severity: {}", item.severity)
-                                    .unwrap();
+                                writeln!(out, "       severity: {}", item.severity).unwrap();
                                 writeln!(out, "       title: {}", item.title).unwrap();
-                                writeln!(
-                                    out,
-                                    "       description: {}",
-                                    item.description
-                                )
-                                .unwrap();
+                                writeln!(out, "       description: {}", item.description).unwrap();
                                 writeln!(out, "       pos:").unwrap();
                                 writeln!(out, "       -").unwrap();
                                 writeln!(out, "         x: {}", item.position.0).unwrap();
@@ -172,11 +151,8 @@ impl CellWrite<ElektronCell> for CellWriter {
                             for item in res {
                                 writeln!(out, "    -").unwrap();
                                 writeln!(out, "       reference: {}", item.reference).unwrap();
-                                writeln!(
-                                    out,
-                                    "       description: No Reference for symbol."
-                                )
-                                .unwrap();
+                                writeln!(out, "       description: No Reference for symbol.")
+                                    .unwrap();
                                 writeln!(out, "       at: {}:{}", item.at[0], item.at[1]).unwrap();
 
                                 /* match item {
@@ -227,65 +203,66 @@ impl CellWrite<ElektronCell> for CellWriter {
                                         writeln!(out, "       at: {}:{}", at[0], at[1]).unwrap();
                                     }
                                 } */
-                            } 
-                        } 
+                            }
+                        }
                     }
                     writeln!(out, "  count: {}", count).unwrap();
                     Ok(())
                 } else {
                     Err(Error::NoInputFile())
                 }
+
             } else if command == "schema" {
+
                 let out_dir = Path::new(dest).join("_files");
-                let border = if let Some(ArgType::String(group)) = args.get("border") {
-                    group == "TRUE" || group == "true"
-                } else {
-                    false
+                let Some(ArgType::List(input)) = args.get("input") else {
+                    return Err(Error::NoInputFile());
                 };
-                if let Some(ArgType::List(input)) = args.get("input") {
-                    writeln!(out, "schema:").unwrap();
-                    for input in input {
-                        let input_file = Path::new(&source)
-                            .join(input)
-                            .join(format!("{}.kicad_sch", input))
-                            .to_str()
-                            .unwrap()
-                            .to_string();
-                        let output_file = out_dir
-                            .join(format!("{}_schema.svg", input))
-                            .to_str()
-                            .unwrap()
-                            .to_string();
+                writeln!(out, "schema:").unwrap();
+                for input in input {
+                    let input_file = Path::new(&source)
+                        .join(input)
+                        .join(format!("{}.kicad_sch", input))
+                        .to_str()
+                        .unwrap()
+                        .to_string();
+                    let output_file = out_dir
+                        .join(format!("{}_schema.svg", input))
+                        .to_str()
+                        .unwrap()
+                        .to_string();
 
-                        let doc = SexpParser::load(input_file.as_str()).unwrap();
-                        let tree = SexpTree::from(doc.iter()).unwrap();
+                    let doc = SexpParser::load(input_file.as_str()).unwrap();
+                    let tree = SexpTree::from(doc.iter()).unwrap();
 
-                        let svg_plotter = SvgPlotter::new(
-                            input_file.as_str(),
-                            Some(Themer::new(param_or!(args, "theme", "").into())),
-                        );
+                    let svg_plotter = SvgPlotter::new(
+                        input_file.as_str(),
+                        Some(Themer::new(param_or!(args, "theme", "").into())),
+                    );
 
-                        check_directory(&output_file)?;
-                        let mut buffer = File::create(&output_file)?;
-                        svg_plotter
-                            .plot(&tree, &mut buffer, border, 1.0, None, false) //TODO select pages
-                            .unwrap();
+                    check_directory(&output_file)?;
+                    let mut buffer = File::create(&output_file)?;
+                    svg_plotter
+                        .plot(&tree, &mut buffer, super::flag!(args, "border", false), 
+                              str::parse::<f64>(param_or!(args, "scale", "1.0")).unwrap(), 
+                              None,  //TODO select pages
+                              false)
+                        .unwrap();
 
-                        writeln!(out, "  {}: {}", input, output_file).unwrap();
-                    }
-                    Ok(())
-                } else {
-                    Err(Error::NoInputFile())
+                    writeln!(out, "  {}: {}", input, output_file).unwrap();
                 }
+                Ok(())
+                    
             } else if command == "pcb" {
                 let out_dir = Path::new(dest).join("_files");
-                let border = if let Some(ArgType::String(group)) = args.get("border") {
-                    group == "TRUE" || group == "true"
+                let layers = if let Some(ArgType::List(layers)) = args.get("layers") {
+                    Some(layers)
                 } else {
-                    false
+                    None
                 };
                 if let Some(ArgType::List(input)) = args.get("input") {
                     writeln!(out, "pcb:").unwrap();
+
                     for input in input {
                         let input_file = Path::new(&source)
                             .join(input)
@@ -299,8 +276,29 @@ impl CellWrite<ElektronCell> for CellWriter {
                             .unwrap()
                             .to_string();
 
-                        plot_pcb(input_file.to_string(), output_file.to_string())?;
-                        writeln!(out, "  {}: {}", input, output_file).unwrap();
+                        let size = plot_pcb(
+                            input_file.to_string(),
+                            output_file.to_string(),
+                            layers,
+                            None,
+                        )?;
+
+                        writeln!(out, "  -").unwrap();
+                        writeln!(out, "    name: {}", input).unwrap();
+                        writeln!(out, "    file: {}", output_file).unwrap();
+                        writeln!(out, "    width: {}", size.0).unwrap();
+                        writeln!(out, "    height: {}", size.1).unwrap();
+                        writeln!(out, "    layers:").unwrap();
+                        if let Some(layers) = layers {
+                            for layer in layers {
+                                writeln!(out, "    - {}", layer).unwrap();
+                            }
+                        } else {
+                            for layer in LAYERS {
+                                writeln!(out, "    - {}", layer).unwrap();
+                            }
+
+                        }
                     }
                     Ok(())
                 } else {

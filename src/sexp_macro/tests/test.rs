@@ -1,5 +1,6 @@
 use sexp_macro::parse_sexp;
 
+#[derive(Default)]
 pub struct Builder {
     pub nodes: Vec<String>,
 }
@@ -56,7 +57,7 @@ fn with_property() {
     let mut builder = Builder::new();
     let k = String::from(r"param key");
     let v = String::from(r"param value");
-    let pos = vec![0.0, 0.0];
+    let pos = [0.0, 0.0];
     parse_sexp!(builder, ("property" !{k.as_str()} !{v.as_str()} ("at" {pos[0].to_string().as_str()} {pos[1].to_string().as_str()} "0")
         ("effects" ("font" ("size" "1.27" "1.27")) "hide")));
     assert_eq!(vec!["Node(property)", "Text(param key)", "Text(param value)", "Node(at)", "Value(0)", "Value(0)", "Value(0)", "End()", "Node(effects)", "Node(font)", "Node(size)", "Value(1.27)", "Value(1.27)", "End()", "End()", "Value(hide)", "End()", "End()"], builder.nodes);
@@ -66,7 +67,7 @@ fn unquoted() {
     let mut builder = Builder::new();
     let k = String::from(r"param key");
     let v = String::from(r"param value");
-    let pos = vec![0.0, 0.0];
+    let pos = [0.0, 0.0];
     parse_sexp!(builder, (property !{k.as_str()} !{v.as_str()} (at {pos[0].to_string().as_str()} {pos[1].to_string().as_str()} "0")
         ("effects" ("font" ("size" "1.27" "1.27")) "hide")));
     assert_eq!(vec!["Node(property)", "Text(param key)", "Text(param value)", "Node(at)", "Value(0)", "Value(0)", "Value(0)", "End()", "Node(effects)", "Node(font)", "Node(size)", "Value(1.27)", "Value(1.27)", "End()", "End()", "Value(hide)", "End()", "End()"], builder.nodes);

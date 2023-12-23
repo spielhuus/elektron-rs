@@ -1,6 +1,6 @@
 //! Library to parse and write the Kicad sexp files.
 //!
-//! The library provides low level acces to the sexp nodes, no model for the kicad data provided.
+//! The library provides low level acces to the sexp nodes, no model for the kicad data is provided.
 //!
 //! # Examples
 //!
@@ -11,7 +11,7 @@
 //! let tree = SexpTree::from(doc.iter()).unwrap();
 //! let root = tree.root().unwrap();
 //! assert_eq!("kicad_sch", root.name);
-//! 
+//!
 //! // get all symbol elements from the document:
 //! use sexp::{el, Sexp};
 //! let symbols = root.query(el::SYMBOL).collect::<Vec<&Sexp>>();
@@ -28,9 +28,9 @@
 //!         name == "R1"
 //!     })
 //!     .unwrap();
-//! assert_eq!(String::from("10"), 
+//! assert_eq!(String::from("10"),
 //!             <Sexp as SexpProperty<String>>::property(
-//!                 symbol, 
+//!                 symbol,
 //!                 el::PROPERTY_VALUE
 //!             ).unwrap());
 //! ```
@@ -46,10 +46,11 @@
 //! let root = tree.root().unwrap();
 //! assert_eq!("kicad_sch", root.name);
 //! ```
-//! In the last example a sexp model was created. The macro is straight forward. 
+//! In the last example a sexp model was created. The macro is straight forward.
 //! sexp supports string and quoted string. To define quoted steings directly when you
-//! define raw strings. When a quoted string should be created from a variable 
-//! xxxxxxxxxxxxxx .
+//! define raw strings. When a quoted string should be created this can either be done
+//! with a raw String (`r"some text"`) or when it is created from a variable with a 
+//! bang (`!{variable}`, `!{func(param)}`).
 
 /// Parse and access sexp files.
 use std::{fs, io::Write, str::CharIndices};
@@ -73,6 +74,8 @@ pub mod el {
     pub const GRAPH_CIRCLE: &str = "circle";
     pub const GRAPH_POLYLINE: &str = "polyline";
     pub const GRAPH_RECTANGLE: &str = "rectangle";
+    pub const GRAPH_START: &str = "start";
+    pub const GRAPH_END: &str = "end";
     pub const JUNCTION: &str = "junction";
     pub const JUSTIFY: &str = "justify";
     pub const JUSTIFY_LEFT: &str = "left";
@@ -87,6 +90,8 @@ pub mod el {
     pub const PROPERTY_VALUE: &str = "Value";
     pub const PIN: &str = "pin";
     pub const PIN_NUMBER: &str = "number";
+    pub const PIN_NAMES: &str = "pin_names";
+    pub const PIN_NAME: &str = "name";
     pub const PTS: &str = "pts";
     pub const SHEET_INSTANCES: &str = "sheet_instances";
     pub const SYMBOL: &str = "symbol";
@@ -295,32 +300,7 @@ impl Sexp {
     }
     ///query child nodes for elements by name.
     pub fn query<'a>(&'a self, q: &'a str) -> impl Iterator<Item = &Sexp> + 'a {
-        self.nodes.iter().filter_map(move |n|  //TODO only move q https://rust-unofficial.github.io/patterns/idioms/pass-var-to-closure.html
-            if let SexpAtom::Node(node) = n {
-                if node.name == q {
-                    Some(node)
-                } else {
-                    None
-                }
-            } else {
-                None
-            })
-    }
-    ///query child for elements by name and return mutable iterator.
-    pub fn query_mut<'a>(&'a mut self, q: &'a str) -> impl Iterator<Item = &mut Sexp> + 'a {
-        self.nodes.iter_mut().filter_map(move |n|  //TODO only move q https://rust-unofficial.github.io/patterns/idioms/pass-var-to-closure.html
-            if let SexpAtom::Node(node) = n {
-                if node.name == q {
-                    Some(node)
-                } else {
-                    None
-                }
-            } else {
-                None
-            })
-    }
-    pub fn has(&self, q: &str) -> bool {
-        self.nodes.iter().filter_map(|n| {
+        self.nodes.iter().filter_map(move |n| {
             if let SexpAtom::Node(node) = n {
                 if node.name == q {
                     Some(node)
@@ -330,7 +310,38 @@ impl Sexp {
             } else {
                 None
             }
-        }).count() > 0
+        })
+    }
+    ///query child for elements by name and return mutable iterator.
+    pub fn query_mut<'a>(&'a mut self, q: &'a str) -> impl Iterator<Item = &mut Sexp> + 'a {
+        self.nodes.iter_mut().filter_map(move |n| {
+            if let SexpAtom::Node(node) = n {
+                if node.name == q {
+                    Some(node)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+    }
+    pub fn has(&self, q: &str) -> bool {
+        self.nodes
+            .iter()
+            .filter_map(|n| {
+                if let SexpAtom::Node(node) = n {
+                    if node.name == q {
+                        Some(node)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .count()
+            > 0
     }
 
     ///set the child at index, will replace the existing element.
@@ -348,7 +359,7 @@ impl Sexp {
         self.nodes.insert(index, element);
         Ok(())
     }
-    ///Removes the element by name within the vector, shifting all elements after it to the left. 
+    ///Removes the element by name within the vector, shifting all elements after it to the left.
     pub fn remove(&mut self, name: &str) -> Result<(), Error> {
         for (i, e) in self.nodes.iter().enumerate() {
             if let SexpAtom::Node(node) = e {
@@ -358,7 +369,10 @@ impl Sexp {
                 }
             }
         }
-        Err(Error::SexpError(String::from("element not found"), name.to_string()))
+        Err(Error::SexpError(
+            String::from("element not found"),
+            name.to_string(),
+        ))
     }
 
     ///Test if node has a property by key.
@@ -380,7 +394,6 @@ pub struct SexpTree {
 }
 
 impl<'a> SexpTree {
-
     ///parse a sexp document for SexpParser Iterator.
     pub fn from<I>(mut iter: I) -> Result<Self, Error>
     where
@@ -390,9 +403,10 @@ impl<'a> SexpTree {
         if let Some(State::StartSymbol(name)) = iter.next() {
             stack.push((name.to_string(), Sexp::from(name.to_string())));
         } else {
-            return Err(Error::SexpError(String::from(
-                "document does not start with a start symbol.",
-            ), String::from("TODO")));
+            return Err(Error::SexpError(
+                String::from("Document does not start with a start symbol."), 
+                String::from("from item")
+            ));
         };
         loop {
             match iter.next() {
@@ -570,8 +584,8 @@ impl SexpValuesQuery<Array1<f64>> for Sexp {
 
 ///Get a single sexp value.
 ///
-///Get a sexp value by name or index. 
-///There could be multiple values, the 
+///Get a sexp value by name or index.
+///There could be multiple values, the
 ///first is returned.
 pub trait SexpValueQuery<E> {
     ///Return the first value from a node by name.
@@ -773,7 +787,7 @@ impl SexpParser {
     }
     ///Load the SEXP tree into memory.
     pub fn load(filename: &str) -> Result<Self, Error> {
-        match fs::read_to_string(filename)  {
+        match fs::read_to_string(filename) {
             Ok(content) => Ok(Self::from(content)),
             Err(err) => Err(Error::IoError(filename.to_string(), err.to_string())),
         }
@@ -800,6 +814,7 @@ impl<'a> SexpIter<'a> {
             int_state: IntState::NotStarted,
         }
     }
+    ///Seek to the next siebling of the current node.
     pub fn next_siebling(&mut self) -> Option<State<'a>> {
         let mut count: usize = 1;
         loop {
@@ -837,7 +852,7 @@ impl<'a> SexpIter<'a> {
 
 impl<'a> Iterator for SexpIter<'a> {
     type Item = State<'a>;
-
+    ///Get the next node.
     fn next(&mut self) -> Option<Self::Item> {
         if self.int_state == IntState::BeforeEndSymbol {
             self.int_state = IntState::Values;
@@ -937,6 +952,7 @@ pub mod utils {
     lazy_static! {
         static ref RE: regex::Regex = Regex::new(r"^.*_(\d*)_(\d*)$").unwrap();
     }
+
     /// extract the unit number from the subsymbol name
     pub fn unit_number(name: String) -> usize {
         if let Some(line) = RE.captures_iter(&name).next() {
@@ -980,7 +996,7 @@ pub mod utils {
 
     ///get the library from the schema document.
     pub fn get_library<'a>(root: &'a Sexp, lib_id: &str) -> Option<&'a Sexp> {
-        let libraries: &Sexp = root.query("lib_symbols").next().unwrap();
+        let libraries: &Sexp = root.query(el::LIB_SYMBOLS).next().unwrap();
         let lib: Vec<&Sexp> = libraries
             .nodes()
             .filter(|l| {
@@ -1007,7 +1023,7 @@ pub enum BuilderState {
 
 /// utility to build a sexp document.
 ///
-///The sruct us used by the sexp macro. 
+///The sruct us used by the sexp macro.
 pub struct Builder {
     pub nodes: Vec<BuilderState>,
 }
@@ -1041,7 +1057,10 @@ impl Builder {
         if let Some(BuilderState::StartSymbol(name)) = iter.next() {
             stack.push((name.to_string(), Sexp::from(name.to_string())));
         } else {
-            return Err(Error::SexpError(String::from("Document does not start with a start symbol."), String::from("TODO")));
+            return Err(Error::SexpError(
+                String::from("Document does not start with a start symbol."),
+                String::from("sexp"),
+            ));
         };
         loop {
             match iter.next() {
@@ -1158,10 +1177,7 @@ impl SexpWriter for Sexp {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-            sexp, SexpParser, SexpWriter,
-            State,
-    };
+    use crate::{sexp, SexpParser, SexpWriter, State};
 
     use super::Builder;
 
@@ -1428,13 +1444,6 @@ mod tests {
         assert_eq!(count, 14);
         assert_eq!(ends, 0);
     }
-    /* #[test]
-    fn write_document() {
-        let doc = SexpParser::load("files/summe/summe.kicad_sch").unwrap();
-        let tree = SexpTree::from(doc.iter()).unwrap();
-        let root = tree.root().unwrap();
-        root.write(&mut std::io::stdout(), 0).unwrap();
-    } */
     #[test]
     fn build_document() {
         /* (kicad_sch (version 20211123) (generator elektron)
@@ -1464,12 +1473,15 @@ mod tests {
 
         document.end();
         let tree = document.sexp().unwrap();
-        tree.root().unwrap().write(&mut std::io::stdout(), 0).unwrap();
-
+        tree.root()
+            .unwrap()
+            .write(&mut std::io::stdout(), 0)
+            .unwrap();
     }
     #[test]
     fn macro_document() {
-        let tree = sexp!(("kicad_sch" ("version" {super::KICAD_SCHEMA_VERSION}) ("generator" "elektron")
+        let tree =
+            sexp!(("kicad_sch" ("version" {super::KICAD_SCHEMA_VERSION}) ("generator" "elektron")
             ("uuid" "e91be4a5-3c12-4daa-bee2-30f8afcd4ab8")
             ("paper" r"A4")
             ("lib_symbols")
@@ -1481,7 +1493,8 @@ mod tests {
     }
     #[test]
     fn remove_element() {
-        let mut tree = sexp!(("kicad_sch" ("version" {super::KICAD_SCHEMA_VERSION}) ("generator" "elektron")
+        let mut tree =
+            sexp!(("kicad_sch" ("version" {super::KICAD_SCHEMA_VERSION}) ("generator" "elektron")
             ("uuid" "e91be4a5-3c12-4daa-bee2-30f8afcd4ab8")
             ("paper" r"A4")
             ("lib_symbols")

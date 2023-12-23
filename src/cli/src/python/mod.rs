@@ -288,6 +288,7 @@ impl PyDraw {
                 item.call_method1("set_points", ((xy1[0], xy1[1]), (xy2[0], xy2[1])))?;
 
             } else {
+                //TODO create error
                 println!("no wire returned");
             }
 
@@ -403,7 +404,7 @@ impl PyDraw {
     #[pyo3(signature = (**kwargs))]
     pub fn plot(&mut self, kwargs: Option<&PyDict>) -> Result<Option<Vec<Vec<u8>>>, Error> {
         let mut filename: Option<&str> = None;
-        let mut id = "not_set"; //TODO
+        let mut id = "not_set";
         let mut border = false;
         let mut scale = 1.0;
         let mut pages: Option<Vec<usize>> = None;
@@ -420,7 +421,7 @@ impl PyDraw {
             if let Ok(Some(item)) = kwargs.get_item("id") {
                 let item: Result<&str, PyErr> = item.extract();
                 if let Ok(item) = item {
-                    id = item //Some(item);
+                    id = item;
                 }
             }
             if let Ok(Some(item)) = kwargs.get_item("border") {

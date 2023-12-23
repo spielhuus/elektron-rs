@@ -284,7 +284,6 @@ mod tests {
             let doc = SexpParser::load("tests/summe.kicad_sch").unwrap();
             let tree = SexpTree::from(doc.iter()).unwrap();
             let netlist = Netlist::from(&tree).unwrap();
-            println!("{:#?}", netlist.nodes);
             assert_eq!(118, netlist.nodes.len());
         }
         #[test]

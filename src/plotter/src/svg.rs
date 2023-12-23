@@ -1,3 +1,4 @@
+//! Draw the model with svglib
 use crate::{
     error::Error,
     Theme,
@@ -17,6 +18,8 @@ use svg::node::element::path::Data;
 use svg::node::element::Path;
 use svg::node::Node;
 use svg::{node, node::element, Document};
+
+use log::{debug, log_enabled, Level};
 
 /// Plotter implemntation for SVG files.
 pub struct SvgPlotter<'a> {
@@ -76,8 +79,9 @@ impl<'a> PlotterImpl<'a, SexpTree> for SvgPlotter<'a> {
 
         //and finally plot the pages.
         for page in schema_pages.iter().sorted() {
-            println!("plot page {} '{}'", page.0, page.1);
-
+            if log_enabled!(Level::Info)  {
+                debug!("plot page {} '{}'", page.0, page.1);
+            }
             if pages.as_ref().is_none() || pages.as_ref().unwrap().contains(page.0) {
                 let document = if border {
                     let paper_size: (f64, f64) =
@@ -85,7 +89,7 @@ impl<'a> PlotterImpl<'a, SexpTree> for SvgPlotter<'a> {
                             .unwrap()
                             .into();
 
-                    let plot_items = crate::plot(schema, &netlist, Some(paper_size));
+                    let plot_items = crate::schema::plot(schema, &netlist, Some(paper_size));
 
                     let mut document = Document::new()
                         .set("viewBox", (0, 0, paper_size.0, paper_size.1))
@@ -106,7 +110,7 @@ impl<'a> PlotterImpl<'a, SexpTree> for SvgPlotter<'a> {
                     }
                     document
                 } else {
-                    let plot_items = crate::plot(schema, &netlist, None);
+                    let plot_items = crate::schema::plot(schema, &netlist, None);
 
                     let size = self.bounds(
                         &plot_items,
@@ -145,7 +149,7 @@ impl<'a> PlotterImpl<'a, SexpTree> for SvgPlotter<'a> {
 }
 
 impl<'a> Draw<element::Group> for SvgPlotter<'a> {
-    fn draw(&self, items: &Vec<PlotItem>, document: &mut element::Group) {
+    fn draw(&self, items: &[PlotItem], document: &mut element::Group) {
         items
             .iter()
             .sorted_by(|a, b| {
@@ -216,10 +220,11 @@ impl<'a> Drawer<Text, element::Group> for SvgPlotter<'a> {
             .set("text-anchor", align)
             .set("class", text.class.iter().map(|i| i.to_string()).join(" "))
             .add(node::Text::new(text.text.clone()));
+
         if text.effects.justify.contains(&"top".to_string()) {
-            t = t.set("alignment-baseline", "hanging");
+            t = t.set("dominant-baseline", "hanging");
         } else if !text.effects.justify.contains(&"bottom".to_string()) {
-            t = t.set("alignment-baseline", "middle");
+            t = t.set("dominant-baseline", "middle");
         }
         document.append(t);
     }
@@ -310,7 +315,9 @@ impl<'a> Drawer<Circle, element::Group> for SvgPlotter<'a> {
                 "class",
                 circle.class.iter().map(|i| i.to_string()).join(" "),
             );
-        c = c.set("style", format!("stroke-width: {};", circle.stroke.linewidth));
+        if circle.stroke.linewidth != 0.0 {
+            c = c.set("style", format!("stroke-width: {};", circle.stroke.linewidth));
+        }
         if no_fill(&circle.class) {
             c = c.set("fill", "none");
         }
@@ -352,7 +359,7 @@ impl<'a> Drawer<Arc, element::Group> for SvgPlotter<'a> {
             }
         }
         if let Some(fill) = fill {
-            let c = element::Path::new() //TODO
+            let c = element::Path::new()
                 .set(
                     "d",
                     format!(
@@ -372,7 +379,7 @@ impl<'a> Drawer<Arc, element::Group> for SvgPlotter<'a> {
                 .set("class", fill.to_string());
             document.append(c);
         }
-        let mut c = element::Path::new() //TODO
+        let mut c = element::Path::new()
             .set(
                 "d",
                 format!(
@@ -389,10 +396,10 @@ impl<'a> Drawer<Arc, element::Group> for SvgPlotter<'a> {
             )
             .set("fill", "none")
             .set("class", arc.class.iter().map(|i| i.to_string()).join(" "));
-        /* if let Some(width) = arc.width {
-            c = c.set("stroke-width", width);
-        } */
-        c = c.set("stroke-width", arc.stroke.linewidth); //TODO could be zero
+
+        if arc.stroke.linewidth != 0.0 {
+            c = c.set("stroke-width", arc.stroke.linewidth);
+        }
         document.append(c);
     }
 }

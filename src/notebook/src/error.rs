@@ -26,63 +26,6 @@ pub enum Error {
     NoInputFile(),
     #[error("File manipulatuion error {0}.")]
     IoError(String),
-
-    /* #[error("Element Not Found {0}: {1}")]
-    NotFound(String, String),
-    #[error("Can not parse file: {0}")]
-    ParseError(String),
-    #[error("Can not laod content: {0}")]
-    FileReadError(String),
-    #[error("No pins found in {0} for unit {1}")]
-    NoPinsFound(String, usize),
-    #[error("Can not laod content: {0} ({1})")]
-    FileError(String, String), */
-    /* // sexp errors
-    #[error("Library not found {0}.")]
-    LibraryNotFound(String),
-    #[error("Symbol not found {0}.")]
-    SymbolNotFound(String),
-    #[error("Pin {1} not found {0}")]
-    PinNotFound(String, String),
-    #[error("No pins found in {0} for unit {1}")]
-    NoPinsFound(String, usize),
-
-    //draw errors
-    #[error("Name not set in {0}")]
-    Name(String),
-    #[error("Unknown Element in {0}: {1}")]
-    Unknown(String, String),
-    #[error("Position not found {0}")]
-    PositionNotFound(String),
-
-    //notebook
-
-    // spice
-    #[error("Unknown circuit element {0}")]
-    UnknownCircuitElement(String),
-    #[error("Spice model not found: {0}")]
-    SpiceModelNotFound(String),
-
-    //draw
-    #[error("Draw Error: \"{0}\"")]
-    Draw(String),
-
-    #[error("Cannot convert int.")]
-    ConvertInt {
-        //TODO:
-        #[from]
-        source: std::num::ParseIntError,
-        //backtrace: Backtrace,
-    },
-    #[error("Cannot convert float.")]
-    ConvertFloat {
-        #[from]
-        source: std::num::ParseFloatError,
-    },
-    #[error("File not found {0}.")]
-    FileNotFound(String),
-    #[error("File manipulatuion error {0}.")]
-    IoError(String), */
     #[error("NgSpice Error: \"{0}\"")]
     NgSpiceError(String),
 }

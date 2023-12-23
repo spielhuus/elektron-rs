@@ -147,7 +147,7 @@ impl<'a> Themer<'a> {
                     for decl in &rule.declarations {
                         if decl.name == "font" {
                             for token in decl.value.split(' ') {
-                                if !token.ends_with("pt") {
+                                if !token.ends_with("pt") && !token.ends_with("px") {
                                     if token.ends_with(',') {
                                         return token.strip_suffix(',').unwrap().to_string();
                                     } else {
@@ -221,16 +221,27 @@ impl<'a> Themer<'a> {
         None
     }
     fn parse_color(&self, color: &str) -> Result<(f64, f64, f64, f64), Error> {
-        let content = color
-            .strip_prefix("rgb(")
-            .unwrap()
-            .strip_suffix(')')
-            .unwrap();
+        let content = if color.starts_with("rgba") {
+            color
+                .strip_prefix("rgba(")
+                .unwrap()
+                .strip_suffix(')')
+                .unwrap()
+        } else {
+            color
+                .strip_prefix("rgb(")
+                .unwrap()
+                .strip_suffix(')')
+                .unwrap()
+        };
         let res: Vec<f64> = content
             .split(',')
             .map(|c| c.trim().parse::<f64>().unwrap() / 255.0)
             .collect();
         Ok((res[0], res[1], res[2], 1.0))
+    }
+    pub fn hex_color(&self, color: (f64, f64, f64, f64)) -> String {
+        format!("#{:x}{:x}{:x}", (color.0 * 255.0) as i16, (color.1 * 255.0) as i16, (color.2 * 255.0) as i16)
     }
 }
 
@@ -295,5 +306,15 @@ mod tests {
             themer.font(None, &vec![Style::Property])
         );
         assert_eq!(1.25, themer.font_size(None, &vec![Style::Property]));
+    }
+    #[test]
+    fn hex_color() {
+        let themer = Themer::new(Theme::Kicad2020);
+        assert_eq!(
+            (77.0  / 255.0, 127.0 / 255.0, 196.0 / 255.0, 1.0),
+            themer.stroke(&vec![Style::BCu])
+        );
+        assert_eq!("#4d7fc4", themer.hex_color(themer.stroke(&vec![Style::BCu])));
+
     }
 }

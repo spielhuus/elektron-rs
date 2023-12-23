@@ -1,3 +1,12 @@
+//! these methods are exposed over the python APi. 
+//! these methods are exposed over the python APi. 
+//! these methods are exposed over the python APi. 
+//! these methods are exposed over the python APi. 
+//! these methods are exposed over the python APi. 
+//! these methods are exposed over the python APi. 
+//! these methods are exposed over the python APi. 
+//! these methods are exposed over the python APi. 
+//!
 extern crate pyo3;
 extern crate comfy_table;
 extern crate itertools;
@@ -16,6 +25,7 @@ extern crate sexp;
 extern crate sexp_macro;
 extern crate simulation;
 
+use log::info;
 use pyo3::prelude::*;
 
 use std::{
@@ -39,7 +49,7 @@ mod python;
 
 use crate::error::Error;
 
-use sexp::{SexpParser, SexpTree, State};
+use sexp::{SexpParser, SexpTree, State, el};
 use notebook::Document;
 use plotter::{
     cairo_plotter::{CairoPlotter, ImageType},
@@ -60,7 +70,7 @@ mod constant {
     pub const EXT_EXCEL: &str = ".xls";
 }
 
-fn check_directory(filename: &str) -> Result<(), Error> {
+pub fn check_directory(filename: &str) -> Result<(), Error> {
     let path = std::path::Path::new(filename);
     let parent = path.parent();
     if let Some(parent) = parent {
@@ -85,7 +95,7 @@ fn load_sexp(input: &str) -> Result<SexpTree, Error> {
 /// * `input`    - A Schema filename.
 /// * `group`    - group equal items.
 /// * `partlist` - A YAML file with the parts description (Optional).
-/// * `return`   - Tuple with a Vec<BomItem> and the items not found
+/// * `return`   - Tuple with a `Vec<BomItem>` and the items not found
 ///                in the partlist, when provided.
 #[pyfunction]
 pub fn make_bom(
@@ -94,6 +104,8 @@ pub fn make_bom(
     output: Option<String>,
     partlist: Option<String>,
 ) -> Result<(), Error> {
+    env_logger::init();
+    info!("Write BOM: input:{}, output:{:?}", input, output);
     let tree = load_sexp(input)?;
     let results = bom::bom(&tree, group, partlist)?;
 
@@ -202,7 +214,9 @@ pub fn make_bom(
 /// * `output`   - The filename of the target image.
 #[pyfunction]
 pub fn plot(input: &str, output: Option<&str>) -> Result<(), Error> {
+    env_logger::init();
     if input.ends_with(constant::EXT_KICAD_SCH) {
+        info!("Write schema: input:{}, output:{:?}", input, output);
         //load the sexp file.
         let tree = load_sexp(input)?;
         if let Some(output) = output {
@@ -252,7 +266,12 @@ pub fn plot(input: &str, output: Option<&str>) -> Result<(), Error> {
             println!("no output file");
         }
     } else if input.ends_with(".kicad_pcb") {
-        //TODO
+        info!("Write PCB: input:{}, output:{:?}", input, output);
+        if let Some(output) = output {
+            plotter::pcb::plot_pcb(input.to_string(), output.to_string(), None /* TODO */, None)?; //TODO set layers
+        } else {
+            println!("no output file");
+        }
     } else {
         return Err(Error::IoError(format!(
             "{} Input file does not exist: {}",
@@ -260,6 +279,20 @@ pub fn plot(input: &str, output: Option<&str>) -> Result<(), Error> {
             input
         )));
     }
+    Ok(())
+}
+
+/// create the 3d model.
+///
+/// # Arguments
+///
+/// * `input`    - A Schema filename.
+/// * `output`   - The filename of the target image.
+#[pyfunction]
+pub fn make_vrml(input: &str, output: &str) -> Result<(), Error> {
+    env_logger::init();
+    info!("Write VRML: input:{}, output:{}", input, output);
+    plotter::vrml::vrml(input.to_string(), output.to_string())?;
     Ok(())
 }
 
@@ -299,6 +332,7 @@ pub fn make_spice(input: &str, path: Vec<String>, output: Option<String>) -> Res
 pub fn convert(input: &str, output: &str) -> Result<(), Error> {
 
     env_logger::init();
+    info!("Write notebook: input:{}, output:{:?}", input, output);
 
     check_directory(output).unwrap();
 
@@ -500,7 +534,7 @@ pub fn search(term: &str, path: Vec<String>) -> Result<(), Error> {
                             iter.next(); //take first symbol
                             while let Some(state) = iter.next_siebling() {
                                 if let State::StartSymbol(name) = state {
-                                    if name == "symbol" {
+                                    if name == el::SYMBOL {
                                         if let Some(State::Text(id)) = iter.next() {
                                             let score: f32 = fuzzy_compare(
                                                 &id.to_lowercase(),
@@ -575,6 +609,7 @@ fn elektron(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(convert))?;
     m.add_wrapped(wrap_pyfunction!(make_erc))?;
     m.add_wrapped(wrap_pyfunction!(make_drc))?;
+    m.add_wrapped(wrap_pyfunction!(make_vrml))?;
     m.add_wrapped(wrap_pyfunction!(search))?;
     m.add_class::<crate::python::PyDraw>()?;
     m.add_class::<crate::python::model::Line>()?;

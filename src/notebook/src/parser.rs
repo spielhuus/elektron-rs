@@ -72,7 +72,6 @@ pub enum State {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ArgType {
     String(String),
-    Number(String),
     List(Vec<String>),
     Options(HashMap<String, ArgType>),
 }
@@ -83,9 +82,6 @@ impl std::fmt::Display for ArgType {
         match self {
             ArgType::String(string) => {
                 write!(f, "{}", string)
-            }
-            ArgType::Number(number) => {
-                write!(f, "{}", number)
             }
             ArgType::List(list) => {
                 for l in list {
@@ -151,7 +147,7 @@ impl CellParser {
         self.code.push(code.to_string());
     }
 
-    fn get_property(&self, record: Pair<Rule>) -> Result<(String, ArgType), Error> {
+    fn get_property(record: Pair<Rule>) -> Result<(String, ArgType), Error> {
         let mut argument = None;
         let mut name = None;
         for inner in record.into_inner() {
@@ -196,7 +192,7 @@ impl CellParser {
                                     let mut result = HashMap::new();
                                     for item in val.into_inner() {
                                         if let Rule::property = item.as_rule() {
-                                            let opts = self.get_property(item)?;
+                                            let opts = CellParser::get_property(item)?;
                                             result.insert(opts.0, opts.1);
                                         }
                                     }
@@ -228,7 +224,7 @@ impl CellParser {
                         self.set_language(record.as_str());
                     }
                     Rule::property => {
-                        let prop = self.get_property(record)?;
+                        let prop = CellParser::get_property(record)?;
                         self.arguments.insert(prop.0, prop.1);
                     }
                     _ => {}

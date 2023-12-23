@@ -194,6 +194,18 @@ macro_rules! param_or {
 }
 pub(crate) use param_or;
 
+macro_rules! flag {
+    ($args:expr, $key:expr, $or:expr) => {
+        if let Some(ArgType::String(key)) = $args.get($key) {
+            key == "TRUE" || key == "true"
+        } else {
+            $or
+        }
+    };
+}
+
+pub(crate) use flag;
+
 pub fn write_plot(
     path: &str,
     plot: Vec<u8>,

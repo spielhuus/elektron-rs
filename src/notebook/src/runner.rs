@@ -70,8 +70,16 @@ where
     Ok(io::BufReader::new(file).lines())
 }
 
+
+
 pub struct Document {
     parser: parser::CellParser,
+}
+
+impl Default for Document {
+    fn default() -> Self {
+        Self { parser: parser::CellParser::new() }
+    }
 }
 
 impl Document {
@@ -164,21 +172,6 @@ impl Document {
                             e.to_string().as_bytes(),
                             &HashMap::new(),
                         ),
-                        /* Error::Simulation(e) => error(&mut out, "Language is not supported", e.to_string().as_bytes(), &HashMap::new()),
-                        Error::Sexp(e) => error(&mut out, "Sexp: ", e.to_string().as_bytes(), &HashMap::new()),
-                        Error::Plotter(e) => error(&mut out, "Plotter: ", e.to_string().as_bytes(), &HashMap::new()), */
-                        /* Error::Draw(e) => error(
-                            &mut out,
-                            "Draw: ",
-                            e.to_string().as_bytes(),
-                            &HashMap::new(),
-                        ),
-                        Error::PositionNotFound(e) => error(
-                            &mut out,
-                            "Draw: ",
-                            e.to_string().as_bytes(),
-                            &HashMap::new(),
-                        ), */
                         Error::GetPythonVariable(e) => error(
                             &mut out,
                             format!(
@@ -189,28 +182,6 @@ impl Document {
                             &[],
                             &HashMap::new(),
                         ),
-                        /* Error::FileNotFound(err) => {
-                            error(&mut out, err.to_string().as_str(), &[], &HashMap::new())
-                        }
-                        Error::ParseError(_) => todo!(),
-                        Error::LibraryNotFound(_) => todo!(),
-                        Error::SymbolNotFound(_) => todo!(),
-                        Error::PinNotFound(_, _) => {
-                            error(&mut out, err.to_string().as_str(), &[], &HashMap::new())
-                        }
-                        Error::NoPinsFound(_, _) => todo!(),
-                        Error::Name(_) => todo!(),
-                        Error::Unknown(_, _) => todo!(),
-                        Error::NotFound(_, _) => todo!(),
-                        Error::UnknownCircuitElement(_) => todo!(),
-                        Error::SpiceModelNotFound(_) => todo!(),
-                        Error::ConvertInt { source } => error(
-                            &mut out,
-                            format!("can not convert int {}", source).as_str(),
-                            &[],
-                            &HashMap::new(),
-                        ),
-                        Error::ConvertFloat { source } => todo!(), */
                         Error::IoError(e) => error(
                             &mut out,
                             format!("can not open file {}", e).as_str(),
@@ -220,105 +191,8 @@ impl Document {
                         Error::NgSpiceError(_) => {
                             todo!()
                         },
-                        /* Error::SpiceSimulationError(e) => error(
-                            &mut out,
-                            format!("Spice simulation returns with an error: {}", e).as_str(),
-                            &[],
-                            &HashMap::new(),
-                        ),
-                        Error::PlotterError(e) => error(
-                            &mut out,
-                            format!("The plotter returns with an error: {}", e).as_str(),
-                            &[],
-                            &HashMap::new(),
-                        ), */
                     }
                 }
-                /* match cell {
-                    parser::Cell::Python(cell) => {
-                        CellWriter::write(&mut out, &py, globals, locals, cell).unwrap();
-                    },
-                    parser::Cell::Tikz(cell) => {
-                        CellWriter::write(&mut out, &py, globals, locals, cell).unwrap();
-                    },
-                    parser::Cell::Figure(cell) => {
-                        CellWriter::write(&mut out, &py, globals, locals, cell).unwrap();
-                    }
-                    parser::Cell::Plot(arguments, _code) => {
-                        /* let x: Option<Vec<f64>> = if let Some(ArgType::String(x)) = arguments.get("x") {
-                             if x.starts_with("py$") {
-                                let key: &str = x.strip_prefix("py$").unwrap();
-                                if let Some(item) = locals.get_item(key) {
-                                    if let Ok(var) = item.extract() {
-                                        Some(var)
-                                    } else {
-                                        error(&mut out, ERR_CAST, item.get_type().to_string().as_bytes(), arguments);
-                                        None
-                                    }
-                                } else {
-                                    error(&mut out, ERR_VAR, key.as_bytes(), arguments);
-                                    None
-                                }
-                            } else {
-                                None
-                            }
-                        } else { None };
-                        let y: Option<Vec<Vec<f64>>> = if let Some(ArgType::List(list)) = arguments.get("y") {
-                            let mut result: Vec<Vec<f64>> = Vec::new();
-                            for x in list {
-                                if x.starts_with("py$") {
-                                    let key: &str = x.strip_prefix("py$").unwrap();
-                                    if let Some(item) = locals.get_item(key) {
-                                        if let Ok(var) = item.extract() {
-                                            result.push(var)
-                                        } else {
-                                            error(&mut out, ERR_CAST, item.get_type().to_string().as_bytes(), arguments);
-                                        }
-                                    } else {
-                                        error(&mut out, ERR_VAR, key.as_bytes(), arguments);
-                                    }
-                                }
-                            }
-                            Some(result)
-                        } else {
-                            None
-                        };
-                        if let (Some(x), Some(y)) = (x, y) {
-                            let buffer = plot(x, y);
-                            figure(&mut out, buffer.as_bytes(), arguments);
-                        } else {
-                            //TODO: Handle error
-                        } */
-                    }
-                    parser::Cell::Javascript(cell) => {
-                        CellWriter::write(&mut out, &py, globals, locals, cell).unwrap();
-                        /* match parse_variables(&code.join("\n"), &py, globals, locals) {
-                            Ok(code) => javascript(&mut out, code.as_bytes(), arguments),
-                            Err(err) => ErrWriter::write(&mut out, &err, arguments),
-                        } */
-                    }
-                    parser::Cell::D3(cell) => {
-                        CellWriter::write(&mut out, &py, globals, locals, cell).unwrap();
-                    }
-                    parser::Cell::Elektron(cell) => {
-                        CellWriter::write(&mut out, &py, globals, locals, cell).unwrap();
-                        /* if let Some(ArgType::String(command)) = arguments.get("command") {
-                            if command == "bom" {
-                                bom(&mut out, dir.as_str(), arguments);
-                            } else if command == "schema" {
-                                schema(&mut out, dir.as_str(), arguments);
-                            } else if command == "pcb" {
-                                pcb(&mut out, dir.as_str(), arguments);
-                            }
-                        } */
-                    }
-                    parser::Cell::Content(line) => {
-                        writeln!(out, "{}", line).unwrap();
-                    }
-                    parser::Cell::Error(err) => {
-                        error(&mut out, ERR_PARSE, err.to_string().as_bytes(), &HashMap::new());
-                    }
-                } */
             }
         });
 

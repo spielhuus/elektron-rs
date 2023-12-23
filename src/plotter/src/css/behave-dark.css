@@ -1,8 +1,3 @@
-
-
-
-
-
 .schema-border {
   stroke: rgb(133, 111, 165);
   stroke-width: 0.25;
@@ -49,15 +44,15 @@
     fill: rgb(166, 131, 225)
 }
 .schema-pin-name {
-    font: 0.8pt Verdana, Helvetica, Arial, sans-serif;
+    font: 0.8pt osifont, sans-serif;
     fill: rgb(102, 150, 150)
 }
 .schema-netname {
-    font: 0.8pt Verdana, Helvetica, Arial, sans-serif;
+    font: 0.8pt osifont, sans-serif;
     fill: rgb(102, 150, 150)
 }
 .schema-pin-number {
-    font: 0.8pt Verdana, Helvetica, Arial, sans-serif;
+    font: 0.75pt osifont, sans-serif;
     fill: rgb(196, 98, 107)
 }
 .text-sheet {
@@ -275,21 +270,21 @@ stroke: rgb(216, 200, 82);
   stroke: rgba(216, 100, 255, 0.400);
 }
 .F_Paste {
-  rgba(180, 160, 154, 0.902);
+  stroke: rgba(180, 160, 154, 0.902);
 }
 .F_SilkS {
  stroke: rgb(242, 237, 161);
 }
 .footprint_text_back {
-  font: 0.8pt Verdana, Helvetica, Arial, sans-serif;
+  font: 0.8pt osifont, Helvetica, Arial, sans-serif;
   fill: rgb(0, 0, 132);
 }
 .footprint_text_front {
-  font: 0.8pt Verdana, Helvetica, Arial, sans-serif;
+  font: 0.8pt osifont, Helvetica, Arial, sans-serif;
   fill: rgb(194, 194, 194);
 }
 .footprint_text_invisible {
-  font: 0.8pt Verdana, Helvetica, Arial, sans-serif;
+  font: 0.8pt osifont, Helvetica, Arial, sans-serif;
   fill: rgb(132, 132, 132);
 }
 .grid {
@@ -374,7 +369,3 @@ stroke: rgb(0, 132, 132);
     .via_through {
 stroke: rgb(236, 236, 236);
 }
-
-//"worksheet": "rgb(200, 114, 171)"
-
-

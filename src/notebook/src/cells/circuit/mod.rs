@@ -60,7 +60,7 @@ impl CellWrite<CircuitCell> for CellWriter {
         let command = if let Some(ArgType::String(key)) = args.get("command") {
             vec![key.clone()]
         } else if let Some(ArgType::List(keys)) = args.get("output") {
-            keys.to_vec() //iter().cloned().collect()
+            keys.to_vec()
         } else {
             Vec::new()
         };

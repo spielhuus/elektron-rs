@@ -13,9 +13,11 @@ use rand::Rng;
 use regex::Regex;
 use std::env::temp_dir;
 use std::io::prelude::*;
-use std::{fmt, fs::File, io::BufReader};
+use std::{fmt, fs::{self, File}, io::BufReader};
 
 use crate::Error;
+
+use log::warn;
 
 lazy_static! {
     pub static ref DRC_TITLE_TOKEN: regex::Regex = Regex::new(r"^\[(.*)\]: (.*)$").unwrap();
@@ -63,38 +65,30 @@ impl DrcItem {
 /// * `document` - A PCB struct.
 /// * `return`   - Vec<DrcItem> with the errors.
 ///
-//TODO set the paths 
 pub fn drc(document: String) -> Result<Vec<DrcItem>, Error> {
     let mut rng = rand::thread_rng();
     let num: u32 = rng.gen();
     let output = String::new() + temp_dir().to_str().unwrap() + "/" + &num.to_string() + ".txt";
 
+    //TODO footprint dir as variable
     Python::with_gil(|py| {
-        //pcbnew binding can not be called multiple times
-        let pool = unsafe { py.new_pool() };
-        let py = pool.python();
         let globals = PyDict::new(py);
         let locals = PyDict::new(py);
-        locals.set_item("document", document).unwrap();
+        locals.set_item("document", document.clone()).unwrap();
         locals.set_item("filename", output.to_string()).unwrap();
-        //TODO footprint dir as variable
-        let _res = py
-            .run(
-                r#"
+        py.run(
+            r#"
 import os
 os.environ['KICAD7_FOOTPRINT_DIR'] = '/usr/share/kicad/footprints'
 
 from elektron import Pcb
 board = Pcb(document)
-board.drc(filename)
-            "#,
-                Some(globals),
-                Some(locals),
-            ).or_else(|m| { 
-                // Err(Error::IoError(format!("{}", m.to_string()))) 
-                Err(Error::IoError(m.to_string(), String::new())) 
-            });
-    });
+board.drc(filename)"#,
+            Some(globals),
+            Some(locals),
+        )
+        .map_err(|m| Error::IoError(m.to_string(), document))
+    })?;
 
     let file = match File::open(output.clone()) {
         Ok(file) => file,
@@ -129,22 +123,19 @@ board.drc(filename)
                     )
                 }
             } else if !line.starts_with("**") && !line.trim().is_empty() {
-                println!("LINE: {}", line); //TODO
+                warn!("LINE: {}", line);
             }
         } else {
-            panic!("can not read file"); //TODO create error
+            return Err(Error::IoError(String::from("can not read temporary file"), output));
         }
     }
 
-    //TODO delete tmp file
+    fs::remove_file(output).unwrap();
     //TODO: workaround because of kicad issue
-    results = results
-        .into_iter()
-        .filter(|i| {
-            !i.title
-                .starts_with("The current configuration does not include the library")
-        })
-        .collect();
+    results.retain(|i| {
+        !i.title
+            .starts_with("The current configuration does not include the library")
+    });
 
     Ok(results)
 }

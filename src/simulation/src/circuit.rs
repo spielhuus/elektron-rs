@@ -95,7 +95,6 @@ impl Circuit {
         n: Vec<String>,
         value: String,
     ) -> Result<(), Error> {
-        //TODO self.get_includes(&value)?;
         self.items.push(CircuitItem::X(reference, n, value));
         Ok(())
     }
@@ -370,7 +369,7 @@ impl Circuit {
                 }
             }
         }
-        //TODO add options
+
         if close {
             res.push(String::from(".end"));
         }

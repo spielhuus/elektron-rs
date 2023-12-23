@@ -135,14 +135,14 @@ impl<'a> PlotterImpl<'a, SexpTree> for CairoPlotter<'a> {
         for page in schema_pages.iter().sorted() {
             println!("plot page {} '{}'", page.0, page.1);
 
-            if pages.as_ref().is_none() || pages.as_ref().unwrap().contains(&page.0) {
+            if pages.as_ref().is_none() || pages.as_ref().unwrap().contains(page.0) {
                 if border {
                     let paper_size: (f64, f64) =
                         <Sexp as SexpValueQuery<PaperSize>>::value(schema.root().unwrap(), "paper")
                             .unwrap()
                             .into();
 
-                    let plot_items = crate::plot(schema, &netlist, Some(paper_size));
+                    let plot_items = crate::schema::plot(schema, &netlist, Some(paper_size));
                     /* let title_block = &schema.page(page).unwrap().title_block;
                     let iter = schema
                         .iter(page)?
@@ -380,7 +380,7 @@ impl<'a> PlotterImpl<'a, SexpTree> for CairoPlotter<'a> {
 impl Outline for CairoPlotter<'_> {}
 
 impl<'a> Draw<Context> for CairoPlotter<'a> {
-    fn draw(&self, items: &Vec<PlotItem>, document: &mut Context) {
+    fn draw(&self, items: &[PlotItem], document: &mut Context) {
         items
             .iter()
             .sorted_by(|a, b| {

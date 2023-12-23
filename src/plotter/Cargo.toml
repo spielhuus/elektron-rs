@@ -10,42 +10,23 @@ name = "plotter"
 sexp = { path = "../sexp" }
 sexp_macro = { path = "../sexp_macro" }
 simulation = { path = "../simulation" }
-thiserror = "1.0"
-pyo3 = { version = "0.20" }
-# lazy_static = "1.4.0"
-# regex = "1.10"
-# indexmap = "2"
-itertools = "0.11"
-ndarray = "0.15"
-# json = "0.12"
-# diff = "0.1"
-# pest = "2.7"
-# pest_derive = "2.7"
-# tectonic = "0.14"
+
+log.workspace = true
+thiserror.workspace = true
+lazy_static.workspace = true
+regex.workspace = true
+ndarray.workspace = true
+indexmap.workspace = true
+itertools.workspace = true
+pyo3.workspace = true
+rand.workspace = true
+
+font-kit.workspace = true
+pathfinder_geometry.workspace = true
+
 pangocairo = "0.18"
 cairo-rs = { version = "0.18", features = ["svg", "png", "pdf"] }
 png = "0.17"
 svg = "0.14"
 pdf = "0.8"
 simplecss = "0.2"
-# poppler-rs = "0.22"
-# plotters = "0.3"
-# plotters-svg = "0.3"
-# rand = "0.8"
-# yaml-rust = "0.4"
-# xlsxwriter = "0.6"
-# tempfile = "3.6"
-# anyhow = "1.0"
-# byteorder = "1.4"
-# hound = "3.5"
-# chrono = "0.4"
-# bit-set = "0.5"
-# colored = "2"
-
-# [dependencies.uuid]
-# version = "1.4"
-# features = [
-#     "v4",                # Lets you generate random UUIDs
-#     "fast-rng",          # Use a faster (but still sufficiently random) RNG
-#     "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
-# ] 

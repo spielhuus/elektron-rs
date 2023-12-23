@@ -14,7 +14,7 @@ import tempfile
 import pcbnew
 
 import argparse
-from .elektron import make_bom, plot, convert, make_erc, make_drc, make_spice, search
+from .elektron import make_bom, plot, convert, make_erc, make_drc, make_spice, make_vrml, search
 
 def main():
     # create the top-level parser
@@ -49,6 +49,11 @@ def main():
     parser_spice.add_argument('--output', type=str, required=False, help='the result from the checks, default print to console.')
     parser_spice.add_argument('--path', action='append', required=True, dest='spice_path', help='The spice library path.')
 
+    parser_vrml = sub_parsers.add_parser('vrml', help='Create the 3d model.')
+    parser_vrml.add_argument('--input', type=str, required=True, help='Path to the input PCB.')
+    parser_vrml.add_argument('--output', type=str, required=True, help='The output vrml file name.')
+    parser_vrml.add_argument('--path', action='append', required=False, dest='sym_path', help='The symbol library path.')
+
     parser_search = sub_parsers.add_parser('search', help='Search Kicad Symbol.')
     parser_search.add_argument('--term', type=str, required=True, help='The search term.')
     parser_search.add_argument('--path', action='append', required=True, dest='sym_path', help='The symbol library path.')
@@ -69,6 +74,8 @@ def main():
             make_drc(args.input, args.output)
         elif(args.command == 'spice'):
             make_spice(args.input, args.spice_path, args.output)
+        elif(args.command == 'vrml'):
+            make_vrml(args.input, args.output)
         elif(args.command == 'search'):
             search(args.term, args.sym_path)
         else:

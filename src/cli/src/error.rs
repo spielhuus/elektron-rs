@@ -69,10 +69,8 @@ pub enum Error {
 
     #[error("Cannot convert int.")]
     ConvertInt {
-        //TODO:
         #[from]
         source: std::num::ParseIntError,
-        //backtrace: Backtrace,
     },
     #[error("Cannot convert float.")]
     ConvertFloat {

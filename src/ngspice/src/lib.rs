@@ -1,3 +1,4 @@
+//!ngspice binding.
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
@@ -13,6 +14,7 @@ use std::convert::TryInto;
 use std::ffi::{CStr, CString, NulError};
 use std::os::raw::{c_char, c_int, c_void};
 
+///ngspice errors.
 #[derive(Error, Debug)]
 pub enum NgSpiceError {
     #[error("ill-formed matrix can't be decomposed")]
@@ -65,9 +67,11 @@ pub enum NgSpiceError {
     Spice(i32, String),
 }
 
+///The main struct to use ngspice.
 pub struct NgSpice<'a, C> {
-    ngspice: ngspice,
+    ///the callback to receive messages from ngspice.
     pub callbacks: &'a mut C,
+    ngspice: ngspice,
     exited: bool,
 }
 
@@ -77,6 +81,7 @@ pub enum ComplexSlice<'a> {
     Complex(&'a [ngcomplex]),
 }
 
+///result vector info.
 #[derive(Debug)]
 pub struct VectorInfo<'a> {
     pub name: String,
@@ -85,8 +90,7 @@ pub struct VectorInfo<'a> {
 }
 
 pub struct SimulationResult<'a, C: Callbacks> {
-    pub name: String,
-    pub data: HashMap<String, VectorInfo<'a>>,
+    name: String,
     sim: std::sync::Arc<NgSpice<'a, C>>,
 }
 
@@ -216,10 +220,12 @@ impl<'a, C: Callbacks> NgSpice<'a, C> {
         }
     }
 
+    ///tue if the ngspice library has exited.
     pub fn is_exited(&self) -> bool {
         self.exited
     }
 
+    ///send a command to ngspice.
     pub fn command(&self, s: &str) -> Result<(), NgSpiceError> {
         if self.exited {
             panic!("NgSpice exited")
@@ -238,6 +244,7 @@ impl<'a, C: Callbacks> NgSpice<'a, C> {
         }
     }
 
+    ///set a spice netlist.
     pub fn circuit(&self, circ: Vec<String>) -> Result<(), NgSpiceError> {
         let mut buf: Vec<*mut i8> = circ
             .iter()
@@ -261,6 +268,7 @@ impl<'a, C: Callbacks> NgSpice<'a, C> {
         }
     }
 
+    ///get the name of the current plot.
     pub fn current_plot(&self) -> Result<String, NgSpiceError> {
         unsafe {
             let ret = self.ngspice.ngSpice_CurPlot();
@@ -269,6 +277,7 @@ impl<'a, C: Callbacks> NgSpice<'a, C> {
         }
     }
 
+    ///get the names of all plots.
     pub fn all_plots(&self) -> Result<Vec<String>, NgSpiceError> {
         unsafe {
             let ptrs = self.ngspice.ngSpice_AllPlots();
@@ -284,6 +293,7 @@ impl<'a, C: Callbacks> NgSpice<'a, C> {
         }
     }
 
+    ///get all vec names.
     pub fn all_vecs(&self, plot: &str) -> Result<Vec<String>, NgSpiceError> {
         let cs = CString::new(plot)?;
         let raw = cs.into_raw();
@@ -302,6 +312,7 @@ impl<'a, C: Callbacks> NgSpice<'a, C> {
         }
     }
 
+    ///ge the vector info.
     pub fn vector_info(&self, vec: &str) -> Result<VectorInfo<'a>, NgSpiceError> {
         let cs = CString::new(vec)?;
         let raw = cs.into_raw();
@@ -333,7 +344,7 @@ impl<'a, C: Callbacks> NgSpice<'a, C> {
     }
 }
 
-pub trait Simulator<'a, C: Callbacks> {
+trait Simulator<'a, C: Callbacks> {
     fn op(&self) -> Result<SimulationResult<'a, C>, NgSpiceError>;
 }
 
@@ -350,13 +361,13 @@ impl<'a, C: Callbacks> Simulator<'a, C> for std::sync::Arc<NgSpice<'a, C>> {
         }
         let sim = SimulationResult {
             name: plot,
-            data: results,
             sim: self.to_owned(),
         };
         Ok(sim)
     }
 }
 
+///type for the ngspice callback.
 pub trait Callbacks {
     fn send_char(&mut self, _s: &str) {}
     fn controlled_exit(&mut self, _status: i32, _unload: bool, _quit: bool) {}
@@ -399,11 +410,11 @@ mod tests {
             ])
             .expect("circuit failed");
         {
-            let sim1 = spice.op().expect("op failed");
-            println!("{}: {:?}", sim1.name, sim1.data);
+            let _sim1 = spice.op().expect("op failed");
+            // println!("{}: {:?}", sim1.name, sim1.data);
             spice.command("alter m1 W=20u").expect("op failed");
-            let sim2 = spice.op().expect("op failed");
-            println!("{}: {:?}", sim2.name, sim2.data);
+            let _sim2 = spice.op().expect("op failed");
+            // println!("{}: {:?}", sim2.name, sim2.data);
             let plots = spice.all_plots().expect("plots failed");
             println!("{:?}", plots);
             assert_eq!(plots[0], "op2");

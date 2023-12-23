@@ -123,6 +123,7 @@ impl<'a> Netlist<'a> {
                     used_pins.push(&pos.1);
                     used.borrow_mut().clear();
                     used.borrow_mut().push(&pos.1);
+
                     if let Some(nodes) = Netlist::next_node(&pos.0, &netlist.node_positions, used) {
                         let mut identifier: Option<String> = None;
                         let mut points: Vec<Point> = vec![point.to_owned()];
@@ -405,7 +406,7 @@ impl<'a> Netlist<'a> {
                 for symbol in symbols {
                     let unit: usize = symbol.value(el::SYMBOL_UNIT).unwrap();
                     if unit == pin.1 {
-                        let at = pin.0.query(el::AT).next().unwrap(); //TODO better at
+                        let at = pin.0.query(el::AT).next().unwrap();
                         let x: f64 = at.get(0).unwrap();
                         let y: f64 = at.get(1).unwrap();
                         let pts = Shape::transform(*symbol, &arr1(&[x, y]));

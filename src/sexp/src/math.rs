@@ -4,9 +4,7 @@ use std::collections::HashMap;
 use lazy_static::lazy_static;
 use ndarray::{arr1, arr2, s, Array, Array1, Array2};
 
-use crate::{
-    {el, utils, Sexp, SexpValueQuery, SexpValuesQuery, Error},
-};
+use crate::{el, utils, Error, Sexp, SexpValueQuery, SexpValuesQuery};
 
 macro_rules! round {
     ($val: expr) => {
@@ -15,6 +13,7 @@ macro_rules! round {
 }
 
 lazy_static! {
+    ///The mirror matrices.
     pub static ref MIRROR: HashMap<String, Array2<f64>> = HashMap::from([
         (String::from(""), arr2(&[[1., 0.], [0., -1.]])),
         (String::from("x"), arr2(&[[1., 0.], [0., 1.]])),
@@ -22,6 +21,7 @@ lazy_static! {
     ]);
 }
 
+///normalize the angle value.
 pub fn normalize_angle(angle: f64) -> f64 {
     if angle > 360.0 {
         angle - 360.0
@@ -32,9 +32,11 @@ pub fn normalize_angle(angle: f64) -> f64 {
     }
 }
 
+///Shape utils.
 pub struct Shape {}
 
 impl Shape {
+    ///calcultate the pin angle from the angle and mirror values.
     pub fn pin_angle(symbol: &Sexp, pin: &Sexp) -> f64 {
         let mut angle = normalize_angle(utils::angle(pin).unwrap() + utils::angle(symbol).unwrap());
         let mirror: Option<String> = symbol.value("mirror");
@@ -137,13 +139,6 @@ impl Bounds<Array2<f64>> for Sexp {
                                 rows += 1;
                             }
                         }
-
-                        /* for row in polyline.pts.rows() {
-                            let x = row[0];
-                            let y = row[1];
-                            array.extend_from_slice(&[x, y]);
-                            rows += 1;
-                        } */
                     } else if graph.name == "rectangle" {
                         let start: Vec<f64> = graph.query("start").next().unwrap().values();
                         let end: Vec<f64> = graph.query("end").next().unwrap().values();
@@ -208,6 +203,7 @@ impl Bounds<Array2<f64>> for Sexp {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
+///The orientation of a pin on a Symbol.
 pub enum PinOrientation {
     Left,
     Right,
@@ -246,6 +242,7 @@ impl PinOrientation {
     }
 }
 
+///Vector utils.
 pub struct MathUtils {}
 
 impl MathUtils {
@@ -258,8 +255,8 @@ impl MathUtils {
     }
 }
 
-
-const M_SQRT1_2: f64 =	0.70710678118654752440;	/* 1/sqrt(2) */
+//TODO const M_SQRT1_2: f64 = 0.70710678118654752440; /* 1/sqrt(2) */
+// const M_SQRT1_2: f64 = 0.707_106_781_186_547_6; /* 1/sqrt(2) */
 
 ///Utils for the Arc coordinates.
 pub trait CalcArc {
@@ -292,11 +289,10 @@ impl CalcArc for Sexp {
         // This is a special case for aMid as the half-way point when aSlope = 0 and bSlope = inf
         // or the other way around.  In that case, the center lies in a straight line between
         // aStart and aEnd
-        if ( ( x_delta_21 == 0.0 ) && ( y_delta_32 == 0.0 ) ) ||
-           ( ( y_delta_21 == 0.0 ) && ( x_delta_32 == 0.0 ) )
+        if ((x_delta_21 == 0.0) && (y_delta_32 == 0.0))
+            || ((y_delta_21 == 0.0) && (x_delta_32 == 0.0))
         {
-            return arr1(&[(start[0] + end[0] ) / 2.0,
-                          (start[1] + end[1] ) / 2.0]);
+            return arr1(&[(start[0] + end[0]) / 2.0, (start[1] + end[1]) / 2.0]);
         }
 
         // Prevent div=0 errors
@@ -315,11 +311,10 @@ impl CalcArc for Sexp {
         let db_slope = b_slope * (0.5 / y_delta_32).hypot(0.5 / x_delta_32);
 
         if a_slope == b_slope {
-            if start == end  {
+            if start == end {
                 // This is a special case for a 360 degrees arc.  In this case, the center is halfway between
                 // the midpoint and either end point
-                return arr1 (&[(start[0] + mid[0]) / 2.0,
-                               (start[1] + mid[1]) / 2.0]);
+                return arr1(&[(start[0] + mid[0]) / 2.0, (start[1] + mid[1]) / 2.0]);
             } else {
                 // If the points are colinear, the center is at infinity, so offset
                 // the slope by a minimal amount
@@ -341,59 +336,73 @@ impl CalcArc for Sexp {
         // We ignore the possible covariance between variables.  We also truncate our series expansion
         // at the first term.  These are reasonable assumptions as the worst-case scenario is that we
         // underestimate the potential uncertainty, which would potentially put us back at the status quo
-        let ab_slope_start_end_y = a_slope * b_slope * ( start[1] - end[1] );
-        let dab_slope_start_end_y = ab_slope_start_end_y * ( ( da_slope / a_slope * da_slope / a_slope )
-                                                               + ( db_slope / b_slope * db_slope / b_slope )
-                                                               + ( M_SQRT1_2 / ( start[1] - end[1] )
-                                                                   * M_SQRT1_2 / ( start[1] - end[1] ) ) ).sqrt();
+        let ab_slope_start_end_y = a_slope * b_slope * (start[1] - end[1]);
+        let dab_slope_start_end_y = ab_slope_start_end_y
+            * ((da_slope / a_slope * da_slope / a_slope)
+                + (db_slope / b_slope * db_slope / b_slope)
+                + (std::f64::consts::FRAC_1_SQRT_2 / (start[1] - end[1]) * std::f64::consts::FRAC_1_SQRT_2 / (start[1] - end[1])))
+                .sqrt();
 
-        let b_slope_start_mid_x = b_slope * ( start[0] + mid[0] );
-        let db_slope_start_mid_x = b_slope_start_mid_x * ( ( db_slope / b_slope * db_slope / b_slope )
-                                                             + ( M_SQRT1_2 / ( start[0] + mid[0] )
-                                                                     * M_SQRT1_2 / ( start[0] + mid[0] ) ) ).sqrt();
+        let b_slope_start_mid_x = b_slope * (start[0] + mid[0]);
+        let db_slope_start_mid_x = b_slope_start_mid_x
+            * ((db_slope / b_slope * db_slope / b_slope)
+                + (std::f64::consts::FRAC_1_SQRT_2 / (start[0] + mid[0]) * std::f64::consts::FRAC_1_SQRT_2 / (start[0] + mid[0])))
+                .sqrt();
 
-        let a_slope_mid_end_x = a_slope * ( mid[0] + end[0] );
-        let da_slope_mid_end_x = a_slope_mid_end_x * ( ( da_slope / a_slope * da_slope / a_slope )
-                                                         + ( M_SQRT1_2 / ( mid[0] + end[0] )
-                                                                 * M_SQRT1_2 / ( mid[0] + end[0] ) ) ).sqrt();
+        let a_slope_mid_end_x = a_slope * (mid[0] + end[0]);
+        let da_slope_mid_end_x = a_slope_mid_end_x
+            * ((da_slope / a_slope * da_slope / a_slope)
+                + (std::f64::consts::FRAC_1_SQRT_2 / (mid[0] + end[0]) * std::f64::consts::FRAC_1_SQRT_2 / (mid[0] + end[0])))
+                .sqrt();
 
-        let twice_ba_slope_diff = 2.0 * ( b_slope - a_slope );
-        let d_twice_ba_slope_diff = 2.0 * ( db_slope * db_slope + da_slope * da_slope ).sqrt();
+        let twice_ba_slope_diff = 2.0 * (b_slope - a_slope);
+        let d_twice_ba_slope_diff = 2.0 * (db_slope * db_slope + da_slope * da_slope).sqrt();
 
         let center_numerator_x = ab_slope_start_end_y + b_slope_start_mid_x - a_slope_mid_end_x;
-        let d_center_numerator_x = ( dab_slope_start_end_y * dab_slope_start_end_y
-                                           + db_slope_start_mid_x * db_slope_start_mid_x
-                                           + da_slope_mid_end_x * da_slope_mid_end_x ).sqrt();
+        let d_center_numerator_x = (dab_slope_start_end_y * dab_slope_start_end_y
+            + db_slope_start_mid_x * db_slope_start_mid_x
+            + da_slope_mid_end_x * da_slope_mid_end_x)
+            .sqrt();
 
-        let center_x = ( ab_slope_start_end_y + b_slope_start_mid_x - a_slope_mid_end_x ) / twice_ba_slope_diff;
+        let center_x =
+            (ab_slope_start_end_y + b_slope_start_mid_x - a_slope_mid_end_x) / twice_ba_slope_diff;
 
-        let d_center_x = center_x * ( ( d_center_numerator_x / center_numerator_x * d_center_numerator_x / center_numerator_x )
-                                             + ( d_twice_ba_slope_diff / twice_ba_slope_diff * d_twice_ba_slope_diff / twice_ba_slope_diff ) ).sqrt();
+        let d_center_x = center_x
+            * ((d_center_numerator_x / center_numerator_x * d_center_numerator_x
+                / center_numerator_x)
+                + (d_twice_ba_slope_diff / twice_ba_slope_diff * d_twice_ba_slope_diff
+                    / twice_ba_slope_diff))
+                .sqrt();
 
-
-        let center_numerator_y = ( start[0] + mid[0] ) / 2.0 - center_x;
-        let d_center_numerator_y = ( 1.0 / 8.0 + d_center_x * d_center_x ).sqrt();
+        let center_numerator_y = (start[0] + mid[0]) / 2.0 - center_x;
+        let d_center_numerator_y = (1.0 / 8.0 + d_center_x * d_center_x).sqrt();
 
         let center_first_term = center_numerator_y / a_slope;
-        let dcenter_first_term_y = center_first_term * (
-                                              ( d_center_numerator_y/ center_numerator_y * d_center_numerator_y / center_numerator_y )
-                                            + ( da_slope / a_slope * da_slope / a_slope ) ).sqrt();
+        let dcenter_first_term_y = center_first_term
+            * ((d_center_numerator_y / center_numerator_y * d_center_numerator_y
+                / center_numerator_y)
+                + (da_slope / a_slope * da_slope / a_slope))
+                .sqrt();
 
-        let center_y = center_first_term + ( start[1] + mid[1] ) / 2.0;
-        let d_center_y = ( dcenter_first_term_y * dcenter_first_term_y + 1.0 / 8.0 ).sqrt();
+        let center_y = center_first_term + (start[1] + mid[1]) / 2.0;
+        let d_center_y = (dcenter_first_term_y * dcenter_first_term_y + 1.0 / 8.0).sqrt();
 
-        let rounded_100_center_x = ( ( center_x + 50.0 ) / 100.0 ).floor() * 100.0;
-        let rounded_100_center_y = ( ( center_y + 50.0 ) / 100.0 ).floor() * 100.0;
-        let rounded_10_center_x = ( ( center_x + 5.0 ) / 10.0 ).floor() * 10.0;
-        let rounded_10_center_y = ( ( center_y + 5.0 ) / 10.0 ).floor() * 10.0;
+        let rounded_100_center_x = ((center_x + 50.0) / 100.0).floor() * 100.0;
+        let rounded_100_center_y = ((center_y + 50.0) / 100.0).floor() * 100.0;
+        let rounded_10_center_x = ((center_x + 5.0) / 10.0).floor() * 10.0;
+        let rounded_10_center_y = ((center_y + 5.0) / 10.0).floor() * 10.0;
 
         // The last step is to find the nice, round numbers near our baseline estimate and see if they are within our uncertainty
         // range.  If they are, then we use this round value as the true value.  This is justified because ALL values within the
         // uncertainty range are equally true.  Using a round number will make sure that we are on a multiple of 1mil or 100nm
         // when calculating centers.
-        if ( rounded_100_center_x - center_x ).abs() < d_center_x && ( rounded_100_center_y - center_y ).abs() < d_center_y {
+        if (rounded_100_center_x - center_x).abs() < d_center_x
+            && (rounded_100_center_y - center_y).abs() < d_center_y
+        {
             arr1(&[rounded_100_center_x, rounded_100_center_y])
-        } else if ( rounded_10_center_x - center_x ).abs() < d_center_x && ( rounded_10_center_y - center_y ).abs() < d_center_y {
+        } else if (rounded_10_center_x - center_x).abs() < d_center_x
+            && (rounded_10_center_y - center_y).abs() < d_center_y
+        {
             arr1(&[rounded_10_center_x, rounded_10_center_y])
         } else {
             arr1(&[center_x, center_y])
@@ -411,111 +420,6 @@ impl CalcArc for Sexp {
     fn end_angle(&self) -> f64 {
         let end: Array1<f64> = self.value("end").unwrap();
         let center = self.center();
-        normalize_angle(
-            (end[1] - center[1])
-                .atan2(end[0] - center[0])
-                .to_degrees(),
-        )
+        normalize_angle((end[1] - center[1]).atan2(end[0] - center[0]).to_degrees())
     }
-}
-
-
-
-
-
-#[cfg(test)]
-mod tests {
-    /* use ndarray::{arr1, s, Array1};
-
-    use crate::{el, utils, Sexp, SexpParser, SexpProperty, SexpTree, SexpValueQuery};
-
-    use super::{Shape, Transform}; */
-
-    /* #[test]
-    fn shape_opamp_a() {
-        let doc = Schema::load("files/opamp.kicad_sch").unwrap();
-        let symbol = doc.get_symbol("U1", 1).unwrap();
-        let lib_symbol = doc.get_library("Amplifier_Operational:TL072").unwrap();
-        let size = symbol.bounds(lib_symbol).unwrap();
-        assert_eq!(arr2(&[[-7.62, -5.08], [7.62, 5.08]]), size)
-    }
-    #[test]
-    fn shape_opamp_c() {
-        let doc = Schema::load("files/opamp.kicad_sch").unwrap();
-        let symbol = doc.get_symbol("U1", 3).unwrap();
-        let lib_symbol = doc.get_library("Amplifier_Operational:TL072").unwrap();
-        let size = symbol.bounds(lib_symbol).unwrap();
-        assert_eq!(arr2(&[[-2.54, -7.62], [-2.54, 7.62]]), size)
-    }
-    #[test]
-    fn shape_r() {
-        let doc = Schema::load("files/opamp.kicad_sch").unwrap();
-        let symbol = doc.get_symbol("R1", 1).unwrap();
-        let lib_symbol = doc.get_library("Device:R").unwrap();
-        let size = symbol.bounds(lib_symbol).unwrap();
-        assert_eq!(arr2(&[[-1.016, -3.81], [1.016, 3.81]]), size)
-    }
-    #[test]
-    fn calc_arc() {
-        /* (arc (start 0 0.508) (mid -0.508 0) (end 0 -0.508)
-            (stroke (width 0.1524) (type default) (color 0 0 0 0))
-            (fill (type none))
-        ) */
-
-        let arc: Arc = Arc {
-            start: arr1(&[0.0, 0.508]),
-            mid: arr1(&[-0.508, 0.0]),
-            end: arr1(&[0.0, -0.508]),
-            stroke: Stroke::new(),
-            fill_type: String::new(),
-        };
-        assert_eq!(0.508, arc.radius());
-        assert_eq!(arr1(&[0.0, 0.0]), arc.center());
-        assert_eq!(90.0, arc.start_angle());
-        assert_eq!(270.0, arc.end_angle());
-    }
-    #[test]
-    fn calc_arc_center1() {
-        /* (arc (start 0 0.508) (mid -0.508 0) (end 0 -0.508)
-            (stroke (width 0.1524) (type default) (color 0 0 0 0))
-            (fill (type none))
-        ) */
-
-        let arc: Arc = Arc {
-            start: arr1(&[38.1, -69.85]),
-            mid: arr1(&[31.75, -63.5]),
-            end: arr1(&[25.4, -69.85]),
-            stroke: Stroke::new(),
-            fill_type: String::new(),
-        };
-        assert_eq!(arr1(&[31.75, -69.85]), arc.center());
-    }
-    #[test]
-    fn calc_arc_center2() {
-        let arc: Arc = Arc {
-            start: arr1(&[-44196.0, -38100.0]),
-            mid: arr1(&[-32033.0, 0.0]),
-            end: arr1(&[-44196.0, 38100.0]),
-            stroke: Stroke::new(),
-            fill_type: String::new(),
-        };
-        assert_eq!(arr1(&[-97787.6891803009, 0.0]), arc.center());
-    }
-    #[test]
-    fn test_normalize_angle() {
-        assert_eq!(270.0, normalize_angle(-90.0));
-        assert_eq!(90.0, normalize_angle(450.0));
-        assert_eq!(180.0, normalize_angle(180.0));
-    }
-    #[test]
-    fn test_vector_distance() {
-        assert_eq!(arr1(&[10.0, 0.0]), MathUtils::projection(&arr1(&[0.0, 0.0]), 0.0, 10.0));
-        assert_eq!(arr1(&[0.0, 10.0]), MathUtils::projection(&arr1(&[0.0, 0.0]), 90.0, 10.0));
-        assert_eq!(arr1(&[-10.0, 0.0]), MathUtils::projection(&arr1(&[0.0, 0.0]), 180.0, 10.0));
-    } */
-    /* #[test]
-    fn test_angle_to_segment_count() {
-        assert_eq!(14, MathUtils::arc_to_segment_count(200000.0, 5000, 360.0));
-        assert_eq!(21, MathUtils::arc_to_segment_count(450000.0, 5000, 360.0));
-    } */
 }

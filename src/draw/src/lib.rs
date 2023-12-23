@@ -48,7 +48,7 @@ pub fn library(name: &str, pathlist: Vec<String>) -> Result<Sexp, Error> {
         let filename = &format!("{}/{}.kicad_sym", path, t[0]);
         if let Ok(doc) = SexpParser::load(filename) {
             if let Ok(tree) = SexpTree::from(doc.iter()) {
-                for node in tree.root()?.query("symbol") {
+                for node in tree.root()?.query(el::SYMBOL) {
                     let sym_name: String = node.get(0).unwrap();
                     if sym_name == t[1] {
                         let mut node = node.clone();
@@ -59,7 +59,7 @@ pub fn library(name: &str, pathlist: Vec<String>) -> Result<Sexp, Error> {
             }
         }
     }
-    Err(Error::LibraryNotFound(name.to_string())) //TODO format string
+    Err(Error::LibraryNotFound(name.to_string()))
 }
 
 pub fn from_library(
@@ -103,7 +103,7 @@ pub fn from_library(
                     }
                     symbol.push(SexpAtom::Node(prop))?;
                 } else if n.name != "extends"
-                    && n.name != "symbol"
+                    && n.name != el::SYMBOL 
                     && n.name != "pin_numbers"
                     && n.name != "pin_names"
                     && n.name != "power"
@@ -217,12 +217,22 @@ pub struct Draw {
 
 impl Draw {
     /// create a new Draw Object.
+    ///
+    /// optional Arguments:
+    /// paper: Paper size [A4, A3, A2, ...]
     pub fn new(library_path: Vec<String>, kwargs: Option<HashMap<String, String>>) -> Self {
+        let paper = if let Some(kwargs) = &kwargs {
+            if kwargs.contains_key("paper") {
+                kwargs.get("paper").unwrap().clone()
+            } else {
+                String::from("A4")
+            }
+        } else { String::from("A4") };
         let mut schema = 
             sexp::sexp!((kicad_sch (version {sexp::KICAD_SCHEMA_VERSION}) (generator !{sexp::KICAD_SCHEMA_GENERATOR})
                 (uuid !{sexp::uuid!()})
-                (paper r"A4")
-            ) //TODO paper
+                (paper !{paper.as_str()})
+            ) 
         );
         if let Some(kwargs) = kwargs {
             let mut title_block = Sexp::from(String::from(el::TITLE_BLOCK));
@@ -371,7 +381,9 @@ impl Draw {
         std::str::from_utf8(&res).unwrap().to_string()
     }
 
-    //write the schema to a Writer
+    /// Write the schema to a Writer
+    ///
+    /// * `file`: the filename
     pub fn write(&self, file: &str) {
         let mut out = File::create(file).unwrap();
         self.schema.root().unwrap().write(&mut out, 0).unwrap();
@@ -479,7 +491,6 @@ impl Draw {
                             if element.name == el::SYMBOL {
                                 let sub_name: String = element.get(0).unwrap();
                                 let number = &sub_name
-                                    //TODO [subsymbol.lib_id.find('_').unwrap()..subsymbol.lib_id.len()];
                                     [extends.len() + 1 .. sub_name.len()];
                                 let mut subsymbol = element.clone();
                                 subsymbol
@@ -550,9 +561,10 @@ impl Draw {
                 "center"
             },
             LabelPosition::West => {
-                let mut orientation = if angle == 180.0 { el::JUSTIFY_LEFT } else { el::JUSTIFY_RIGHT };
-                if !mirror.is_empty() { 
-                    orientation = if orientation == el::JUSTIFY_RIGHT { el::JUSTIFY_LEFT } else { el::JUSTIFY_RIGHT };
+                let orientation = if angle == 180.0 { el::JUSTIFY_LEFT } else { el::JUSTIFY_RIGHT };
+                if !mirror.is_empty() && mirror.contains('x') { 
+                    //TODO what to do here?
+                    // orientation = if orientation == el::JUSTIFY_RIGHT { el::JUSTIFY_LEFT } else { el::JUSTIFY_RIGHT };
                 }
                 orientation
             },
@@ -563,10 +575,9 @@ impl Draw {
                 }
                 orientation
             },
-            LabelPosition::NorthWest => todo!(),
-            LabelPosition::NorthEast => todo!(),
-            LabelPosition::SouthWest => todo!(),
-            LabelPosition::SouthEast => todo!(),
+            LabelPosition::Offset(_, _) => {
+                "center"
+            },
         }.to_string()
     }
 
@@ -661,21 +672,19 @@ impl Draw {
                     //TODO todo!("unplacable property");
                 }
 
+            } else if !positions.contains(&PinOrientation::Up) {
+                LabelPosition::North
+            } else if !positions.contains(&PinOrientation::Right) {
+                LabelPosition::East
+            } else if !positions.contains(&PinOrientation::Left) {
+                LabelPosition::West
+            } else if !positions.contains(&PinOrientation::Down) {
+                LabelPosition::South
             } else {
-                if !positions.contains(&PinOrientation::Up) {
-                    LabelPosition::North
-                } else if !positions.contains(&PinOrientation::Right) {
-                    LabelPosition::East
-                } else if !positions.contains(&PinOrientation::Left) {
-                    LabelPosition::West
-                } else if !positions.contains(&PinOrientation::Down) {
-                    LabelPosition::South
-                } else {
-                    LabelPosition::North
-                    //TODO todo!("unplacable property");
-                }
+                LabelPosition::North
+                //TODO todo!("unplacable property");
             };
-
+                        
             let at = if pins == 1 {
                     match position {
                         LabelPosition::North => {
@@ -690,10 +699,9 @@ impl Draw {
                         LabelPosition::East => {
                             arr1(&[_size[[0, 0]] - LABEL_BORDER, symbol_position[1], 0.0 - symbol_angle])
                         },
-                        LabelPosition::NorthWest => todo!(),
-                        LabelPosition::NorthEast => todo!(),
-                        LabelPosition::SouthWest => todo!(),
-                        LabelPosition::SouthEast => todo!(),
+                        LabelPosition::Offset(x, y) => {
+                            arr1(&[symbol_position[0] + x, symbol_position[1] - y, 0.0 - symbol_angle])
+                        },
                     }
                 } else {
                     match position {
@@ -711,7 +719,7 @@ impl Draw {
                         } else {
                             _size[[0, 1]] + LABEL_BORDER
                         };
-                        arr1(&[symbol_position[0], bottom_pos + offset, 0.0 - self.angle(symbol_angle)])
+                        arr1(&[symbol_position[0], bottom_pos - offset, 0.0 - self.angle(symbol_angle)])
                     },
                     LabelPosition::West => {
                         let top_pos = _size[[0, 1]] + ((_size[[1, 1]] - _size[[0, 1]]) / 2.0)
@@ -723,17 +731,11 @@ impl Draw {
                             - ((vis_len as f64 - 1.0) * LABEL_BORDER) / 2.0;
                         arr1(&[_size[[1, 0]] + LABEL_BORDER / 2.0, top_pos - offset, self.angle(symbol_angle)])
                     },
-                    LabelPosition::NorthWest => todo!(),
-                    LabelPosition::NorthEast => todo!(),
-                    LabelPosition::SouthWest => todo!(),
-                    LabelPosition::SouthEast => todo!(),
+                    LabelPosition::Offset(x, y) => {
+                        arr1(&[symbol_position[0] + x, symbol_position[1] + y - offset, 0.0 - symbol_angle])
+                    },
                 }
             };
-
-            /* TODO remove */
-            /* let prop_name: String = prop.get(1).unwrap();
-            println!("place property {}, prop_name: {}, symbol_angle: {}, mirror: {}, position: {:?}", reference, prop_name, symbol_angle, symbol_mirror, position); */
-            /* END remove */
 
             let effects = prop.query_mut(el::EFFECTS).next().unwrap();
             let orientation = self.align(position, symbol_angle, symbol_mirror.clone());
@@ -741,16 +743,14 @@ impl Draw {
                 if effects.has(el::JUSTIFY) {
                     effects.remove(el::JUSTIFY).unwrap();
                 }
-            } else {
-                if effects.has(el::JUSTIFY) {
+            } else if effects.has(el::JUSTIFY) {
                     let justify = effects.query_mut(el::JUSTIFY).next().unwrap();
                     justify.set(0, SexpAtom::Value(orientation.to_string())).unwrap();
-                } else {
-                    effects.insert(1, SexpAtom::Node(
-                            sexp::sexp!(
-                                (justify {orientation.as_str()}))
-                            .root().unwrap().clone())).unwrap();
-                }
+            } else {
+                effects.insert(1, SexpAtom::Node(
+                        sexp::sexp!(
+                            (justify {orientation.as_str()}))
+                        .root().unwrap().clone())).unwrap();
             }
 
             prop.set(2, SexpAtom::Node(sexp::sexp!(
@@ -792,7 +792,7 @@ impl Draw {
                 if pin_number == number {
                     let unit: usize = utils::unit_number(subsymbol.get(0).unwrap());
                     let real_symbol = self.get_symbol_by_unit(reference.as_str(), unit).unwrap();
-                    return Ok(Shape::transform(real_symbol, &utils::at(&pin).unwrap()));
+                    return Ok(Shape::transform(real_symbol, &utils::at(pin).unwrap()));
                 }
             }
         }
@@ -955,10 +955,6 @@ impl Drawer<Symbol> for Draw {
 
                     if length > sym_len {
                         let wire_len = (length - sym_len) / 2.0;
-                        /* TODO let pos0 = round!(arr2(&[
-                            [pos[0], pos[1]],
-                            [pos[0] + wire_len * rad.cos(), pos[1] + wire_len * rad.sin()]
-                        ])); */
 
                         let wire1 = round!(arr2(&[
                             [pos[0], pos[1]],
@@ -1069,7 +1065,7 @@ impl Drawer<Symbol> for Draw {
             .unwrap()
             .push(SexpAtom::Node(symbol.clone()))?;
 
-        Ok(Some(symbol)) //TODO why Some?
+        Ok(Some(symbol)) 
     }
 }
 

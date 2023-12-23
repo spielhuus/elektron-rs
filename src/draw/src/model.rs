@@ -20,16 +20,13 @@ impl From<&str> for DotPosition {
 }
 
 ///Label position
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LabelPosition {
     North,
     South,
     West,
     East,
-    NorthWest,
-    NorthEast,
-    SouthWest,
-    SouthEast,
+    Offset(f64, f64),
 }
 
 impl From<&str> for LabelPosition {
@@ -43,14 +40,11 @@ impl From<&str> for LabelPosition {
             Self::West
         } else if position == "east" || position == "e" {
             Self::East
-        } else if position == "northeast" || position == "ne" {
-            Self::NorthEast
-        } else if position == "northwest" || position == "nw" {
-            Self::NorthWest
-        } else if position == "southeast" || position == "se" {
-            Self::SouthEast
-        } else if position == "southwest" || position == "sw" {
-            Self::SouthWest
+        } else if position.contains(",") {
+            let mut tokens = position.split(',');
+            let x = tokens.next().unwrap();
+            let y = tokens.next().unwrap();
+            Self::Offset(x.parse::<f64>().unwrap(), y.parse::<f64>().unwrap())
         } else {
             Self::North
         }

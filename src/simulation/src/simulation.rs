@@ -1,3 +1,7 @@
+//! Run the ngspice simulations
+//!
+//!
+
 use std::collections::HashMap;
 use log::{debug, log_enabled, Level};
 
@@ -21,7 +25,7 @@ macro_rules! handle_error {
     };
 }
 
-///The callback message buffer
+/// The callback message buffer
 pub struct Cb {
     ///The string buffer
     strs: Vec<String>,

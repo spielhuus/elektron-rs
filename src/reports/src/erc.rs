@@ -155,7 +155,6 @@ fn pins(
                         let number: String = pin.value(el::PIN_NUMBER).unwrap();
                         if netlist.node_name(&Point::new(point[0], point[1])).is_none() {
                             if unit > 1 {
-                                //TODO libsymbol.symbols.len() > 1 {
                                 results.push(
                                     ErcItem::from(
                                         ErcType::PinNotConnected,
