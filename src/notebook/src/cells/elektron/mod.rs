@@ -150,8 +150,9 @@ impl CellWrite<ElektronCell> for CellWriter {
                             writeln!(out, "  {}:", input).unwrap();
                             for item in res {
                                 writeln!(out, "    -").unwrap();
+                                writeln!(out, "       id: {}", item.id).unwrap();
                                 writeln!(out, "       reference: {}", item.reference).unwrap();
-                                writeln!(out, "       description: No Reference for symbol.")
+                                writeln!(out, "       description: {}.", item.description)
                                     .unwrap();
                                 writeln!(out, "       at: {}:{}", item.at[0], item.at[1]).unwrap();
 

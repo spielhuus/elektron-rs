@@ -51,14 +51,16 @@ pub struct ErcItem {
     pub id: ErcType,
     pub reference: String, 
     pub at: Array1<f64>,
+    pub description: String,
 }
 
 impl ErcItem {
-    pub fn from(id: ErcType, reference: &str, at: Array1<f64>) -> Self {
+    pub fn from(id: ErcType, reference: &str, at: Array1<f64>, description: String) -> Self {
         Self {
             id,
             reference: reference.to_string(),
             at: at.clone(),
+            description
 
         }
     }
@@ -90,7 +92,7 @@ pub fn erc(input: &str) -> Result<Vec<ErcItem>, Error> {
             results.append(&mut pins(&document, &elements, &netlist));
         }
         Err(netlist) => {
-            results.push(ErcItem::from(ErcType::Netlist, &netlist.to_string(), arr1(&[])));
+            results.push(ErcItem::from(ErcType::Netlist, &netlist.to_string(), arr1(&[]), String::from("netlist not found")));
         }
     }
     Ok(results)
@@ -113,7 +115,7 @@ pub fn erc_from_tree(document: &SexpTree) -> Result<Vec<ErcItem>, Error> {
             results.append(&mut pins(document, &elements, &netlist));
         }
         Err(netlist) => {
-            results.push(ErcItem::from(ErcType::Netlist, &netlist.to_string(), arr1(&[])));
+            results.push(ErcItem::from(ErcType::Netlist, &netlist.to_string(), arr1(&[]), String::from("netlist not found")));
         }
     }
     Ok(results)
@@ -154,6 +156,11 @@ fn pins(
                         let point: Array1<f64> = Shape::transform(*symbol, &at);
                         let number: String = pin.value(el::PIN_NUMBER).unwrap();
                         if netlist.node_name(&Point::new(point[0], point[1])).is_none() {
+                            if let Some(pin_type) = <Sexp as SexpValueQuery::<String>>::get(pin, 0) {
+                                if pin_type == "no_connect" {
+                                    break;
+                                }
+                            };
                             if unit > 1 {
                                 results.push(
                                     ErcItem::from(
@@ -168,6 +175,7 @@ fn pins(
                                             number,
                                         ),
                                         point,
+                                        format!("Pin {} not connected", number)
                                     )
                                 );
                             } else {
@@ -183,6 +191,7 @@ fn pins(
                                         number
                                     ),
                                     point,
+                                    format!("Pin {} not connected", number)
                                 ));
                             }
                         }
@@ -208,6 +217,8 @@ fn values(elements: &HashMap<String, Vec<&Sexp>>) -> Vec<ErcItem> {
                     ErcType::ValuesDiffer, 
                     &<Sexp as SexpProperty<String>>::property(symbol, el::PROPERTY_REFERENCE).unwrap(),
                     at.clone(),
+                    format!("Symbol values differ: {}:{}", value,
+                        <Sexp as SexpProperty<String>>::property(symbol, el::PROPERTY_VALUE).unwrap()),
                 ));
             }
         }
@@ -226,10 +237,11 @@ fn references(document: &SexpTree, elements: &HashMap<String, Vec<&Sexp>>) -> Ve
                 ErcType::NoReference,
                 reference,
                 at.clone(),
+                String::from("no reference for symbol")
             ));
         }
         let Some(libsymbol) = utils::get_library(document.root().unwrap(), &lib_id) else {
-            //Library Symbol not found
+            //TODO Library Symbol not found
             break;
         };
         let parts: usize = libsymbol
@@ -252,6 +264,7 @@ fn references(document: &SexpTree, elements: &HashMap<String, Vec<&Sexp>>) -> Ve
                 ErcType::NotAllParts,
                 reference,
                 at.clone(),
+                String::from("not all unit for symbol in schema")
             ));
         }
     }
