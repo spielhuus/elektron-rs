@@ -34,7 +34,6 @@ macro_rules! round {
     };
 }
 
-
 /// load a library
 ///
 /// # Arguments

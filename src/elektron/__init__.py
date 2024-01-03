@@ -14,7 +14,7 @@ import tempfile
 import pcbnew
 
 import argparse
-from .elektron import make_bom, plot, convert, make_erc, make_drc, make_spice, make_vrml, search
+from .elektron import make_bom, plot, convert, make_erc, make_drc, make_spice, make_vrml, search, list
 
 def main():
     # create the top-level parser
@@ -58,6 +58,9 @@ def main():
     parser_search.add_argument('--term', type=str, required=True, help='The search term.')
     parser_search.add_argument('--path', action='append', required=True, dest='sym_path', help='The symbol library path.')
 
+    parser_list = sub_parsers.add_parser('list', help='list symbols in a library file.')
+    parser_list.add_argument('--input', type=str, required=True, help='The filename')
+
     args = parser.parse_args()
 
     try:
@@ -78,6 +81,8 @@ def main():
             make_vrml(args.input, args.output)
         elif(args.command == 'search'):
             search(args.term, args.sym_path)
+        elif(args.command == 'list'):
+            list(args.input)
         else:
             print(args)
     except Exception as inst:

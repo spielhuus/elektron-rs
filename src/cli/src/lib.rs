@@ -49,7 +49,7 @@ mod python;
 
 use crate::error::Error;
 
-use sexp::{SexpParser, SexpTree, State, el};
+use sexp::{SexpParser, SexpTree, State, SexpValueQuery, SexpProperty, el};
 use notebook::Document;
 use plotter::{
     cairo_plotter::{CairoPlotter, ImageType},
@@ -600,6 +600,35 @@ pub fn search(term: &str, path: Vec<String>) -> Result<(), Error> {
     Ok(())
 }
 
+/// Search a Kicad symbol.
+///
+/// # Arguments
+///
+/// * `term`     - The symbol name.
+/// * `path`     - List of library paths.
+#[pyfunction]
+pub fn list(input: &str) -> Result<(), Error> {
+    let mut data = json::JsonValue::new_array();
+
+    if let Ok(doc) = SexpParser::load(input) {
+        if let Ok(tree) = SexpTree::from(doc.iter()) {
+            for node in tree.root()?.query(el::SYMBOL) {
+                let sym_name: String = node.get(0).unwrap();
+                let sym_desc: String = node.property("ki_description").unwrap();
+                data.push(json::object! {
+                    library: sym_name,
+                    description: sym_desc,
+                }).unwrap();
+            }
+        }
+    }
+
+
+    std::io::stdout().write_all(data.to_string().as_bytes()).unwrap();
+    std::io::stdout().write_all("\n".as_bytes()).unwrap();
+    Ok(())
+}
+
 /// A Python module implemented in Rust.
 #[pymodule]
 fn elektron(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
@@ -611,6 +640,7 @@ fn elektron(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(make_drc))?;
     m.add_wrapped(wrap_pyfunction!(make_vrml))?;
     m.add_wrapped(wrap_pyfunction!(search))?;
+    m.add_wrapped(wrap_pyfunction!(list))?;
     m.add_class::<crate::python::PyDraw>()?;
     m.add_class::<crate::python::model::Line>()?;
     m.add_class::<crate::python::model::Dot>()?;

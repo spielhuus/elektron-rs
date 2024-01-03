@@ -123,6 +123,8 @@ pub enum Error {
     SexpError(String, String),
     #[error("Can not laod content: {0} ({1})")]
     IoError(String, String),
+    #[error("Library not found {0}.")]
+    LibraryNotFound(String),
 }
 impl std::convert::From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
@@ -929,7 +931,7 @@ impl<'a> Iterator for SexpIter<'a> {
 
 ///Utility methods to access some common nodes.
 pub mod utils {
-    use super::{el, Sexp, SexpValueQuery};
+    use super::{el, Sexp, SexpValueQuery, SexpParser, SexpTree, SexpAtom};
     use crate::Error;
     use lazy_static::lazy_static;
     use ndarray::{s, Array1};
@@ -1009,6 +1011,33 @@ pub mod utils {
         } else {
             None
         }
+    }
+
+    /// load a library
+    ///
+    /// # Arguments
+    ///
+    /// * `name`     - The symbol name.
+    /// * `pathlist` - List of library paths.
+    /// * `return`   - Library symbol as Sexp struct.
+    pub fn library(name: &str, pathlist: Vec<String>) -> Result<Sexp, Error> {
+        let t: Vec<&str> = name.split(':').collect();
+        for path in &pathlist {
+            let filename = &format!("{}/{}.kicad_sym", path, t[0]);
+            if let Ok(doc) = SexpParser::load(filename) {
+                if let Ok(tree) = SexpTree::from(doc.iter()) {
+                    for node in tree.root()?.query(el::SYMBOL) {
+                        let sym_name: String = node.get(0).unwrap();
+                        if sym_name == t[1] {
+                            let mut node = node.clone();
+                            node.set(0, SexpAtom::Text(name.to_string()))?;
+                            return Ok(node.clone());
+                        }
+                    }
+                }
+            }
+        }
+        Err(Error::LibraryNotFound(name.to_string()))
     }
 }
 
