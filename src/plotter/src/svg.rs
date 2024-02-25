@@ -103,10 +103,11 @@ impl<'a> PlotterImpl<'a, SexpTree> for SvgPlotter<'a> {
                     self.draw(&plot_items, &mut g);
                     document.append(g);
                     if let Some(themer) = &self.themer {
-                        document.append(element::Style::new(format!(
+                        document.append(element::Style::new(themer.css()
+                        /* TODO             format!(
                             "<![CDATA[\n{}\n]]>",
-                            themer.css()
-                        )));
+                            themer.css() */
+                        ));
                     }
                     document
                 } else {
@@ -133,10 +134,10 @@ impl<'a> PlotterImpl<'a, SexpTree> for SvgPlotter<'a> {
                     let mut g = element::Group::new().set("id", self.name);
                     self.draw(&plot_items, &mut g);
                     if let Some(themer) = &self.themer {
-                        document.append(element::Style::new(format!(
-                            "<![CDATA[\n{}\n]]>",
+                        document.append(element::Style::new(themer.css()));
+                        /*  TODO  "<![CDATA[\n{}\n]]>",
                             themer.css()
-                        )));
+                        ))); */
                     }
                     document.append(g);
                     document

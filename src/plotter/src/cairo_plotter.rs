@@ -8,7 +8,7 @@ use sexp::{el, PaperSize, Sexp, SexpProperty, SexpTree, SexpValueQuery};
 use simulation::Netlist;
 use itertools::Itertools;
 use ndarray::{arr2, Array2};
-use pangocairo::{create_layout, pango::SCALE, show_layout, update_layout};
+use pangocairo::{pango::SCALE, functions::{create_layout, show_layout, update_layout}};
 use std::{io::Write, collections::HashMap};
 extern crate cairo;
 use cairo::{Context, Format, ImageSurface, PdfSurface, SvgSurface};
