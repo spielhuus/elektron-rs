@@ -26,7 +26,7 @@ jobs:
                            graphite2-devel cairo cairo-devel cairo-gobject cairo-gobject-devel \
                            pango pango-devel poppler poppler-devel poppler-glib poppler-glib-devel \
                            gcc bison flex libtool autoconf automake gcc libX11 libX11-devel libXaw \
-                           libXaw-devel readline readline-devel harbuzz-devel harfbuzz-icu-devel &&
+                           libXaw-devel readline readline-devel harfbuzz-devel harfbuzz-icu &&
             curl -L https://sourceforge.net/projects/ngspice/files/ng-spice-rework/41/ngspice-41.tar.gz/download -o ngspice.tar.gz &&
             tar xfz ngspice.tar.gz && pushd ngspice-41 &&
             mkdir release &&
