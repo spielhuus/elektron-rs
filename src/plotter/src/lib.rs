@@ -471,127 +471,127 @@ impl fmt::Display for Style {
 impl From<String> for Style {
     fn from(style: String) -> Self {
         if style.to_lowercase() == "b_cu" {
-            return Style::BCu;
+            Style::BCu
         } else if style.to_lowercase() == "f_cu" {
-            return Style::FCu;
+            Style::FCu
         } else if style.to_lowercase() == "in1_cu" {
-            return Style::In1Cu;
+            Style::In1Cu
         } else if style.to_lowercase() == "in2_cu" {
-            return Style::In2Cu;
+            Style::In2Cu
         } else if style.to_lowercase() == "in3_cu" {
-            return Style::In3Cu;
+            Style::In3Cu
         } else if style.to_lowercase() == "in4_cu" {
-            return Style::In4Cu;
+            Style::In4Cu
         } else if style.to_lowercase() == "in5_cu" {
-            return Style::In5Cu;
+            Style::In5Cu
         } else if style.to_lowercase() == "in6_cu" {
-            return Style::In6Cu;
+            Style::In6Cu
         } else if style.to_lowercase() == "in7_cu" {
-            return Style::In7Cu;
+            Style::In7Cu
         } else if style.to_lowercase() == "in8_cu" {
-            return Style::In8Cu;
+            Style::In8Cu
         } else if style.to_lowercase() == "in9_cu" {
-            return Style::In9Cu;
+            Style::In9Cu
         } else if style.to_lowercase() == "in10_cu" {
-            return Style::In10Cu;
+            Style::In10Cu
         } else if style.to_lowercase() == "in11_cu" {
-            return Style::In11Cu;
+            Style::In11Cu
         } else if style.to_lowercase() == "in12_cu" {
-            return Style::In12Cu;
+            Style::In12Cu
         } else if style.to_lowercase() == "in13_cu" {
-            return Style::In13Cu;
+            Style::In13Cu
         } else if style.to_lowercase() == "in14_cu" {
-            return Style::In14Cu;
+            Style::In14Cu
         } else if style.to_lowercase() == "in15_cu" {
-            return Style::In15Cu;
+            Style::In15Cu
         } else if style.to_lowercase() == "in16_cu" {
-            return Style::In16Cu;
+            Style::In16Cu
         } else if style.to_lowercase() == "in17_cu" {
-            return Style::In17Cu;
+            Style::In17Cu
         } else if style.to_lowercase() == "in18_cu" {
-            return Style::In18Cu;
+            Style::In18Cu
         } else if style.to_lowercase() == "in19_cu" {
-            return Style::In19Cu;
+            Style::In19Cu
         } else if style.to_lowercase() == "in20_cu" {
-            return Style::In20Cu;
+            Style::In20Cu
         } else if style.to_lowercase() == "in21_cu" {
-            return Style::In21Cu;
+            Style::In21Cu
         } else if style.to_lowercase() == "in22_cu" {
-            return Style::In22Cu;
+            Style::In22Cu
         } else if style.to_lowercase() == "in23_cu" {
-            return Style::In23Cu;
+            Style::In23Cu
         } else if style.to_lowercase() == "in24_cu" {
-            return Style::In24Cu;
+            Style::In24Cu
         } else if style.to_lowercase() == "in25_cu" {
-            return Style::In25Cu;
+            Style::In25Cu
         } else if style.to_lowercase() == "in26_cu" {
-            return Style::In26Cu;
+            Style::In26Cu
         } else if style.to_lowercase() == "in27_cu" {
-            return Style::In27Cu;
+            Style::In27Cu
         } else if style.to_lowercase() == "in28_cu" {
-            return Style::In28Cu;
+            Style::In28Cu
         } else if style.to_lowercase() == "in29_cu" {
-            return Style::In29Cu;
+            Style::In29Cu
         } else if style.to_lowercase() == "in30_cu" {
-            return Style::In30Cu;
+            Style::In30Cu
         } else if style.to_lowercase() == "b_cu" {
-            return Style::BCu;
+            Style::BCu
         } else if style.to_lowercase() == "b_adhes" {
-            return Style::BAdhes;
+            Style::BAdhes
         } else if style.to_lowercase() == "f_adhes" {
-            return Style::FAdhes;
+            Style::FAdhes
         } else if style.to_lowercase() == "b_paste" {
-            return Style::BPaste;
+            Style::BPaste
         } else if style.to_lowercase() == "f_paste" {
-            return Style::FPaste;
+            Style::FPaste
         } else if style.to_lowercase() == "b_silks" {
-            return Style::BSilkS;
+            Style::BSilkS
         } else if style.to_lowercase() == "f_silks" {
-            return Style::FSilkS;
+            Style::FSilkS
         } else if style.to_lowercase() == "b_mask" {
-            return Style::BMask;
+            Style::BMask
         } else if style.to_lowercase() == "f_mask" {
-            return Style::FMask;
+            Style::FMask
         } else if style.to_lowercase() == "dwgs_user" {
-            return Style::DwgsUser;
+            Style::DwgsUser
         } else if style.to_lowercase() == "cmts_user" {
-            return Style::CmtsUser;
+            Style::CmtsUser
         } else if style.to_lowercase() == "eco1_user" {
-            return Style::Eco1User;
+            Style::Eco1User
         } else if style.to_lowercase() == "eco2_user" {
-            return Style::Eco2User;
+            Style::Eco2User
         } else if style.to_lowercase() == "edge_cuts" {
-            return Style::EdgeCuts;
+            Style::EdgeCuts
         } else if style.to_lowercase() == "margin" {
-            return Style::Margin;
+            Style::Margin
         } else if style.to_lowercase() == "b_crtyd" {
-            return Style::BCrtYd;
+            Style::BCrtYd
         } else if style.to_lowercase() == "f_crtyd" {
-            return Style::FCrtYd;
+            Style::FCrtYd
         } else if style.to_lowercase() == "b_fab" {
-            return Style::BFab;
+            Style::BFab
         } else if style.to_lowercase() == "f_fab" {
-            return Style::FFab;
+            Style::FFab
         } else if style.to_lowercase() == "user_1" {
-            return Style::User1;
+            Style::User1
         } else if style.to_lowercase() == "user_2" {
-            return Style::User2;
+            Style::User2
         } else if style.to_lowercase() == "user_3" {
-            return Style::User3;
+            Style::User3
         } else if style.to_lowercase() == "user_4" {
-            return Style::User4;
+            Style::User4
         } else if style.to_lowercase() == "user_5" {
-            return Style::User5;
+            Style::User5
         } else if style.to_lowercase() == "user_6" {
-            return Style::User6;
+            Style::User6
         } else if style.to_lowercase() == "user_7" {
-            return Style::User7;
+            Style::User7
         } else if style.to_lowercase() == "user_8" {
-            return Style::User8;
+            Style::User8
         } else if style.to_lowercase() == "user_9" {
-            return Style::User9;
+            Style::User9
         } else {
-            return Style::None;
+            Style::None
         }
     }
 }

@@ -99,25 +99,6 @@ fn clean_style(input: &str, style: &super::Style, themer: &Themer) -> Result<Str
     Ok(res)
 }
 
-#[cfg(test)]
-mod test {
-    use super::clean_style;
-
-    #[test]
-    fn iterate() {
-        let style = crate::Style::FCu;
-        let themer = crate::Themer::new(crate::Theme::Kicad2020);
-        let res = clean_style("fill:#000000; fill-opacity:0.0; stroke:#000000; stroke-width:0.0000; stroke-opacity:1; stroke-linecap:round; stroke-linejoin:round;", &style, &themer);
-        assert_eq!("fill:#000000; fill-opacity:0.0; stroke:#000000; stroke-width:0.0000; stroke-opacity:1; stroke-linecap:round; stroke-linejoin:round; ", res.unwrap());
-    }
-    #[test]
-    fn iterate_with_color() {
-        let style = crate::Style::FCu;
-        let themer = crate::Themer::new(crate::Theme::Kicad2020);
-        let res = clean_style("fill:#4D7FC4; fill-opacity:0.0; stroke:#4D7FC4; stroke-width:0.2500; stroke-opacity:1; stroke-linecap:round; stroke-linejoin:round;", &style, &themer);
-        assert_eq!("fill:#c83434; fill-opacity:0.0; stroke:#c83434; stroke-width:0.2500; stroke-opacity:1; stroke-linecap:round; stroke-linejoin:round; ", res.unwrap());
-    }
-}
 
 enum SvgTypes {
     Group(Group),
@@ -635,4 +616,24 @@ pub fn plot_pcb(input: String, output: String, layers: Option<&Vec<String>>, the
     }
     fs::remove_dir_all(format!("{}/{}", basedir, tmp_folder))?;
     Ok((width, height))
+}
+
+#[cfg(test)]
+mod test {
+    use super::clean_style;
+
+    #[test]
+    fn iterate() {
+        let style = crate::Style::FCu;
+        let themer = crate::Themer::new(crate::Theme::Kicad2020);
+        let res = clean_style("fill:#000000; fill-opacity:0.0; stroke:#000000; stroke-width:0.0000; stroke-opacity:1; stroke-linecap:round; stroke-linejoin:round;", &style, &themer);
+        assert_eq!("fill:#000000; fill-opacity:0.0; stroke:#000000; stroke-width:0.0000; stroke-opacity:1; stroke-linecap:round; stroke-linejoin:round; ", res.unwrap());
+    }
+    #[test]
+    fn iterate_with_color() {
+        let style = crate::Style::FCu;
+        let themer = crate::Themer::new(crate::Theme::Kicad2020);
+        let res = clean_style("fill:#4D7FC4; fill-opacity:0.0; stroke:#4D7FC4; stroke-width:0.2500; stroke-opacity:1; stroke-linecap:round; stroke-linejoin:round;", &style, &themer);
+        assert_eq!("fill:#c83434; fill-opacity:0.0; stroke:#c83434; stroke-width:0.2500; stroke-opacity:1; stroke-linecap:round; stroke-linejoin:round; ", res.unwrap());
+    }
 }

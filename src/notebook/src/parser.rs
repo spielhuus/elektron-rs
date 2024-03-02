@@ -307,7 +307,7 @@ mod tests {
         assert!(res.is_ok());
         for content in command.iter() {
             if let Cell::Python(cell) = content {
-                assert_eq!("println(\"Hello World\")", cell.1.get(0).unwrap());
+                assert_eq!("println(\"Hello World\")", cell.1.first().unwrap());
                 assert_eq!(3, cell.0.len());
             } else {
                 panic!("result is not a cell: {:?}", res)
@@ -340,7 +340,7 @@ mod tests {
         assert!(res.is_ok());
         for content in command.iter() {
             if let Cell::Python(cell) = content {
-                assert_eq!("println(\"Hello World\")", cell.1.get(0).unwrap());
+                assert_eq!("println(\"Hello World\")", cell.1.first().unwrap());
                 assert_eq!(6, cell.0.len());
                 if let ArgType::String(str) = cell.0.get("fig.cap").unwrap() {
                     assert_eq!("Linear amplifier", str);
@@ -363,7 +363,7 @@ mod tests {
         assert!(res.is_ok());
         for content in command.iter() {
             if let Cell::Python(cell) = content {
-                assert_eq!("println(\"Hello World\")", cell.1.get(0).unwrap());
+                assert_eq!("println(\"Hello World\")", cell.1.first().unwrap());
                 assert_eq!(5, cell.0.len());
                 if let ArgType::String(str) = cell.0.get("number").unwrap() {
                     assert_eq!("123", str);
@@ -386,7 +386,7 @@ mod tests {
         assert!(res.is_ok());
         for content in command.iter() {
             if let Cell::Python(cell) = content {
-                assert_eq!("println(\"Hello World\")", cell.1.get(0).unwrap());
+                assert_eq!("println(\"Hello World\")", cell.1.first().unwrap());
                 assert_eq!(5, cell.0.len());
                 if let ArgType::List(str) = cell.0.get("list").unwrap() {
                     assert_eq!(vec!["a", "b", "c"], *str);

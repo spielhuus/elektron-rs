@@ -3,9 +3,9 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 
-pub use tectonic::driver;
-pub use tectonic::errors;
-pub use tectonic::status;
+//TODO pub use tectonic::driver;
+// pub use tectonic::errors;
+// pub use tectonic::status;
 
 use super::super::cells::{CellWrite, CellWriter};
 use super::super::parser::ArgType;

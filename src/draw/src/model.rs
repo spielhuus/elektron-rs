@@ -40,7 +40,7 @@ impl From<&str> for LabelPosition {
             Self::West
         } else if position == "east" || position == "e" {
             Self::East
-        } else if position.contains(",") {
+        } else if position.contains(',') {
             let mut tokens = position.split(',');
             let x = tokens.next().unwrap();
             let y = tokens.next().unwrap();

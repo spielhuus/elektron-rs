@@ -70,6 +70,7 @@ mod constant {
     pub const EXT_EXCEL: &str = ".xls";
 }
 
+
 pub fn check_directory(filename: &str) -> Result<(), Error> {
     let path = std::path::Path::new(filename);
     let parent = path.parent();
@@ -448,7 +449,7 @@ pub fn make_erc(input: &str, output: Option<String>) -> Result<(), Error> {
 ///
 /// * `input` - A Schema filename.
 /// * `partlist` - A YAML file with the parts description.
-/// * `return`   - Tuple with a Vec<BomItem> and the items not found
+/// * `return`   - Tuple with a `Vec<BomItem>` and the items not found
 ///                in the partlist, when provided.
 #[pyfunction]
 pub fn make_drc(input: &str, output: Option<String>) -> Result<(), Error> {

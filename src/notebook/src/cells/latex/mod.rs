@@ -4,12 +4,12 @@ use std::fmt::Arguments;
 use cairo::{Context, SvgSurface};
 use tectonic::config::PersistentConfig;
 pub use tectonic::driver;
-pub use tectonic::engines::bibtex::BibtexEngine;
-pub use tectonic::engines::spx2html::Spx2HtmlEngine;
-pub use tectonic::engines::tex::{TexEngine, TexOutcome};
-pub use tectonic::engines::xdvipdfmx::XdvipdfmxEngine;
-pub use tectonic::errors;
-pub use tectonic::status;
+//TODO pub use tectonic::engines::bibtex::BibtexEngine;
+// pub use tectonic::engines::spx2html::Spx2HtmlEngine;
+// pub use tectonic::engines::tex::{TexEngine, TexOutcome};
+// pub use tectonic::engines::xdvipdfmx::XdvipdfmxEngine;
+// pub use tectonic::errors;
+// pub use tectonic::status;
 use tectonic::status::{MessageKind, StatusBackend};
 
 use super::super::cells::{CellWrite, CellWriter};
@@ -70,7 +70,8 @@ impl CellWrite<TikzCell> for CellWriter {
         echo(out, "latex", body.join("\n").as_str(), args);
         if let Err(pdf_err) = pdf_data {
             return Err(Error::Latex(pdf_err.to_string()));
-        } else if let Ok(pdf_data) = pdf_data {
+        }  
+        if let Ok(pdf_data) = pdf_data {
             unsafe {
                 let document = poppler::Document::from_data(&pdf_data, None).unwrap();
                 let mut buffer: Vec<u8> = Vec::new();

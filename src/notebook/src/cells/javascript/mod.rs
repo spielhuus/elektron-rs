@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-pub use tectonic::driver;
-pub use tectonic::errors;
-pub use tectonic::status;
+//TODO pub use tectonic::driver;
+// pub use tectonic::errors;
+// pub use tectonic::status;
 
 use super::super::cells::{CellWrite, CellWriter};
 use super::super::parser::ArgType;
