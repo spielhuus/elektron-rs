@@ -397,7 +397,7 @@ pub fn convert(input: &str, output: &str) -> Result<(), Error> {
 /// * `input` - A Schema filename.
 /// * `group`    - group equal items.
 /// * `partlist` - A YAML file with the parts description.
-/// * `return`   - Tuple with a Vec<BomItem> and the items not found
+/// * `return`   - Tuple with a 'Vec<BomItem>' and the items not found
 ///                in the partlist, when provided.
 #[pyfunction]
 pub fn make_erc(input: &str, output: Option<String>) -> Result<(), Error> {
