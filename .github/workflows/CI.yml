@@ -22,7 +22,7 @@ jobs:
         target: ${{ matrix.target }}
         manylinux: manylinux_2_38
         before-script-linux: >
-            apt-get -y install gcc clang openssl-devel openssl-libs libicu libicu-devel graphite2 \
+            sudo apt-get -y install gcc clang openssl-devel openssl-libs libicu libicu-devel graphite2 \
                            graphite2-devel cairo cairo-devel cairo-gobject cairo-gobject-devel \
                            pango pango-devel poppler poppler-devel poppler-glib poppler-glib-devel \
                            gcc bison flex libtool autoconf automake gcc libX11 libX11-devel libXaw \
