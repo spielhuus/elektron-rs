@@ -8,8 +8,7 @@ use std::path::Path;
 // pub use tectonic::status;
 
 use super::super::cells::{CellWrite, CellWriter};
-use super::super::parser::ArgType;
-use crate::error::Error;
+use crate::{error::Error, notebook::ArgType};
 
 use super::{args_to_string, get_value, param, param_or};
 

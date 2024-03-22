@@ -126,7 +126,7 @@ mod tests {
             let res = root.query(el::SYMBOL).collect::<Vec<&Sexp>>();
             assert_eq!(
                 arr1(&[48.26, 43.18]),
-                utils::at(res.get(0).unwrap()).unwrap()
+                utils::at(res.first().unwrap()).unwrap()
             );
         }
         #[test]
@@ -135,7 +135,7 @@ mod tests {
             let tree = SexpTree::from(doc.iter()).unwrap();
             let root = tree.root().unwrap();
             let res = root.query(el::SYMBOL).collect::<Vec<&Sexp>>();
-            assert_eq!(0.0, utils::angle(res.get(0).unwrap()).unwrap());
+            assert_eq!(0.0, utils::angle(res.first().unwrap()).unwrap());
         }
         #[test]
         fn pin_pos_r1() {

@@ -79,7 +79,7 @@ pub fn drc(document: String) -> Result<Vec<DrcItem>, Error> {
         py.run(
             r#"
 import os
-os.environ['KICAD7_FOOTPRINT_DIR'] = '/usr/share/kicad/footprints'
+os.environ['KICAD8_FOOTPRINT_DIR'] = '/usr/share/kicad/footprints'
 
 from elektron import Pcb
 board = Pcb(document)

@@ -8,32 +8,22 @@ license.workspace = true
 name = "notebook"
 
 [dependencies]
-sexp_macro = { path = "../sexp_macro" }
-sexp = { path = "../sexp" }
-reports = { path = "../reports" }
-simulation = { path = "../simulation" }
 plotter = { path = "../plotter" }
+reports = { path = "../reports" }
+sexp = { path = "../sexp" }
+sexp_macro = { path = "../sexp_macro" }
+simulation = { path = "../simulation" }
 
-thiserror.workspace = true
-lazy_static.workspace = true
-regex.workspace = true
-pyo3.workspace = true
-itertools.workspace = true
-ndarray.workspace = true
-yaml-rust.workspace = true
-xlsxwriter.workspace = true
-colored.workspace = true
-rand.workspace = true
-json.workspace = true
-pest.workspace = true
-pest_derive.workspace = true
-tectonic.workspace = true
 anyhow.workspace = true
-plotters.workspace = true
-plotters-svg.workspace = true
-hound.workspace = true
 cairo-rs.workspace = true
-png.workspace = true
-svg.workspace = true
-pdf.workspace = true
+hound.workspace = true
+json.workspace = true
+lazy_static.workspace = true
+log.workspace = true
+plotters.workspace = true
 poppler-rs.workspace = true
+pyo3.workspace = true
+rand.workspace = true
+regex.workspace = true
+tectonic.workspace = true
+thiserror.workspace = true

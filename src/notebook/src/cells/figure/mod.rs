@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
+use crate::notebook::ArgType;
+
 use super::super::cells::{CellWrite, CellWriter};
-use super::super::parser::ArgType;
 use super::super::utils::clean_svg;
 use super::Error;
 

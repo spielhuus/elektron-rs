@@ -588,7 +588,7 @@ pub fn plot(
         } else if item.name == el::WIRE {
             let pts = item.query(el::PTS).next().unwrap();
             let xy = pts.query(el::XY).collect::<Vec<&Sexp>>();
-            let xy1: Array1<f64> = xy.get(0).unwrap().values();
+            let xy1: Array1<f64> = xy.first().unwrap().values();
             let xy2: Array1<f64> = xy.get(1).unwrap().values();
             plot_items.push(PlotItem::Line(
                 10,

@@ -1,19 +1,8 @@
 use std::collections::HashMap;
 
-//TODO pub use tectonic::driver;
-// pub use tectonic::errors;
-// pub use tectonic::status;
+use crate::{error::Error, notebook::ArgType};
 
-use super::super::cells::{CellWrite, CellWriter};
-use super::super::parser::ArgType;
-use super::super::runner::LoggingStderr;
-use super::super::runner::LoggingStdout;
-use super::super::utils::newlines;
-use super::write_plot;
-use crate::error::Error;
-
-use super::args_to_string;
-use super::echo;
+use super::{args_to_string, echo, newlines, write_plot, CellWrite, CellWriter, LoggingStderr, LoggingStdout};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PythonCell(pub HashMap<String, ArgType>, pub Vec<String>);

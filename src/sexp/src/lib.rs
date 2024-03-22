@@ -600,7 +600,7 @@ impl SexpValueQuery<String> for Sexp {
     ///Return a single value from a node.
     fn value(&self, q: &str) -> Option<String> {
         if let Some(node) = self.query(q).next() {
-            if let Some(value) = <Sexp as SexpValuesQuery<Vec<String>>>::values(node).get(0) {
+            if let Some(value) = <Sexp as SexpValuesQuery<Vec<String>>>::values(node).first() {
                 return Some(value.to_string());
             }
         }
@@ -618,7 +618,7 @@ impl SexpValueQuery<String> for Sexp {
 impl SexpValueQuery<u32> for Sexp {
     fn value(&self, q: &str) -> Option<u32> {
         if let Some(node) = self.query(q).next() {
-            if let Some(value) = <Sexp as SexpValuesQuery<Vec<String>>>::values(node).get(0) {
+            if let Some(value) = <Sexp as SexpValuesQuery<Vec<String>>>::values(node).first() {
                 return Some(value.parse::<u32>().unwrap());
             }
         }
@@ -635,7 +635,7 @@ impl SexpValueQuery<u32> for Sexp {
 impl SexpValueQuery<usize> for Sexp {
     fn value(&self, q: &str) -> Option<usize> {
         if let Some(node) = self.query(q).next() {
-            if let Some(value) = <Sexp as SexpValuesQuery<Vec<String>>>::values(node).get(0) {
+            if let Some(value) = <Sexp as SexpValuesQuery<Vec<String>>>::values(node).first() {
                 return Some(value.parse::<usize>().unwrap());
             }
         }
@@ -652,7 +652,7 @@ impl SexpValueQuery<usize> for Sexp {
 impl SexpValueQuery<bool> for Sexp {
     fn value(&self, q: &str) -> Option<bool> {
         if let Some(node) = self.query(q).next() {
-            if let Some(value) = <Sexp as SexpValuesQuery<Vec<String>>>::values(node).get(0) {
+            if let Some(value) = <Sexp as SexpValuesQuery<Vec<String>>>::values(node).first() {
                 return Some(value == "true" || value == "yes");
             }
         }
@@ -670,7 +670,7 @@ impl SexpValueQuery<f64> for Sexp {
     fn value(&self, q: &str) -> Option<f64> {
         let node = self.query(q).next();
         if let Some(node) = node {
-            if let Some(value) = <Sexp as SexpValuesQuery<Vec<String>>>::values(node).get(0) {
+            if let Some(value) = <Sexp as SexpValuesQuery<Vec<String>>>::values(node).first() {
                 return Some(value.parse::<f64>().unwrap());
             }
         }
@@ -708,7 +708,7 @@ impl SexpValueQuery<Array1<f64>> for Sexp {
 impl SexpValueQuery<PaperSize> for Sexp {
     fn value(&self, q: &str) -> Option<PaperSize> {
         if let Some(node) = self.query(q).next() {
-            if let Some(value) = <Sexp as SexpValuesQuery<Vec<String>>>::values(node).get(0) {
+            if let Some(value) = <Sexp as SexpValuesQuery<Vec<String>>>::values(node).first() {
                 return Some(PaperSize::from(value));
             }
         }
@@ -734,7 +734,8 @@ impl std::convert::From<State<'_>> for u32 {
     fn from(state: State<'_>) -> Self {
         if let State::Values(value) = state {
             return value.parse::<u32>().unwrap();
-        } else if let State::Text(value) = state {
+        } 
+        if let State::Text(value) = state {
             return value.parse::<u32>().unwrap();
         }
         panic!();
@@ -745,7 +746,8 @@ impl std::convert::From<State<'_>> for i32 {
     fn from(state: State<'_>) -> Self {
         if let State::Values(value) = state {
             return value.parse::<i32>().unwrap();
-        } else if let State::Text(value) = state {
+        } 
+        if let State::Text(value) = state {
             return value.parse::<i32>().unwrap();
         }
         panic!();
@@ -763,7 +765,8 @@ impl std::convert::From<State<'_>> for String {
     fn from(state: State<'_>) -> Self {
         if let State::Values(value) = state {
             return value.to_string();
-        } else if let State::Text(value) = state {
+        } 
+        if let State::Text(value) = state {
             return value.to_string();
         }
         panic!("Error Parsing to String: {:?}", state);
@@ -839,9 +842,8 @@ impl<'a> SexpIter<'a> {
                             if let Some(ch) = self.chars.next() {
                                 if ch.1 == '"' && last_char != '\\' {
                                     break;
-                                } else {
-                                    last_char = ch.1;
                                 }
+                                last_char = ch.1;
                             }
                         }
                     }
@@ -881,7 +883,7 @@ impl<'a> Iterator for SexpIter<'a> {
                     }
                 }
                 IntState::Values => {
-                    if indice.1 == ' ' || indice.1 == '\n' || indice.1 == ')' {
+                    if indice.1 == ' ' || indice.1 == '\t' || indice.1 == '\n' || indice.1 == ')' {
                         if indice.0 - self.start_index > 0 {
                             let value = &self.content[self.start_index..indice.0];
                             self.start_index = indice.0 + 1;
@@ -891,11 +893,10 @@ impl<'a> Iterator for SexpIter<'a> {
                                 IntState::Values
                             };
                             return Some(State::Values(value));
-                        } else {
-                            self.start_index = indice.0 + 1;
-                            if indice.1 == ')' {
-                                return Some(State::EndSymbol);
-                            }
+                        } 
+                        self.start_index = indice.0 + 1;
+                        if indice.1 == ')' {
+                            return Some(State::EndSymbol);
                         }
                     } else if indice.1 == '(' {
                         self.start_index = indice.0 + 1;
@@ -915,9 +916,8 @@ impl<'a> Iterator for SexpIter<'a> {
                                         IntState::Values
                                     };
                                     return Some(State::Text(value));
-                                } else {
-                                    last_char = ch.1;
-                                }
+                                } 
+                                last_char = ch.1;
                             }
                         }
                     }
@@ -1007,7 +1007,7 @@ pub mod utils {
             })
             .collect();
         if lib.len() == 1 {
-            Some(lib.get(0).unwrap())
+            Some(lib.first().unwrap())
         } else {
             None
         }

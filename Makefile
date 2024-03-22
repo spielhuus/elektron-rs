@@ -28,7 +28,7 @@ else
   extension :=
 endif
 
-all: version test doc build ## run test, doc and build target
+all: version build test doc ## run test, doc and build target
 
 build: $(VENV)/bin/elektron ## build and local install.
 

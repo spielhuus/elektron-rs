@@ -48,6 +48,7 @@ impl<'a> PlotterImpl<'a, SexpTree> for SvgPlotter<'a> {
         pages: Option<Vec<usize>>,
         netlist: bool,
     ) -> Result<(), Error> {
+        let before = std::time::Instant::now();
         //load the netlist
         let netlist = if netlist {
             Some(Netlist::from(schema).unwrap())
@@ -88,7 +89,7 @@ impl<'a> PlotterImpl<'a, SexpTree> for SvgPlotter<'a> {
                         <Sexp as SexpValueQuery<PaperSize>>::value(schema.root().unwrap(), "paper")
                             .unwrap()
                             .into();
-
+                
                     let plot_items = crate::schema::plot(schema, &netlist, Some(paper_size));
 
                     let mut document = Document::new()
@@ -111,6 +112,7 @@ impl<'a> PlotterImpl<'a, SexpTree> for SvgPlotter<'a> {
                     }
                     document
                 } else {
+
                     let plot_items = crate::schema::plot(schema, &netlist, None);
 
                     let size = self.bounds(
@@ -151,6 +153,7 @@ impl<'a> PlotterImpl<'a, SexpTree> for SvgPlotter<'a> {
 
 impl<'a> Draw<element::Group> for SvgPlotter<'a> {
     fn draw(&self, items: &[PlotItem], document: &mut element::Group) {
+        let before = std::time::Instant::now();
         items
             .iter()
             .sorted_by(|a, b| {

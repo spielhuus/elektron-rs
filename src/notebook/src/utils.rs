@@ -1,15 +1,8 @@
 use rand::{
-    distributions::{Alphanumeric, DistString},
-    prelude::Distribution,
-    Rng,
+    distributions::{Alphanumeric, DistString}, prelude::Distribution, Rng
 };
 
-pub fn newlines(input: String) -> String {
-    input
-        .lines()
-        .collect::<Vec<&str>>()
-        .join("<br/>")
-}
+use crate::error::Error;
 
 pub struct Symbols;
 impl Distribution<char> for Symbols {
@@ -41,6 +34,17 @@ pub fn clean_svg(input: &str) -> String {
     vec.join("\n")
 }
 
+pub fn check_directory(filename: &str) -> Result<(), Error> {
+    let path = std::path::Path::new(filename);
+    let parent = path.parent();
+    if let Some(parent) = parent {
+        if parent.to_str().unwrap() != "" && !parent.exists() {
+            std::fs::create_dir_all(parent)?;
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use rand::{thread_rng, Rng};
@@ -60,9 +64,6 @@ mod tests {
             .take(30)
             .map(char::from)
             .collect();
-
-        /* TODO assert!(rand_string1.chars().any(|c| matches!(c, 'a'..='z')));
-        assert!(rand_string2.chars().any(|c| matches!(c, 'a'..='z'))); */
 
         assert!(rand_string1.chars().any(|c| c.is_ascii_lowercase()));
         assert!(rand_string2.chars().any(|c| c.is_ascii_lowercase()));

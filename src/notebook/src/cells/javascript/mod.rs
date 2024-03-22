@@ -1,13 +1,9 @@
 use std::collections::HashMap;
 
-//TODO pub use tectonic::driver;
-// pub use tectonic::errors;
-// pub use tectonic::status;
+use crate::notebook::ArgType;
+use crate::cells::{CellWrite, CellWriter};
 
-use super::super::cells::{CellWrite, CellWriter};
-use super::super::parser::ArgType;
-use super::super::runner::parse_variables;
-use super::Error;
+use super::{parse_variables, Error};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JavascriptCell(pub HashMap<String, ArgType>, pub Vec<String>);

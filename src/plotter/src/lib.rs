@@ -93,13 +93,17 @@ impl From<&Sexp> for Effects {
             }
 
             if let Some(justify) = e.query(el::EFFECTS_JUSTIFY).next() {
-                effects.justify = justify.values()
+               effects.justify = justify.values()
             }
 
             let values: Vec<String> = e.values();
-            if values.contains(&"hide".to_string()) {
-                effects.hide = true;
-            }
+            effects.hide = if let Some(hide) = e.query("hide").next() {
+                let values: Vec<String> = hide.values();
+
+                values.contains(&"yes".to_string())
+            } else {
+                values.contains(&"hide".to_string())
+            };
         }
         effects
     }

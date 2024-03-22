@@ -1,12 +1,5 @@
 //! these methods are exposed over the python APi. 
-//! these methods are exposed over the python APi. 
-//! these methods are exposed over the python APi. 
-//! these methods are exposed over the python APi. 
-//! these methods are exposed over the python APi. 
-//! these methods are exposed over the python APi. 
-//! these methods are exposed over the python APi. 
-//! these methods are exposed over the python APi. 
-//!
+
 extern crate pyo3;
 extern crate comfy_table;
 extern crate itertools;
@@ -26,12 +19,12 @@ extern crate sexp_macro;
 extern crate simulation;
 
 use log::info;
+
 use pyo3::prelude::*;
 
 use std::{
     fs::File,
-    io::{BufWriter, Write},
-    path::Path,
+    io::{BufWriter, Write}, path::Path,
 };
 
 use comfy_table::{
@@ -50,7 +43,6 @@ mod python;
 use crate::error::Error;
 
 use sexp::{SexpParser, SexpTree, State, SexpValueQuery, SexpProperty, el};
-use notebook::Document;
 use plotter::{
     cairo_plotter::{CairoPlotter, ImageType},
     svg::SvgPlotter,
@@ -70,7 +62,7 @@ mod constant {
     pub const EXT_EXCEL: &str = ".xls";
 }
 
-
+///helper function to check if a directory exists and create it if it doesn't.
 pub fn check_directory(filename: &str) -> Result<(), Error> {
     let path = std::path::Path::new(filename);
     let parent = path.parent();
@@ -82,7 +74,7 @@ pub fn check_directory(filename: &str) -> Result<(), Error> {
     Ok(())
 }
 
-
+///load a sexp file and return a SexpTree
 fn load_sexp(input: &str) -> Result<SexpTree, Error> {
     let doc = SexpParser::load(input)?;
     let tree = SexpTree::from(doc.iter())?;
@@ -127,24 +119,24 @@ pub fn make_bom(
                     .unwrap();
                 }
                 if let Err(err) = check_directory(&output) {
-                    return Err(Error::IoError(format!(
+                    return Err(Error::FileIo(format!(
                         "{} can not create output directory: '{}'",
                         "Error:".red(),
                         err.to_string().bold()
                     )));
                 };
                 let Ok(mut out) = File::create(output.clone()) else {
-                    return Err(Error::IoError(format!("{} can not create output file: '{}'", "Error:".red(), output.bold())));
+                    return Err(Error::FileIo(format!("{} can not create output file: '{}'", "Error:".red(), output.bold())));
                 };
                 if let Err(err) = data.write(&mut out) {
-                    return Err(Error::IoError(format!(
+                    return Err(Error::FileIo(format!(
                         "{} can not write output file: '{}'",
                         "Error:".red(),
                         err.to_string().bold()
                     )));
                 };
                 if let Err(err) = out.flush() {
-                    return Err(Error::IoError(format!(
+                    return Err(Error::FileIo(format!(
                         "{} can not flush output file: '{}'",
                         "Error:".red(),
                         err.to_string().bold()
@@ -152,21 +144,21 @@ pub fn make_bom(
                 }
             } else if ext == constant::EXT_EXCEL {
                 if let Err(err) = mouser::mouser(&output, &results.0) {
-                    return Err(Error::IoError(format!(
+                    return Err(Error::FileIo(format!(
                         "{} can not create excel file: '{}'",
                         "Error:".red(),
                         err.to_string().bold()
                     )));
                 }
             } else {
-                return Err(Error::IoError(format!(
+                return Err(Error::FileIo(format!(
                     "{} Output file type not supported for extension: '{}'",
                     "Error:".red(),
                     ext.bold()
                 )));
             }
         } else {
-            return Err(Error::IoError(format!(
+            return Err(Error::FileIo(format!(
                 "{} Output file has no extension: '{}'",
                 "Error:".red(),
                 output.bold()
@@ -250,14 +242,14 @@ pub fn plot(input: &str, output: Option<&str>) -> Result<(), Error> {
                         .plot(&tree, &mut buffer, true, 1.0, None, false)
                         .unwrap();
                 } else {
-                    return Err(Error::IoError(format!(
+                    return Err(Error::FileIo(format!(
                         "{} Image type not supported for extension: '{}'",
                         "Error:".red(),
                         ext.bold()
                     )));
                 }
             } else {
-                return Err(Error::IoError(format!(
+                return Err(Error::FileIo(format!(
                     "{} Input file does not exist: {}",
                     "Error:".red(),
                     input.bold()
@@ -274,7 +266,7 @@ pub fn plot(input: &str, output: Option<&str>) -> Result<(), Error> {
             println!("no output file");
         }
     } else {
-        return Err(Error::IoError(format!(
+        return Err(Error::FileIo(format!(
             "{} Input file does not exist: {}",
             "Error:".red(),
             input
@@ -345,42 +337,23 @@ pub fn convert(input: &str, output: &str) -> Result<(), Error> {
     let tmppath = tmpfile.into_temp_path();
 
     let out: Box<dyn Write> = Box::new(BufWriter::new(File::create(&tmppath).unwrap()));
-    let mut runner = Document::new();
-    let res = runner.parse(input);
-    match res {
-        Ok(_) => {
-            if let Err(err) = runner.run(
-                out,
-                Path::new(&input)
-                    .parent()
-                    .unwrap()
-                    .to_str()
-                    .unwrap()
-                    .to_string(),
-                Path::new(&output)
-                    .parent()
-                    .unwrap()
-                    .to_str()
-                    .unwrap()
-                    .to_string(),
-            ) {
-                return Err(Error::IoError(format!(
-                    "Can not process markdown file {} ({})",
-                    input,
-                    err
-                )));
-            }
-        }
-        Err(err) => {
-            return Err(Error::IoError(format!(
-                "Can not open markdown file {} ({})",
-                input,
-                err
-            )));
-        }
-    }
+
+    let res = notebook::convert(input, out,
+                 Path::new(&input)
+                     .parent()
+                     .unwrap()
+                     .to_str()
+                     .unwrap()
+                     .to_string(),
+                 Path::new(&output)
+                     .parent()
+                     .unwrap()
+                     .to_str()
+                     .unwrap()
+                     .to_string()).unwrap(); //TODO handle error
+
     if let Err(err) = std::fs::copy(tmppath, output) {
-        Err(Error::IoError(format!(
+        Err(Error::FileIo(format!(
             "Can not write destination markdown file {} ({})",
             output,
             err
@@ -388,6 +361,44 @@ pub fn convert(input: &str, output: &str) -> Result<(), Error> {
     } else {
         Ok(())
     }
+
+    //
+    //
+    //
+    // let mut runner = Document::new();
+    // let res = runner.parse(input);
+    // match res {
+    //     Ok(_) => {
+    //         if let Err(err) = runner.run(
+    //             out,
+    //             Path::new(&input)
+    //                 .parent()
+    //                 .unwrap()
+    //                 .to_str()
+    //                 .unwrap()
+    //                 .to_string(),
+    //             Path::new(&output)
+    //                 .parent()
+    //                 .unwrap()
+    //                 .to_str()
+    //                 .unwrap()
+    //                 .to_string(),
+    //         ) {
+    //             return Err(Error::FileIo(format!(
+    //                 "Can not process markdown file {} ({})",
+    //                 input,
+    //                 err
+    //             )));
+    //         }
+    //     }
+    //     Err(err) => {
+    //         return Err(Error::FileIo(format!(
+    //             "Can not open markdown file {} ({})",
+    //             input,
+    //             err
+    //         )));
+    //     }
+    // }
 }
 
 /// Run the ERC checks for a Schema.
@@ -402,7 +413,7 @@ pub fn convert(input: &str, output: &str) -> Result<(), Error> {
 #[pyfunction]
 pub fn make_erc(input: &str, output: Option<String>) -> Result<(), Error> {
     let Ok(results) = erc::erc(input) else {
-        return Err(Error::IoError(format!(
+        return Err(Error::FileIo(format!(
             "{} can not load drc information from eschema: {})",
             "Error".red(),
             input,
@@ -456,7 +467,7 @@ pub fn make_drc(input: &str, output: Option<String>) -> Result<(), Error> {
     let results = match drc::drc(input.to_string()) {
         Ok(result) => result,
         Err(error) => {
-            return Err(Error::IoError(format!(
+            return Err(Error::FileIo(format!(
                 "{} can not load drc information from pcb: {} ({}))",
                 "Error".red(),
                 input,

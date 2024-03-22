@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use plotters::prelude::*;
 
-use super::super::cells::{CellWrite, CellWriter};
-use super::super::parser::ArgType;
-use super::Error;
+use crate::notebook::ArgType;
+use crate::cells::{CellWrite, CellWriter};
+use crate::Error;
 
 use super::args_to_string;
 

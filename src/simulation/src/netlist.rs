@@ -237,7 +237,7 @@ impl<'a> Netlist<'a> {
             } else if symbol.name == el::WIRE {
                 let pts = symbol.query(el::PTS).next().unwrap();
                 let xy = pts.query(el::XY).collect::<Vec<&Sexp>>();
-                let xy1: Array1<f64> = xy.get(0).unwrap().values();
+                let xy1: Array1<f64> = xy.first().unwrap().values();
                 let xy2: Array1<f64> = xy.get(1).unwrap().values();
                 positions.push((
                     Point::new(xy1[0], xy1[1]),

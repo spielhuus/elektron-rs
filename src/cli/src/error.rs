@@ -7,11 +7,11 @@ pub enum Error {
     #[error("The ngspice simulation returns with an error: {0}")]
     SpiceSimulation(String),
     #[error("Can not plot file: {0}")]
-    PlotterError(String),
+    Plotter(String),
 
     // sexp errors
     #[error("Can not parse file: {0}")]
-    ParseError(String),
+    Parse(String),
     #[error("Library not found {0}.")]
     LibraryNotFound(String),
     #[error("Symbol not found {0}.")]
@@ -53,7 +53,7 @@ pub enum Error {
     #[error("{0}")]
     VariableNotFound(String),
     #[error("{0}")]
-    VariableCastError(String),
+    VariableCast(String),
     #[error("`{0}`: {1}")]
     Notebook(String, String),
 
@@ -80,9 +80,9 @@ pub enum Error {
     #[error("File not found {0}.")]
     FileNotFound(String),
     #[error("File manipulatuion error {0}.")]
-    IoError(String),
+    FileIo(String),
     #[error("NgSpice Error: \"{0}\"")]
-    NgSpiceError(String),
+    NgSpice(String),
 }
 
 impl std::convert::From<Error> for PyErr {
@@ -92,22 +92,22 @@ impl std::convert::From<Error> for PyErr {
 }
 impl std::convert::From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
-        Error::IoError(err.to_string())
+        Error::FileIo(err.to_string())
     }
 }
 impl std::convert::From<std::fmt::Error> for Error {
     fn from(err: std::fmt::Error) -> Self {
-        Error::IoError(err.to_string())
+        Error::FileIo(err.to_string())
     }
 }
 impl std::convert::From<ngspice::NgSpiceError> for Error {
     fn from(err: ngspice::NgSpiceError) -> Self {
-        Error::NgSpiceError(err.to_string())
+        Error::NgSpice(err.to_string())
     }
 }
 impl std::convert::From<sexp::Error> for Error {
     fn from(err: sexp::Error) -> Self {
-        Error::IoError(err.to_string())
+        Error::FileIo(err.to_string())
     }
 }
 impl std::convert::From<simulation::Error> for Error {
@@ -117,12 +117,12 @@ impl std::convert::From<simulation::Error> for Error {
 }
 impl std::convert::From<plotter::Error> for Error {
     fn from(err: plotter::Error) -> Self {
-        Error::PlotterError(err.to_string())
+        Error::Plotter(err.to_string())
     }
 }
 impl std::convert::From<draw::Error> for Error {
     fn from(err: draw::Error) -> Self {
-        Error::PlotterError(err.to_string())
+        Error::Plotter(err.to_string())
     }
 }
 impl std::convert::From<reports::Error> for Error {

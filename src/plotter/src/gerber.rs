@@ -1,14 +1,21 @@
-use pyo3::{Python, py_run, types::PyList};
+use pyo3::{types::PyDict, Python};
 
-pub fn gerber(input: String, output: String) {
+use crate::Error;
+
+pub fn gerber(input: String, output: String) -> Result<(), Error> {
     Python::with_gil(|py| {
-        let list = PyList::new(py, &[input, output.to_string()]);
-        py_run!(
-            py,
-            list,
+        let list = PyDict::new(py);
+        list.set_item("input", input).unwrap();
+        list.set_item("output", output.to_string()).unwrap();
+        if let Err(err) = py.run(
             r#"from elektron import Pcb
-            board = Pcb(list[0])
-            board.gerber(list[1])"#
-        );
-    });
+board = Pcb(input)
+board.gerber(output)"#,
+            Some(list),
+            None,
+        ) {
+            return Err(Error::IoError(format!("python error: {}", err)));
+        }
+        Ok(())
+    })
 }

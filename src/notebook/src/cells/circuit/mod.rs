@@ -104,7 +104,7 @@ impl CellWrite<CircuitCell> for CellWriter {
                     ErcItem::NoReference { reference, at } => {
                         writeln!(out, "|{}|No Reference|{}|", reference, at).unwrap();
                     },
-                    ErcItem::ValuesDiffer { reference, at } => {
+                   ErcItem::ValuesDiffer { reference, at } => {
                         writeln!(out, "|{}|Different values for Symbol unit.|{}|", reference, at).unwrap();
                     },
                     ErcItem::Netlist(err) => {

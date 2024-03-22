@@ -17,9 +17,7 @@ pub use error::Error;
 use reports::erc;
 
 use sexp::{
-    self, el, utils, Builder, Sexp, SexpAtom, SexpProperty, SexpTree, SexpValueQuery,
-    SexpValuesQuery, SexpWriter,
-    math::{Bounds, PinOrientation, Shape, Transform, MIRROR}, SexpParser,
+    self, el::{self, EFFECTS}, math::{Bounds, PinOrientation, Shape, Transform, MIRROR}, utils, Builder, Sexp, SexpAtom, SexpParser, SexpProperty, SexpTree, SexpValueQuery, SexpValuesQuery, SexpWriter
 };
 
 pub use model::{
@@ -525,7 +523,7 @@ impl Draw {
                                 }
                             }
                         }
-                        SexpAtom::Value(_) => todo!(),
+                        SexpAtom::Value(element) => todo!("unknown value: {}", element),
                         SexpAtom::Text(_) => todo!(),
                     }
                 }
@@ -639,14 +637,21 @@ impl Draw {
                 if value.is_empty() || value == "~" {
                     return None;
                 }
-                let effects = node.query(el::EFFECTS).next();
-                if let Some(effects) = effects {
-                    let values: Vec<String> = effects.values();
-                    if !values.contains(&"hide".to_string()) {
-                        Option::from(node)
+
+                let hide = if let Some(node) = node.query(el::EFFECTS).next() {
+                    let values: Vec<String> = node.values();
+                    if let Some(hide) = node.query("hide").next() {
+                        let values: Vec<String> = hide.values();
+                        values.contains(&"yes".to_string())
                     } else {
-                        None
+                        values.contains(&"hide".to_string())
                     }
+                } else {
+                    true 
+                };
+
+                if hide {
+                    None 
                 } else {
                     Option::from(node)
                 }

@@ -212,7 +212,7 @@ pub fn bom(
             .map(|value| {
                 let mut refs: Vec<String> = Vec::new();
                 for v in value {
-                    refs.push(v.references.get(0).unwrap().to_string());
+                    refs.push(v.references.first().unwrap().to_string());
                 }
                 BomItem {
                     amount: value.len(),

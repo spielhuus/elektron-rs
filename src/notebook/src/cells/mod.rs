@@ -3,16 +3,17 @@ use std::path::Path;
 use std::{collections::HashMap, io::Write};
 
 use lazy_static::lazy_static;
-use pyo3::PyAny;
+use pyo3::{pyclass, pymethods, PyAny};
 use pyo3::{types::PyDict, Python};
 use rand::{thread_rng, Rng};
 use regex::Regex;
 
-use super::parser::ArgType;
-use super::utils::Symbols;
 use crate::error::Error;
+use crate::notebook::{ArgType, Lang};
+use crate::utils::{check_directory, Symbols};
 
 mod audio;
+pub mod content;
 mod d3;
 mod elektron;
 mod figure;
@@ -21,39 +22,46 @@ mod latex;
 mod plot;
 mod python;
 
-fn check_directory(filename: &str) -> Result<(), Error> {
-    let path = std::path::Path::new(filename);
-    let parent = path.parent();
-    if let Some(parent) = parent {
-        if parent.to_str().unwrap() != "" && !parent.exists() {
-            std::fs::create_dir_all(parent)?;
-        }
-    }
-    Ok(())
-}
-
-pub use self::{
-    audio::AudioCell, d3::D3Cell, elektron::ElektronCell, figure::FigureCell,
-    javascript::JavascriptCell, latex::TikzCell, plot::PlotCell, python::PythonCell,
-};
-
-lazy_static! {
-    pub static ref RE_TOKEN: regex::Regex = Regex::new(r"\$\{(.*)\}").unwrap();
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Cell {
-    Audio(AudioCell),
-    Python(PythonCell),
-    Tikz(TikzCell),
-    Figure(FigureCell),
-    Plot(PlotCell),
-    Javascript(JavascriptCell),
-    Elektron(ElektronCell),
-    D3(D3Cell),
-    Content(ContentCell),
-    //TODO: Circuit(CircuitCell), */
-    Error(String),
+    Content(content::ContentCell),
+    Audio(audio::AudioCell),
+    Python(python::PythonCell),
+    Tikz(latex::TikzCell),
+    Figure(figure::FigureCell),
+    Plot(plot::PlotCell),
+    Javascript(javascript::JavascriptCell),
+    Elektron(elektron::ElektronCell),
+    D3(d3::D3Cell),
+}
+impl Cell {
+    pub fn from(lang: &Lang, args: HashMap<String, ArgType>, code: Vec<String>) -> Self {
+        match lang {
+            Lang::Audio => Self::Audio(audio::AudioCell(args, code)),
+            Lang::Python => Self::Python(python::PythonCell(args, code)),
+            Lang::Latex => Self::Tikz(latex::TikzCell(args, code)),
+            Lang::Figure => Self::Figure(figure::FigureCell(args, code)),
+            Lang::Plot => Self::Plot(plot::PlotCell(args, code)),
+            Lang::Javascript => Self::Javascript(javascript::JavascriptCell(args, code)),
+            Lang::D3 => Self::D3(d3::D3Cell(args, code)),
+            Lang::Elektron => Self::Elektron(elektron::ElektronCell(args, code)),
+            Lang::Unknown(lang) => todo!("Unknown Cell: {}", lang),
+        }
+    }
+}
+
+pub struct CellWriter;
+pub trait CellWrite<T> {
+    fn write(
+        out: &mut dyn Write,
+        py: &Python,
+        globals: &PyDict,
+        locals: &PyDict,
+        cell: &T,
+        source: &str,
+        dest: &str,
+    ) -> Result<(), Error>;
 }
 
 pub trait CellDispatch {
@@ -90,75 +98,8 @@ impl CellDispatch for Cell {
             Cell::Figure(cell) => CellWriter::write(out, py, globals, locals, cell, source, dest),
             Cell::Plot(cell) => CellWriter::write(out, py, globals, locals, cell, source, dest),
             Cell::Content(cell) => CellWriter::write(out, py, globals, locals, cell, source, dest),
-            Cell::Error(cell) => {
-                todo!("Cell Error: {:?}", cell);
-            }
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ContentCell(pub HashMap<String, ArgType>, pub Vec<String>);
-impl CellWrite<ContentCell> for CellWriter {
-    fn write(
-        out: &mut dyn std::io::Write,
-        py: &pyo3::Python,
-        globals: &pyo3::types::PyDict,
-        locals: &pyo3::types::PyDict,
-        cell: &ContentCell,
-        _: &str,
-        _: &str,
-    ) -> Result<(), Error> {
-        let body = &cell.1;
-        let _args = &cell.0;
-
-        match parse_variables(&body.join("\n"), py, globals, locals) {
-            Ok(code) => {
-                if code.is_empty() {
-                    out.write_all("\n".as_bytes())?;
-                } else {
-                    out.write_all(code.as_bytes())?;
-                }
-                Ok(())
-            }
-            Err(err) => Err(Error::VariableNotFound(err.to_string())),
-        }
-    }
-}
-
-pub struct CellWriter;
-pub trait CellWrite<T> {
-    fn write(
-        out: &mut dyn Write,
-        py: &Python,
-        globals: &PyDict,
-        locals: &PyDict,
-        cell: &T,
-        source: &str,
-        dest: &str,
-    ) -> Result<(), Error>;
-}
-
-pub fn error(out: &mut dyn Write, errtype: &str, content: &[u8], args: &HashMap<String, ArgType>) {
-    if let Some(ArgType::String(result)) = args.get("error") {
-        if result == "hide" {
-            return;
-        }
-    }
-    writeln!(out, "{{{{< error message=\"{}\" >}}}}", errtype).unwrap();
-    out.write_all(content).unwrap();
-    writeln!(out, "{{{{< /error >}}}}\n").unwrap();
-}
-
-fn echo(out: &mut dyn Write, lang: &str, code: &str, args: &HashMap<String, ArgType>) {
-    if let Some(ArgType::String(echo)) = args.get("echo") {
-        if echo == "FALSE" {
-            return;
-        }
-    }
-    writeln!(out, "```{}", lang).unwrap();
-    out.write_all(code.as_bytes()).unwrap();
-    writeln!(out, "\n```").unwrap();
 }
 
 macro_rules! param {
@@ -171,17 +112,6 @@ macro_rules! param {
     };
 }
 pub(crate) use param;
-
-/* macro_rules! params {
-    ($args:expr, $key:expr, $err:expr) => {
-        if let Some(ArgType::List(key)) = $args.get($key) {
-            Ok(key)
-        } else {
-            Err($err)
-        }?
-    };
-}
-pub(crate) use params; */
 
 macro_rules! param_or {
     ($args:expr, $key:expr, $or:expr) => {
@@ -203,92 +133,7 @@ macro_rules! flag {
         }
     };
 }
-
 pub(crate) use flag;
-
-pub fn write_plot(
-    path: &str,
-    plot: Vec<u8>,
-    args: &HashMap<String, ArgType>,
-) -> Result<HashMap<String, ArgType>, Error> {
-    let out_dir = Path::new(path).join("_files");
-    let rand_string: String = thread_rng()
-        .sample_iter(&Symbols)
-        .take(30)
-        .map(char::from)
-        .collect();
-    let output_file = out_dir
-        .join(format!("{}.svg", rand_string))
-        .to_str()
-        .unwrap()
-        .to_string();
-    check_directory(&output_file)?;
-
-    let mut outfile = File::create(&output_file)?;
-    outfile.write_all(&plot)?;
-    let mut myargs = args.clone();
-    if let Some(ArgType::Options(opts)) = myargs.get_mut("options") {
-        opts.insert(
-            String::from("path"),
-            ArgType::String(format!("_files/{}.svg", rand_string)),
-        );
-    } else {
-        let mut map = HashMap::new();
-        map.insert(
-            String::from("path"),
-            ArgType::String(format!("_files/{}.svg", rand_string)),
-        );
-        myargs.insert(String::from("options"), ArgType::Options(map));
-    }
-    Ok(myargs)
-}
-
-pub fn write_audio(
-    path: &str,
-    audio: Vec<f32>,
-    ext: &str,
-    fs: u32,
-    args: &HashMap<String, ArgType>,
-) -> Result<HashMap<String, ArgType>, Error> {
-    let out_dir = Path::new(path).join("_files");
-    let rand_string: String = thread_rng()
-        .sample_iter(&Symbols)
-        .take(30)
-        .map(char::from)
-        .collect();
-    let output_file = out_dir
-        .join(format!("{}.{}", rand_string, ext))
-        .to_str()
-        .unwrap()
-        .to_string();
-    check_directory(&output_file)?;
-
-    let spec = hound::WavSpec {
-        channels: 1,
-        sample_rate: fs,
-        bits_per_sample: 32,
-        sample_format: hound::SampleFormat::Float,
-    };
-    let mut writer = hound::WavWriter::create(output_file, spec).unwrap();
-    for float in audio {
-        writer.write_sample(float).unwrap();
-    }
-    let mut myargs = args.clone();
-    if let Some(ArgType::Options(opts)) = myargs.get_mut("options") {
-        opts.insert(
-            String::from("path"),
-            ArgType::String(format!("_files/{}.{}", rand_string, ext)),
-        );
-    } else {
-        let mut map = HashMap::new();
-        map.insert(
-            String::from("path"),
-            ArgType::String(format!("_files/{}.{}", rand_string, ext)),
-        );
-        myargs.insert(String::from("options"), ArgType::Options(map));
-    }
-    Ok(myargs)
-}
 
 pub fn args_to_string(args: &HashMap<String, ArgType>) -> String {
     let mut result = String::new();
@@ -366,6 +211,10 @@ pub fn get_value<'a>(
     }
 }
 
+lazy_static! {
+    pub static ref RE_TOKEN: regex::Regex = Regex::new(r"\$\{(.*)\}").unwrap();
+}
+
 fn parse_variables(
     body: &str,
     py: &Python,
@@ -389,4 +238,115 @@ fn parse_variables(
         writeln!(res, "{}", item).unwrap();
     }
     Ok(std::str::from_utf8(&res).unwrap().to_string())
+}
+
+fn echo(out: &mut dyn Write, lang: &str, code: &str, args: &HashMap<String, ArgType>) {
+    if let Some(ArgType::String(echo)) = args.get("echo") {
+        if echo == "FALSE" {
+            return;
+        }
+    }
+    writeln!(out, "```{}", lang).unwrap();
+    out.write_all(code.as_bytes()).unwrap();
+    writeln!(out, "\n```").unwrap();
+}
+
+pub fn error(out: &mut dyn Write, errtype: &str, content: &[u8], args: &HashMap<String, ArgType>) {
+    if let Some(ArgType::String(result)) = args.get("error") {
+        if result == "hide" {
+            return;
+        }
+    }
+    writeln!(out, "{{{{< error message=\"{}\" >}}}}", errtype).unwrap();
+    out.write_all(content).unwrap();
+    writeln!(out, "{{{{< /error >}}}}\n").unwrap();
+}
+
+pub fn newlines(input: String) -> String {
+    input
+        .lines()
+        .collect::<Vec<&str>>()
+        .join("<br/>")
+}
+
+pub fn write_plot(
+    path: &str,
+    plot: Vec<u8>,
+    args: &HashMap<String, ArgType>,
+) -> Result<HashMap<String, ArgType>, Error> {
+    let out_dir = Path::new(path).join("_files");
+    let rand_string: String = thread_rng()
+        .sample_iter(&Symbols)
+        .take(30)
+        .map(char::from)
+        .collect();
+    let output_file = out_dir
+        .join(format!("{}.svg", rand_string))
+        .to_str()
+        .unwrap()
+        .to_string();
+    check_directory(&output_file)?;
+
+    let mut outfile = File::create(&output_file)?;
+    outfile.write_all(&plot)?;
+    let mut myargs = args.clone();
+    if let Some(ArgType::Options(opts)) = myargs.get_mut("options") {
+        opts.insert(
+            String::from("path"),
+            ArgType::String(format!("_files/{}.svg", rand_string)),
+        );
+    } else {
+        let mut map = HashMap::new();
+        map.insert(
+            String::from("path"),
+            ArgType::String(format!("_files/{}.svg", rand_string)),
+        );
+        myargs.insert(String::from("options"), ArgType::Options(map));
+    }
+    Ok(myargs)
+}
+
+#[pyclass]
+#[derive(Clone, Default)]
+pub struct LoggingStdout {
+    content: Vec<u8>,
+}
+#[pymethods]
+impl LoggingStdout {
+    #[new]
+    pub fn new() -> Self {
+        Self {
+            content: Vec::new(),
+        }
+    }
+    fn write(&mut self, data: &str) {
+        self.content.write_all(data.as_bytes()).unwrap();
+    }
+    fn flush(&mut self) {} 
+    pub fn dump(&self) -> String {
+        String::from_utf8(self.content.clone()).unwrap()
+    }
+}
+
+#[pyclass]
+#[derive(Clone, Default)]
+pub struct LoggingStderr {
+    content: Vec<u8>,
+}
+#[pymethods]
+impl LoggingStderr {
+    #[new]
+    pub fn new() -> Self {
+        Self {
+            content: Vec::new(),
+        }
+    }
+    fn write(&mut self, data: &str) {
+        println!("{}", data);
+        self.content.write_all(data.as_bytes()).unwrap();
+    }
+    fn flush(&mut self) {} 
+    pub fn dump(&self) -> String {
+        String::from_utf8(self.content.clone()).unwrap()
+    }
 }

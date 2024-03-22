@@ -12,8 +12,9 @@ pub use tectonic::driver;
 // pub use tectonic::status;
 use tectonic::status::{MessageKind, StatusBackend};
 
+use crate::notebook::ArgType;
+
 use super::super::cells::{CellWrite, CellWriter};
-use super::super::parser::ArgType;
 use super::{echo, write_plot, Error};
 
 use super::args_to_string;

@@ -1,10 +1,12 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
-use super::super::cells::{CellWrite, CellWriter};
-use super::super::parser::ArgType;
-use super::{param, write_audio, Error};
+use rand::{
+    thread_rng, Rng
+};
 
-use super::{args_to_string, get_value, param_or};
+use crate::{error::Error, notebook::ArgType, utils::{check_directory, Symbols}};
+
+use super::{args_to_string, get_value, param, param_or, CellWrite, CellWriter};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AudioCell(pub HashMap<String, ArgType>, pub Vec<String>);
@@ -59,4 +61,51 @@ impl CellWrite<AudioCell> for CellWriter {
             )))
         }
     }
+}
+
+pub fn write_audio(
+    path: &str,
+    audio: Vec<f32>,
+    ext: &str,
+    fs: u32,
+    args: &HashMap<String, ArgType>,
+) -> Result<HashMap<String, ArgType>, Error> {
+    let out_dir = Path::new(path).join("_files");
+    let rand_string: String = thread_rng()
+        .sample_iter(&Symbols)
+        .take(30)
+        .map(char::from)
+        .collect();
+    let output_file = out_dir
+        .join(format!("{}.{}", rand_string, ext))
+        .to_str()
+        .unwrap()
+        .to_string();
+    check_directory(&output_file)?;
+
+    let spec = hound::WavSpec {
+        channels: 1,
+        sample_rate: fs,
+        bits_per_sample: 32,
+        sample_format: hound::SampleFormat::Float,
+    };
+    let mut writer = hound::WavWriter::create(output_file, spec).unwrap();
+    for float in audio {
+        writer.write_sample(float).unwrap();
+    }
+    let mut myargs = args.clone();
+    if let Some(ArgType::Options(opts)) = myargs.get_mut("options") {
+        opts.insert(
+            String::from("path"),
+            ArgType::String(format!("_files/{}.{}", rand_string, ext)),
+        );
+    } else {
+        let mut map = HashMap::new();
+        map.insert(
+            String::from("path"),
+            ArgType::String(format!("_files/{}.{}", rand_string, ext)),
+        );
+        myargs.insert(String::from("options"), ArgType::Options(map));
+    }
+    Ok(myargs)
 }
