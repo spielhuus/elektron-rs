@@ -26,7 +26,7 @@ jobs:
                            libcairo-5c-dev libcairo-gobject2 \
                            libpango1.0-dev libpoppler-dev libpoppler-glib-dev \
                            gcc bison flex libtool autoconf automake gcc \ 
-                           libharfbuzz-dev hlibharfbuzz-icu0 libngspice0-dev 
+                           libngspice0-dev 
     - name: Upload wheels
       uses: actions/upload-artifact@v3
       with:
