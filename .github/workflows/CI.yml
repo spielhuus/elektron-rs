@@ -20,7 +20,7 @@ jobs:
       with:
         args: --release --out dist --find-interpreter
         target: ${{ matrix.target }}
-        manylinux: manylinux_2_35
+        manylinux: manylinux_2_38
         before-script-linux: >
             yum -y install gcc clang openssl-devel openssl-libs libicu libicu-devel graphite2 \
                            graphite2-devel cairo cairo-devel cairo-gobject cairo-gobject-devel \
