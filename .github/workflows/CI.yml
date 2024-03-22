@@ -20,7 +20,7 @@ jobs:
       with:
         args: --release --out dist --find-interpreter
         target: ${{ matrix.target }}
-        manylinux: manylinux_2_38
+        manylinux: manylinux_2_39
         before-script-linux: >
             sudo apt-get -y install gcc clang openssl libicu-dev libgraphite2-dev \
                            libcairo-5c-dev libcairo-gobject2 \
