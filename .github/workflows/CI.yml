@@ -22,11 +22,11 @@ jobs:
         target: ${{ matrix.target }}
         manylinux: manylinux_2_39
         before-script-linux: >
+            uname -a &&
             sudo apt-get -y install gcc clang openssl libicu-dev libgraphite2-dev \
                            libcairo-5c-dev libcairo-gobject2 \
                            libpango1.0-dev libpoppler-dev libpoppler-glib-dev \
-                           gcc bison flex libtool autoconf automake gcc \ 
-                           libngspice0-dev 
+                           gcc bison flex libtool autoconf automake gcc
     - name: Upload wheels
       uses: actions/upload-artifact@v3
       with:
