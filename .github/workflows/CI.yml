@@ -33,7 +33,7 @@ jobs:
                            cd release &&
                            ../configure --with-ngshared --enable-xspice --disable-debug --enable-cider --enable-osdi --enable-openmp &&
                            make &&
-                           make install && popd
+                           sudo make install && popd
     - name: Upload wheels
       uses: actions/upload-artifact@v3
       with:
