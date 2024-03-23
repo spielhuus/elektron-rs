@@ -36,7 +36,7 @@ jobs:
             make &&
             sudo make install && popd
     - name: build sdisd
-      run: python -m build --sdist
+      run: pip install build && python -m build --sdist
     - name: Upload wheels
       uses: actions/upload-artifact@v3
       with:
