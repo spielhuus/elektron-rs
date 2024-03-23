@@ -48,7 +48,6 @@ impl<'a> PlotterImpl<'a, SexpTree> for SvgPlotter<'a> {
         pages: Option<Vec<usize>>,
         netlist: bool,
     ) -> Result<(), Error> {
-        let before = std::time::Instant::now();
         //load the netlist
         let netlist = if netlist {
             Some(Netlist::from(schema).unwrap())
@@ -153,7 +152,6 @@ impl<'a> PlotterImpl<'a, SexpTree> for SvgPlotter<'a> {
 
 impl<'a> Draw<element::Group> for SvgPlotter<'a> {
     fn draw(&self, items: &[PlotItem], document: &mut element::Group) {
-        let before = std::time::Instant::now();
         items
             .iter()
             .sorted_by(|a, b| {

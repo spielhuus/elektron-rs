@@ -705,6 +705,7 @@ pub struct Arc {
     pub class: Vec<Style>,
 }
 impl Arc {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         center: Array1<f64>,
         start: Array1<f64>,

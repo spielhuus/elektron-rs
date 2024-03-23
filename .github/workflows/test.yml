@@ -33,7 +33,8 @@ jobs:
             cd release &&
             ../configure --with-ngshared --enable-xspice --disable-debug --enable-cider --enable-osdi --enable-openmp &&
             make &&
-            sudo make install && popd
+            sudo make install && popd &&
+            ls -l /usr/local/lib
       - name: cargo test
         run: cargo test --workspace
 

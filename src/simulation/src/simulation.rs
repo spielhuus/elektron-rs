@@ -120,7 +120,7 @@ impl Simulation {
             for v in vecs {
                 let vals = ng.vector_info(format!("{}.{}", plot, &v).as_str())?;
                 let data1 = match vals.data {
-                    ComplexSlice::Real(list) => list.iter().map(|i| *i).collect(),
+                    ComplexSlice::Real(list) => list.to_vec(), //.map(|i| *i).collect(),
                     ComplexSlice::Complex(list) => list
                         .iter()
                         .map(|f| {

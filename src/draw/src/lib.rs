@@ -17,7 +17,8 @@ pub use error::Error;
 use reports::erc;
 
 use sexp::{
-    self, el::{self, EFFECTS}, math::{Bounds, PinOrientation, Shape, Transform, MIRROR}, utils, Builder, Sexp, SexpAtom, SexpParser, SexpProperty, SexpTree, SexpValueQuery, SexpValuesQuery, SexpWriter
+    self, el, math::{Bounds, PinOrientation, Shape, Transform, MIRROR}, utils, Builder, Sexp, 
+    SexpAtom, SexpParser, SexpProperty, SexpTree, SexpValueQuery, SexpValuesQuery, SexpWriter
 };
 
 pub use model::{
