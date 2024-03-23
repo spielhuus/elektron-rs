@@ -36,7 +36,7 @@ jobs:
             sudo make install && popd &&
             ls -l /usr/local/lib
       - name: cargo test
-        run: cargo test --workspace
+        run: LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib cargo test --workspace
 
       - name: rustfmt
         run: cargo fmt --all -- --check
