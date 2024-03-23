@@ -1,0 +1,45 @@
+name: main
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build_and_test:
+    name: Rust project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@v2
+
+      - name: setup toolchain
+        uses: hecrj/setup-rust-action@v1
+        with:
+          rust-version: stable
+
+      - name: dependencies
+        run: |
+            uname -a &&
+            sudo apt-get -y install gcc clang openssl libicu-dev libgraphite2-dev \
+                           libcairo-5c-dev libcairo-gobject2 \
+                           libpango1.0-dev libpoppler-dev libpoppler-glib-dev \
+                           gcc bison flex libtool autoconf automake gcc &&
+            curl -L https://sourceforge.net/projects/ngspice/files/ng-spice-rework/41/ngspice-41.tar.gz/download -o ngspice.tar.gz &&
+            tar xfz ngspice.tar.gz && pushd ngspice-41 &&
+            mkdir release &&
+            cd release &&
+            ../configure --with-ngshared --enable-xspice --disable-debug --enable-cider --enable-osdi --enable-openmp &&
+            make &&
+            sudo make install && popd
+      - name: cargo test
+        run: cargo test --workspace
+
+      - name: rustfmt
+        run: cargo fmt --all -- --check
+
+      - name: clippy
+        run: cargo clippy --all --all-features --tests -- -D warnings
+
