@@ -120,7 +120,7 @@ impl Simulation {
             for v in vecs {
                 let vals = ng.vector_info(format!("{}.{}", plot, &v).as_str())?;
                 let data1 = match vals.data {
-                    ComplexSlice::Real(list) => list.to_vec(), //.map(|i| *i).collect(),
+                    ComplexSlice::Real(list) => list.to_vec(),
                     ComplexSlice::Complex(list) => list
                         .iter()
                         .map(|f| {
@@ -161,7 +161,7 @@ impl Simulation {
             let re = ngspice.vector_info(name.as_str())?;
             let name = re.name;
             let data1 = match re.data {
-                ComplexSlice::Real(list) => list.iter().map(|i| *i).collect(),
+                ComplexSlice::Real(list) => list.to_vec(),
                 ComplexSlice::Complex(list) => list
                     .iter()
                     .map(|f| {
@@ -210,7 +210,7 @@ impl Simulation {
             let re = ngspice.vector_info(name.as_str())?;
             let name = re.name;
             let data1 = match re.data {
-                ComplexSlice::Real(list) => list.iter().map(|i| *i).collect(),
+                ComplexSlice::Real(list) => list.to_vec(),
                 ComplexSlice::Complex(list) => list
                     .iter()
                     .map(|f| {
@@ -270,7 +270,7 @@ impl Simulation {
             if let Ok(r) = re {
                 let name = r.name;
                 let data1 = match r.data {
-                    ComplexSlice::Real(list) => list.iter().map(|i| *i).collect(),
+                    ComplexSlice::Real(list) => list.to_vec(),
                     ComplexSlice::Complex(list) => list
                         .iter()
                         .map(|f| {

@@ -130,3 +130,8 @@ impl std::convert::From<reports::Error> for Error {
         Error::Reports(err.to_string())
     }
 }
+impl std::convert::From<notebook::Error> for Error {
+    fn from(err: notebook::Error) -> Self {
+        Error::Reports(err.to_string())
+    }
+}

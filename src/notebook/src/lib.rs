@@ -10,7 +10,7 @@ use cells::{LoggingStderr, LoggingStdout};
 use notebook::Notebook;
 use pyo3::prelude::*;
 use pyo3::{types::PyDict, Python};
-use crate::error::Error;
+pub use crate::error::Error;
 use crate::cells::CellDispatch;
 
 /// convert a markdown notebook.

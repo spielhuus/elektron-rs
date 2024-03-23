@@ -338,7 +338,7 @@ pub fn convert(input: &str, output: &str) -> Result<(), Error> {
 
     let out: Box<dyn Write> = Box::new(BufWriter::new(File::create(&tmppath).unwrap()));
 
-    let res = notebook::convert(input, out,
+    notebook::convert(input, out,
                  Path::new(&input)
                      .parent()
                      .unwrap()
@@ -350,7 +350,7 @@ pub fn convert(input: &str, output: &str) -> Result<(), Error> {
                      .unwrap()
                      .to_str()
                      .unwrap()
-                     .to_string()).unwrap(); //TODO handle error
+                     .to_string())?;
 
     if let Err(err) = std::fs::copy(tmppath, output) {
         Err(Error::FileIo(format!(
