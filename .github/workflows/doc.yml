@@ -1,4 +1,4 @@
-name: "Pull Request Docs Check"
+name: "Docs"
 on: [push, pull_request]
 
 jobs:
