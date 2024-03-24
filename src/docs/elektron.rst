@@ -6,7 +6,7 @@ elektron commands
 
 The notebooks elektron command can be used to automate the handling of the Kicad results. The commands must be used in the front matter section of the pages. The results will relace the commannds.
 
-.. code-block:: yaml
+.. code-block:: md
    :force:
 
     ---

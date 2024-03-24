@@ -1,10 +1,11 @@
-Welcome to elektron's documentation!
-====================================
+elektron
+========
 
 .. toctree::
    :maxdepth: 3
+   :hidden:
    :caption: Contents:
- 
+
    installation
    cli
    python
@@ -13,11 +14,7 @@ Welcome to elektron's documentation!
    notebook
 
 
-elektron
-========
-
 elektron is a tool for creating electronics projects. 
-
 
 Features: 
 
@@ -34,10 +31,6 @@ Features:
   * Plot Latex graphics 
   * Draw plots with D3
  
-
-
-
-
 Indices and tables
 ==================
 

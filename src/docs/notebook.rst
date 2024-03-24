@@ -2,9 +2,14 @@ Notebook
 ========
 
 .. toctree::
+   :maxdepth: 3
+   :hidden:
+   :caption: Contents:
 
+   audio
    elektron
    d3
+   latex
  
 -----------
 Python Cell

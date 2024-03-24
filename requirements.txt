@@ -1,4 +1,5 @@
 maturin
 sphinx-press-theme
+alabaster
 sphinx
 
