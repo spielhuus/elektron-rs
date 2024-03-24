@@ -36,8 +36,6 @@ colored = "2"
 indexmap = "2"
 
 json = "0.12"
-pest = "2.7"
-pest_derive = "2.7"
 cairo-rs = { version = "0.19", features = ["svg", "png", "pdf"] }
 png = "0.17"
 svg = "0.15"

@@ -17,7 +17,7 @@ use std::{fmt, fs::{self, File}, io::BufReader};
 
 use crate::Error;
 
-use log::warn;
+use log::{debug, warn};
 
 lazy_static! {
     pub static ref DRC_TITLE_TOKEN: regex::Regex = Regex::new(r"^\[(.*)\]: (.*)$").unwrap();
@@ -98,6 +98,7 @@ board.drc(filename)"#,
 
     let mut results = Vec::new();
     for line in reader.lines() {
+        debug!("> {:?}", line);
         if let Ok(line) = line {
             if let Some(cap) = DRC_TITLE_TOKEN.captures(&line) {
                 results.push(DrcItem::new(
