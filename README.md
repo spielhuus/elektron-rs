@@ -3,6 +3,7 @@
 [![Test](https://github.com/spielhuus/elektron-rs/actions/workflows/test.yml/badge.svg)](https://github.com/spielhuus/elektron-rs/actions/workflows/test.yml)
 [![Docs](https://github.com/spielhuus/elektron-rs/actions/workflows/doc.yml/badge.svg)](https://github.com/spielhuus/elektron-rs/actions/workflows/doc.yml)
 [![PyPI](https://img.shields.io/pypi/v/elektron-rs)](https://pypi.org/project/elektron-rs/)
+[![Read the Docs](https://readthedocs.org/projects/elektron/badge/?version=latest)](https://elektron.readthedocs.io/en/latest/)
 
 # elektron
 
@@ -17,6 +18,8 @@ Features
 * Convert markdown notebook files
 
 ## Installation
+
+The elekron package can be installed locally or by using a [docker](https://github.com/spielhuus/elektron-docker) image.
 
 Install the [Kicad](http://kicad.org) packages:
 
