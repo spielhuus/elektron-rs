@@ -27,7 +27,9 @@ jobs:
                            libcairo-5c-dev libcairo-gobject2 \
                            libpango1.0-dev libpoppler-dev libpoppler-glib-dev \
                            gcc bison flex libtool autoconf automake gcc \
-                           libngspice0-dev kicad-symbols
+                           libngspice0-dev kicad-symbols && \
+                mkdir -p /usr/local/share/fonts/TT/ && \
+                curl -L "https://github.com/hikikomori82/osifont/blob/master/osifont-lgpl3fe.ttf?raw=true" -o /usr/local/share/fonts/TT/osifont-lgpl3fe.ttf
             # curl -L https://sourceforge.net/projects/ngspice/files/ng-spice-rework/41/ngspice-41.tar.gz/download -o ngspice.tar.gz &&
             # tar xfz ngspice.tar.gz && pushd ngspice-41 &&
             # mkdir release &&
