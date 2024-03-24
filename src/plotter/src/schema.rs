@@ -2,10 +2,8 @@ use log::{debug, log_enabled, Level};
 use ndarray::{arr1, arr2, Array1, Array2, ArrayView};
 
 pub use crate::{
-    Arc, Circle, Effects, FillType, Line, Rectangle, Stroke, Style, PlotItem, Polyline, Text,
-    border,
-    error::Error,
-    themer::Themer,
+    border, error::Error, themer::Themer, Arc, Circle, Effects, FillType, Line, PlotItem, Polyline,
+    Rectangle, Stroke, Style, Text,
 };
 
 use simulation::{Netlist, Point};
@@ -130,9 +128,8 @@ pub fn plot(
                         (i_angle - p_angle).abs()
                     };
 
-                    let text: String = property.get(1).unwrap(); 
+                    let text: String = property.get(1).unwrap();
                     if !effects.hide && !text.is_empty() {
-                            
                         /* struct TextOutline;
                         impl Outline for TextOutline {}
                         let outline = TextOutline;
@@ -176,10 +173,7 @@ pub fn plot(
                         let unit: usize = utils::unit_number(_unit.get(0).unwrap());
                         if unit == 0 || unit == item_unit {
                             for graph in _unit.query(el::GRAPH_POLYLINE) {
-                                let mut classes = vec![
-                                    Style::Outline,
-                                    Style::Fill(graph.into()),
-                                ];
+                                let mut classes = vec![Style::Outline, Style::Fill(graph.into())];
                                 let on_board: bool = item.value("on_board").unwrap();
                                 if !on_board {
                                     //Grey out item if it is not on pcb
@@ -205,8 +199,10 @@ pub fn plot(
                                 ));
                             }
                             for graph in _unit.query(el::GRAPH_RECTANGLE) {
-                                let start: Vec<f64> = graph.query(el::GRAPH_START).next().unwrap().values();
-                                let end: Vec<f64> = graph.query(el::GRAPH_END).next().unwrap().values();
+                                let start: Vec<f64> =
+                                    graph.query(el::GRAPH_START).next().unwrap().values();
+                                let end: Vec<f64> =
+                                    graph.query(el::GRAPH_END).next().unwrap().values();
                                 let pts: Array2<f64> =
                                     arr2(&[[start[0], start[1]], [end[0], end[1]]]);
                                 let filltype: String =
@@ -219,7 +215,11 @@ pub fn plot(
                                 }
                                 plot_items.push(PlotItem::Rectangle(
                                     1,
-                                    Rectangle::new(Shape::transform(item, &pts), graph.into(), classes),
+                                    Rectangle::new(
+                                        Shape::transform(item, &pts),
+                                        graph.into(),
+                                        classes,
+                                    ),
                                 ));
                             }
                             for graph in _unit.query(el::GRAPH_CIRCLE) {
@@ -252,7 +252,8 @@ pub fn plot(
                             }
 
                             for graph in _unit.query(el::GRAPH_ARC) {
-                                let mut arc_start: Array1<f64> = graph.value(el::GRAPH_START).unwrap();
+                                let mut arc_start: Array1<f64> =
+                                    graph.value(el::GRAPH_START).unwrap();
                                 //TODO let arc_mid: Array1<f64> = graph.value("mid").unwrap();
                                 let mut arc_end: Array1<f64> = graph.value(el::GRAPH_END).unwrap();
                                 let mirror: Option<String> = graph.value(el::MIRROR);
@@ -276,10 +277,7 @@ pub fn plot(
                                     std::mem::swap(&mut arc_start, &mut arc_end);
                                 }
 
-                                let classes = vec![
-                                    Style::Outline,
-                                    Style::Fill(item.into()),
-                                ];
+                                let classes = vec![Style::Outline, Style::Fill(item.into())];
                                 /* TODO if item.on_board == false {
                                     classes.push(Style::NotOnBoard);
                                 } */
@@ -584,7 +582,6 @@ pub fn plot(
                     ));
                 }
             }
-
         } else if item.name == el::WIRE {
             let pts = item.query(el::PTS).next().unwrap();
             let xy = pts.query(el::XY).collect::<Vec<&Sexp>>();
@@ -604,7 +601,14 @@ pub fn plot(
                 plot_items.append(&mut border(item, paper_size).unwrap());
             }
         } else if log_enabled!(Level::Debug) {
-            let items = ["version", "generator", "uuid", "paper", "lib_symbols", "sheet_instances"];
+            let items = [
+                "version",
+                "generator",
+                "uuid",
+                "paper",
+                "lib_symbols",
+                "sheet_instances",
+            ];
             if !items.contains(&item.name.as_str()) {
                 debug!("unparsed node: {}", item.name);
             }

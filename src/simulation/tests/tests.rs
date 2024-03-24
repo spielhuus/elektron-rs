@@ -1,7 +1,7 @@
 mod tests {
     mod netlist {
-        extern crate simulation;
         extern crate sexp;
+        extern crate simulation;
         use self::sexp::{el, SexpParser, SexpProperty, SexpTree, SexpValueQuery};
         use self::simulation::{Netlist, NodePositions, Point};
         use std::{cell::RefCell, rc::Rc};
@@ -296,8 +296,8 @@ mod tests {
     }
 
     mod circuit {
-        extern crate simulation;
         extern crate sexp;
+        extern crate simulation;
         use self::sexp::{SexpParser, SexpTree};
         use self::simulation::{Circuit, Netlist};
         #[test]

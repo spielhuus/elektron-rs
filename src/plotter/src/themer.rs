@@ -1,9 +1,6 @@
 use simplecss::{AttributeOperator, PseudoClass, StyleSheet};
 
-use crate::{
-    error::Error,
-    Style, Theme,
-};
+use crate::{error::Error, Style, Theme};
 use sexp::el;
 
 static BEHAVE_DARK: &str = include_str!("css/behave-dark.css");
@@ -241,7 +238,12 @@ impl<'a> Themer<'a> {
         Ok((res[0], res[1], res[2], 1.0))
     }
     pub fn hex_color(&self, color: (f64, f64, f64, f64)) -> String {
-        format!("#{:x}{:x}{:x}", (color.0 * 255.0) as i16, (color.1 * 255.0) as i16, (color.2 * 255.0) as i16)
+        format!(
+            "#{:x}{:x}{:x}",
+            (color.0 * 255.0) as i16,
+            (color.1 * 255.0) as i16,
+            (color.2 * 255.0) as i16
+        )
     }
 }
 
@@ -311,10 +313,12 @@ mod tests {
     fn hex_color() {
         let themer = Themer::new(Theme::Kicad2020);
         assert_eq!(
-            (77.0  / 255.0, 127.0 / 255.0, 196.0 / 255.0, 1.0),
+            (77.0 / 255.0, 127.0 / 255.0, 196.0 / 255.0, 1.0),
             themer.stroke(&vec![Style::BCu])
         );
-        assert_eq!("#4d7fc4", themer.hex_color(themer.stroke(&vec![Style::BCu])));
-
+        assert_eq!(
+            "#4d7fc4",
+            themer.hex_color(themer.stroke(&vec![Style::BCu]))
+        );
     }
 }

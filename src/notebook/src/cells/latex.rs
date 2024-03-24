@@ -71,7 +71,7 @@ impl CellWrite<TikzCell> for CellWriter {
         echo(out, "latex", body.join("\n").as_str(), args);
         if let Err(pdf_err) = pdf_data {
             return Err(Error::Latex(pdf_err.to_string()));
-        }  
+        }
         if let Ok(pdf_data) = pdf_data {
             unsafe {
                 let document = poppler::Document::from_data(&pdf_data, None).unwrap();
@@ -102,16 +102,22 @@ pub fn latex_to_pdf<T: AsRef<str>>(latex: T) -> Result<Vec<u8>, Error> {
 
     let auto_create_config_file = false;
     let Ok(config) = PersistentConfig::open(auto_create_config_file) else {
-        return Err(Error::Latex(String::from("failed to open the default configuration file")));
+        return Err(Error::Latex(String::from(
+            "failed to open the default configuration file",
+        )));
     };
 
     let only_cached = false;
     let Ok(bundle) = config.default_bundle(only_cached, &mut *status) else {
-        return Err(Error::Latex(String::from("failed to load the default resource bundle")));
+        return Err(Error::Latex(String::from(
+            "failed to load the default resource bundle",
+        )));
     };
 
     let Ok(format_cache_path) = config.format_cache_path() else {
-        return Err(Error::Latex(String::from("failed to set up the format cache")));
+        return Err(Error::Latex(String::from(
+            "failed to set up the format cache",
+        )));
     };
 
     let mut files = {
@@ -129,7 +135,9 @@ pub fn latex_to_pdf<T: AsRef<str>>(latex: T) -> Result<Vec<u8>, Error> {
             .do_not_write_output_files();
 
         let Ok(mut sess) = sb.create(&mut *status) else {
-            return Err(Error::Latex(String::from("failed to initialize the LaTeX processing session")));
+            return Err(Error::Latex(String::from(
+                "failed to initialize the LaTeX processing session",
+            )));
         };
         // ctry!(sess.run(&mut *status); "the LaTeX engine failed");
         if sess.run(&mut *status).is_err() {

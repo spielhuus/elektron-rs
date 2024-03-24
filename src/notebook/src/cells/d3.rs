@@ -83,7 +83,7 @@ impl CellWrite<D3Cell> for CellWriter {
             };
 
         //get the data from the pyhton context
-        let Ok(py_data) = get_value(data_key.as_str(), py, globals, locals) else  {
+        let Ok(py_data) = get_value(data_key.as_str(), py, globals, locals) else {
             return Err(Error::VariableNotFound(format!(
                 "Variable with name '{}' can not be found.",
                 data_key

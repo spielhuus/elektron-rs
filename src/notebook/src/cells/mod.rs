@@ -22,7 +22,6 @@ mod latex;
 mod plot;
 mod python;
 
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Cell {
     Content(content::ContentCell),
@@ -263,10 +262,7 @@ pub fn error(out: &mut dyn Write, errtype: &str, content: &[u8], args: &HashMap<
 }
 
 pub fn newlines(input: String) -> String {
-    input
-        .lines()
-        .collect::<Vec<&str>>()
-        .join("<br/>")
+    input.lines().collect::<Vec<&str>>().join("<br/>")
 }
 
 pub fn write_plot(
@@ -322,7 +318,7 @@ impl LoggingStdout {
     fn write(&mut self, data: &str) {
         self.content.write_all(data.as_bytes()).unwrap();
     }
-    fn flush(&mut self) {} 
+    fn flush(&mut self) {}
     pub fn dump(&self) -> String {
         String::from_utf8(self.content.clone()).unwrap()
     }
@@ -345,7 +341,7 @@ impl LoggingStderr {
         println!("{}", data);
         self.content.write_all(data.as_bytes()).unwrap();
     }
-    fn flush(&mut self) {} 
+    fn flush(&mut self) {}
     pub fn dump(&self) -> String {
         String::from_utf8(self.content.clone()).unwrap()
     }

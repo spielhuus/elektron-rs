@@ -49,7 +49,7 @@
 //! In the last example a sexp model was created. The macro is straight forward.
 //! sexp supports string and quoted string. To define quoted steings directly when you
 //! define raw strings. When a quoted string should be created this can either be done
-//! with a raw String (`r"some text"`) or when it is created from a variable with a 
+//! with a raw String (`r"some text"`) or when it is created from a variable with a
 //! bang (`!{variable}`, `!{func(param)}`).
 
 /// Parse and access sexp files.
@@ -406,8 +406,8 @@ impl<'a> SexpTree {
             stack.push((name.to_string(), Sexp::from(name.to_string())));
         } else {
             return Err(Error::SexpError(
-                String::from("Document does not start with a start symbol."), 
-                String::from("from item")
+                String::from("Document does not start with a start symbol."),
+                String::from("from item"),
             ));
         };
         loop {
@@ -734,7 +734,7 @@ impl std::convert::From<State<'_>> for u32 {
     fn from(state: State<'_>) -> Self {
         if let State::Values(value) = state {
             return value.parse::<u32>().unwrap();
-        } 
+        }
         if let State::Text(value) = state {
             return value.parse::<u32>().unwrap();
         }
@@ -746,7 +746,7 @@ impl std::convert::From<State<'_>> for i32 {
     fn from(state: State<'_>) -> Self {
         if let State::Values(value) = state {
             return value.parse::<i32>().unwrap();
-        } 
+        }
         if let State::Text(value) = state {
             return value.parse::<i32>().unwrap();
         }
@@ -765,7 +765,7 @@ impl std::convert::From<State<'_>> for String {
     fn from(state: State<'_>) -> Self {
         if let State::Values(value) = state {
             return value.to_string();
-        } 
+        }
         if let State::Text(value) = state {
             return value.to_string();
         }
@@ -893,7 +893,7 @@ impl<'a> Iterator for SexpIter<'a> {
                                 IntState::Values
                             };
                             return Some(State::Values(value));
-                        } 
+                        }
                         self.start_index = indice.0 + 1;
                         if indice.1 == ')' {
                             return Some(State::EndSymbol);
@@ -916,7 +916,7 @@ impl<'a> Iterator for SexpIter<'a> {
                                         IntState::Values
                                     };
                                     return Some(State::Text(value));
-                                } 
+                                }
                                 last_char = ch.1;
                             }
                         }
@@ -931,7 +931,7 @@ impl<'a> Iterator for SexpIter<'a> {
 
 ///Utility methods to access some common nodes.
 pub mod utils {
-    use super::{el, Sexp, SexpValueQuery, SexpParser, SexpTree, SexpAtom};
+    use super::{el, Sexp, SexpAtom, SexpParser, SexpTree, SexpValueQuery};
     use crate::Error;
     use lazy_static::lazy_static;
     use ndarray::{s, Array1};
@@ -1509,8 +1509,7 @@ mod tests {
     }
     #[test]
     fn macro_document() {
-        let tree =
-            sexp!(("kicad_sch" ("version" {super::KICAD_SCHEMA_VERSION}) ("generator" "elektron")
+        let tree = sexp!(("kicad_sch" ("version" {super::KICAD_SCHEMA_VERSION}) ("generator" "elektron")
             ("uuid" "e91be4a5-3c12-4daa-bee2-30f8afcd4ab8")
             ("paper" r"A4")
             ("lib_symbols")
@@ -1522,8 +1521,7 @@ mod tests {
     }
     #[test]
     fn remove_element() {
-        let mut tree =
-            sexp!(("kicad_sch" ("version" {super::KICAD_SCHEMA_VERSION}) ("generator" "elektron")
+        let mut tree = sexp!(("kicad_sch" ("version" {super::KICAD_SCHEMA_VERSION}) ("generator" "elektron")
             ("uuid" "e91be4a5-3c12-4daa-bee2-30f8afcd4ab8")
             ("paper" r"A4")
             ("lib_symbols")

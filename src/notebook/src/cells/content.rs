@@ -3,8 +3,10 @@ use std::io::Write;
 use lazy_static::lazy_static;
 use regex::Regex;
 
-use crate::{cells::{CellWrite, CellWriter}, error::Error};
-
+use crate::{
+    cells::{CellWrite, CellWriter},
+    error::Error,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContentCell(pub Vec<String>);

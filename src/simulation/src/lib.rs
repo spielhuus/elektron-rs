@@ -1,12 +1,12 @@
 //! package to run ngspice simulatations.
-mod error;
 mod circuit;
+mod error;
 mod netlist;
 mod simulation;
 
 pub use {
-    error::Error,
-    circuit::Circuit,
-    netlist::{Netlist, NodePositions, Point},
     self::simulation::Simulation,
+    circuit::Circuit,
+    error::Error,
+    netlist::{Netlist, NodePositions, Point},
 };

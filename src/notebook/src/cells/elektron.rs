@@ -1,13 +1,19 @@
-use std::io::BufWriter;
 use std::collections::HashMap;
 use std::fs::File;
+use std::io::BufWriter;
 use std::path::Path;
 
 use crate::{notebook::ArgType, utils::check_directory};
 
 use reports::{bom::BomItem, drc, erc};
 
-use plotter::{gerber, pcb::{LAYERS, plot_pcb}, svg::SvgPlotter, themer::Themer, PlotterImpl};
+use plotter::{
+    gerber,
+    pcb::{plot_pcb, LAYERS},
+    svg::SvgPlotter,
+    themer::Themer,
+    PlotterImpl,
+};
 use sexp::{SexpParser, SexpTree};
 
 use super::super::cells::{CellWrite, CellWriter};
@@ -70,7 +76,8 @@ impl CellWrite<ElektronCell> for CellWriter {
                                 writeln!(out, "    -").unwrap();
                                 writeln!(out, "       amount: {}", item.amount).unwrap();
                                 writeln!(out, "       value: {}", item.value).unwrap();
-                                writeln!(out, "       references: {}", item.references.join(" ")).unwrap();
+                                writeln!(out, "       references: {}", item.references.join(" "))
+                                    .unwrap();
                                 writeln!(out, "       description: {}", item.description).unwrap();
                                 writeln!(out, "       footprint: {}", item.footprint).unwrap();
                             }
@@ -92,7 +99,6 @@ impl CellWrite<ElektronCell> for CellWriter {
                 }
                 writeln!(out, "  count: {}", missing.len()).unwrap();
                 Ok(())
-
             } else if command == "drc" {
                 if let Some(ArgType::List(input)) = args.get("input") {
                     writeln!(out, "drc:").unwrap();
@@ -154,8 +160,7 @@ impl CellWrite<ElektronCell> for CellWriter {
                                 writeln!(out, "    -").unwrap();
                                 writeln!(out, "       id: {}", item.id).unwrap();
                                 writeln!(out, "       reference: {}", item.reference).unwrap();
-                                writeln!(out, "       description: {}.", item.description)
-                                    .unwrap();
+                                writeln!(out, "       description: {}.", item.description).unwrap();
                                 writeln!(out, "       at: {}:{}", item.at[0], item.at[1]).unwrap();
 
                                 /* match item {
@@ -214,9 +219,7 @@ impl CellWrite<ElektronCell> for CellWriter {
                 } else {
                     Err(Error::NoInputFile())
                 }
-
             } else if command == "schema" {
-
                 let out_dir = Path::new(dest).join("_files");
                 let Some(ArgType::List(input)) = args.get("input") else {
                     return Err(Error::NoInputFile());
@@ -235,10 +238,15 @@ impl CellWrite<ElektronCell> for CellWriter {
                         .unwrap()
                         .to_string();
 
-                    debug!("write schema '{}' to '{}'", input, out_dir.join(format!("{}_schema.svg", input))
-                        .to_str()
-                        .unwrap()
-                        .to_string());
+                    debug!(
+                        "write schema '{}' to '{}'",
+                        input,
+                        out_dir
+                            .join(format!("{}_schema.svg", input))
+                            .to_str()
+                            .unwrap()
+                            .to_string()
+                    );
 
                     let doc = SexpParser::load(input_file.as_str()).unwrap();
                     let tree = SexpTree::from(doc.iter()).unwrap();
@@ -251,16 +259,19 @@ impl CellWrite<ElektronCell> for CellWriter {
                     check_directory(&output_file)?;
                     let mut buffer = BufWriter::new(File::create(&output_file)?);
                     svg_plotter
-                        .plot(&tree, &mut buffer, super::flag!(args, "border", false), 
-                              str::parse::<f64>(param_or!(args, "scale", "1.0")).unwrap(), 
-                              None,  //TODO select pages
-                              false)
+                        .plot(
+                            &tree,
+                            &mut buffer,
+                            super::flag!(args, "border", false),
+                            str::parse::<f64>(param_or!(args, "scale", "1.0")).unwrap(),
+                            None, //TODO select pages
+                            false,
+                        )
                         .unwrap();
 
                     writeln!(out, "  {}: {}", input, output_file).unwrap();
                 }
                 Ok(())
-                    
             } else if command == "pcb" {
                 let out_dir = Path::new(dest).join("_files");
                 let layers = if let Some(ArgType::List(layers)) = args.get("layers") {
@@ -291,10 +302,15 @@ impl CellWrite<ElektronCell> for CellWriter {
                             None,
                         )?;
 
-                        debug!("write pcb '{}' to '{}'", input, out_dir.join(format!("{}_pcb.svg", input))
-                            .to_str()
-                            .unwrap()
-                            .to_string());
+                        debug!(
+                            "write pcb '{}' to '{}'",
+                            input,
+                            out_dir
+                                .join(format!("{}_pcb.svg", input))
+                                .to_str()
+                                .unwrap()
+                                .to_string()
+                        );
 
                         writeln!(out, "  -").unwrap();
                         writeln!(out, "    name: {}", input).unwrap();
@@ -310,7 +326,6 @@ impl CellWrite<ElektronCell> for CellWriter {
                             for layer in LAYERS {
                                 writeln!(out, "    - {}", layer).unwrap();
                             }
-
                         }
                     }
                     Ok(())
@@ -335,8 +350,10 @@ impl CellWrite<ElektronCell> for CellWriter {
                             .to_string();
 
                         debug!("write gerber '{}' to '{}'", input_file, output_file);
-                        if let Err(err) = gerber::gerber(input_file.to_string(), output_file.to_string()) {
-                            println!("gerber error {}", err); //TODO add to notebook 
+                        if let Err(err) =
+                            gerber::gerber(input_file.to_string(), output_file.to_string())
+                        {
+                            println!("gerber error {}", err); //TODO add to notebook
                         } else {
                             check_directory(&output_file)?;
                             writeln!(out, "  {}: {}", input, output_file).unwrap();

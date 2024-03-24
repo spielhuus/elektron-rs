@@ -1,11 +1,7 @@
 //! Plot the PCB
-use crate::{error::Error, Theme, schema::Themer};
+use crate::{error::Error, schema::Themer, Theme};
 use log::{debug, error, warn};
-use pyo3::{
-    py_run,
-    types::PyDict,
-    Python,
-};
+use pyo3::{py_run, types::PyDict, Python};
 use rand::Rng;
 use std::fs;
 use svg::{
@@ -88,9 +84,17 @@ fn clean_style(input: &str, style: &super::Style, themer: &Themer) -> Result<Str
             let key = &token[0..colon].trim();
             let value = &token[colon + 1..token.len()].trim();
             if key == &"stroke" && value != &"#FFFFFF" && value != &"#000000" {
-                res += format!("stroke:{}; ", themer.hex_color(themer.stroke(&vec![style.clone()]))).as_str();
+                res += format!(
+                    "stroke:{}; ",
+                    themer.hex_color(themer.stroke(&vec![style.clone()]))
+                )
+                .as_str();
             } else if key == &"fill" && value != &"#FFFFFF" && value != &"#000000" {
-                res += format!("fill:{}; ", themer.hex_color(themer.stroke(&vec![style.clone()]))).as_str();
+                res += format!(
+                    "fill:{}; ",
+                    themer.hex_color(themer.stroke(&vec![style.clone()]))
+                )
+                .as_str();
             } else {
                 res += format!("{}:{}; ", key, value).as_str();
             }
@@ -98,7 +102,6 @@ fn clean_style(input: &str, style: &super::Style, themer: &Themer) -> Result<Str
     }
     Ok(res)
 }
-
 
 enum SvgTypes {
     Group(Group),
@@ -229,13 +232,22 @@ impl SvgType<String> for SvgStack {
     }
 }
 
-pub fn plot_pcb(input: String, output: String, layers: Option<&Vec<String>>, theme: Option<Theme>) -> Result<(f64, f64), Error> {
+pub fn plot_pcb(
+    input: String,
+    output: String,
+    layers: Option<&Vec<String>>,
+    theme: Option<Theme>,
+) -> Result<(f64, f64), Error> {
     let themer = Themer::new(theme.unwrap_or_default());
 
     let layers = if let Some(layers) = layers {
         layers.clone()
     } else {
-        LAYERS.to_vec().iter().map(|i|i.to_string()).collect::<Vec<String>>()
+        LAYERS
+            .to_vec()
+            .iter()
+            .map(|i| i.to_string())
+            .collect::<Vec<String>>()
     };
 
     //prepare temp directory
@@ -382,7 +394,13 @@ pub fn plot_pcb(input: String, output: String, layers: Option<&Vec<String>>, the
             .set("height", format!("{}mm", height))
             .set("viewBox", (0, 0, width, height));
 
-        let path = format!("{}/{}/{}-{}.svg", basedir, tmp_folder.clone(), name, layer.clone());
+        let path = format!(
+            "{}/{}/{}-{}.svg",
+            basedir,
+            tmp_folder.clone(),
+            name,
+            layer.clone()
+        );
         debug!("convert pcb svg: {:?}", path);
         let mut content = String::new();
         let mut group = Symbol::new()
@@ -396,13 +414,13 @@ pub fn plot_pcb(input: String, output: String, layers: Option<&Vec<String>>, the
                     if path == "g" {
                         match t {
                             svg::node::element::tag::Type::Start => {
-                                let mut my_group = Group::new()
-                                    .set("class", layer.to_string());
+                                let mut my_group = Group::new().set("class", layer.to_string());
                                 for a in attributes {
                                     if a.0 != "style" {
                                         my_group = my_group.set(a.0, a.1);
                                     } else {
-                                        my_group = my_group.set(a.0, clean_style(&a.1, &style, &themer).unwrap());
+                                        my_group = my_group
+                                            .set(a.0, clean_style(&a.1, &style, &themer).unwrap());
                                     }
                                 }
                                 stack.start(my_group);
@@ -417,13 +435,13 @@ pub fn plot_pcb(input: String, output: String, layers: Option<&Vec<String>>, the
                     } else if path == "path" {
                         match t {
                             svg::node::element::tag::Type::Start => {
-                                let mut my_group = Path::new()
-                                    .set("class", layer.to_string());
+                                let mut my_group = Path::new().set("class", layer.to_string());
                                 for a in attributes {
                                     if a.0 != "style" {
                                         my_group = my_group.set(a.0, a.1);
                                     } else {
-                                        my_group = my_group.set(a.0, clean_style(&a.1, &style, &themer).unwrap());
+                                        my_group = my_group
+                                            .set(a.0, clean_style(&a.1, &style, &themer).unwrap());
                                     }
                                 }
                                 stack.start(my_group);
@@ -432,13 +450,13 @@ pub fn plot_pcb(input: String, output: String, layers: Option<&Vec<String>>, the
                                 end!(group, stack);
                             }
                             svg::node::element::tag::Type::Empty => {
-                                let mut my_path = Path::new()
-                                    .set("class", layer.to_string());
+                                let mut my_path = Path::new().set("class", layer.to_string());
                                 for a in attributes {
                                     if a.0 != "style" {
                                         my_path = my_path.set(a.0, a.1);
                                     } else {
-                                        my_path = my_path.set(a.0, clean_style(&a.1, &style, &themer).unwrap());
+                                        my_path = my_path
+                                            .set(a.0, clean_style(&a.1, &style, &themer).unwrap());
                                     }
                                 }
                                 stack.start(my_path);
@@ -448,13 +466,13 @@ pub fn plot_pcb(input: String, output: String, layers: Option<&Vec<String>>, the
                     } else if path == "circle" {
                         match t {
                             svg::node::element::tag::Type::Start => {
-                                let mut my_circle = Circle::new()
-                                    .set("class", layer.to_string());
+                                let mut my_circle = Circle::new().set("class", layer.to_string());
                                 for a in attributes {
                                     if a.0 != "style" {
                                         my_circle = my_circle.set(a.0, a.1);
                                     } else {
-                                        my_circle = my_circle.set(a.0, clean_style(&a.1, &style, &themer).unwrap());
+                                        my_circle = my_circle
+                                            .set(a.0, clean_style(&a.1, &style, &themer).unwrap());
                                     }
                                 }
                                 stack.start(my_circle);
@@ -464,13 +482,13 @@ pub fn plot_pcb(input: String, output: String, layers: Option<&Vec<String>>, the
                                 end!(group, stack);
                             }
                             svg::node::element::tag::Type::Empty => {
-                                let mut my_circle = Circle::new()
-                                    .set("class", layer.to_string());
+                                let mut my_circle = Circle::new().set("class", layer.to_string());
                                 for a in attributes {
                                     if a.0 != "style" {
                                         my_circle = my_circle.set(a.0, a.1);
                                     } else {
-                                        my_circle = my_circle.set(a.0, clean_style(&a.1, &style, &themer).unwrap());
+                                        my_circle = my_circle
+                                            .set(a.0, clean_style(&a.1, &style, &themer).unwrap());
                                     }
                                 }
                                 stack.start(my_circle);
@@ -480,13 +498,13 @@ pub fn plot_pcb(input: String, output: String, layers: Option<&Vec<String>>, the
                     } else if path == "text" {
                         match t {
                             svg::node::element::tag::Type::Start => {
-                                let mut my_text = Text::new()
-                                    .set("class", layer.to_string());
+                                let mut my_text = Text::new().set("class", layer.to_string());
                                 for a in attributes {
                                     if a.0 != "style" {
                                         my_text = my_text.set(a.0, a.1);
                                     } else {
-                                        my_text = my_text.set(a.0, clean_style(&a.1, &style, &themer).unwrap());
+                                        my_text = my_text
+                                            .set(a.0, clean_style(&a.1, &style, &themer).unwrap());
                                     }
                                 }
                                 stack.start(my_text);
@@ -495,13 +513,13 @@ pub fn plot_pcb(input: String, output: String, layers: Option<&Vec<String>>, the
                                 end!(group, stack);
                             }
                             svg::node::element::tag::Type::Empty => {
-                                let mut my_text = Text::new()
-                                    .set("class", layer.to_string());
+                                let mut my_text = Text::new().set("class", layer.to_string());
                                 for a in attributes {
                                     if a.0 != "style" {
                                         my_text = my_text.set(a.0, a.1);
                                     } else {
-                                        my_text = my_text.set(a.0, clean_style(&a.1, &style, &themer).unwrap());
+                                        my_text = my_text
+                                            .set(a.0, clean_style(&a.1, &style, &themer).unwrap());
                                     }
                                 }
                                 stack.start(my_text);
@@ -511,13 +529,14 @@ pub fn plot_pcb(input: String, output: String, layers: Option<&Vec<String>>, the
                     } else if path == "desc" {
                         match t {
                             svg::node::element::tag::Type::Start => {
-                                let mut my_desc = Description::new()
-                                    .set("class", layer.to_string());
+                                let mut my_desc =
+                                    Description::new().set("class", layer.to_string());
                                 for a in attributes {
                                     if a.0 != "style" {
                                         my_desc = my_desc.set(a.0, a.1);
                                     } else {
-                                        my_desc = my_desc.set(a.0, clean_style(&a.1, &style, &themer).unwrap());
+                                        my_desc = my_desc
+                                            .set(a.0, clean_style(&a.1, &style, &themer).unwrap());
                                     }
                                 }
                                 stack.start(my_desc);
@@ -526,13 +545,14 @@ pub fn plot_pcb(input: String, output: String, layers: Option<&Vec<String>>, the
                                 end!(group, stack);
                             }
                             svg::node::element::tag::Type::Empty => {
-                                let mut my_desc = Description::new()
-                                    .set("class", layer.to_string());
+                                let mut my_desc =
+                                    Description::new().set("class", layer.to_string());
                                 for a in attributes {
                                     if a.0 != "style" {
                                         my_desc = my_desc.set(a.0, a.1);
                                     } else {
-                                        my_desc = my_desc.set(a.0, clean_style(&a.1, &style, &themer).unwrap());
+                                        my_desc = my_desc
+                                            .set(a.0, clean_style(&a.1, &style, &themer).unwrap());
                                     }
                                 }
                                 stack.start(my_desc);
@@ -542,13 +562,13 @@ pub fn plot_pcb(input: String, output: String, layers: Option<&Vec<String>>, the
                     } else if path == "title" {
                         match t {
                             svg::node::element::tag::Type::Start => {
-                                let mut my_title = Title::new()
-                                    .set("class", layer.to_string());
+                                let mut my_title = Title::new().set("class", layer.to_string());
                                 for a in attributes {
                                     if a.0 != "style" {
                                         my_title = my_title.set(a.0, a.1);
                                     } else {
-                                        my_title = my_title.set(a.0, clean_style(&a.1, &style, &themer).unwrap());
+                                        my_title = my_title
+                                            .set(a.0, clean_style(&a.1, &style, &themer).unwrap());
                                     }
                                 }
                                 stack.start(my_title);

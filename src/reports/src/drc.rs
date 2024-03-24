@@ -13,7 +13,11 @@ use rand::Rng;
 use regex::Regex;
 use std::env::temp_dir;
 use std::io::prelude::*;
-use std::{fmt, fs::{self, File}, io::BufReader};
+use std::{
+    fmt,
+    fs::{self, File},
+    io::BufReader,
+};
 
 use crate::Error;
 
@@ -127,7 +131,10 @@ board.drc(filename)"#,
                 warn!("LINE: {}", line);
             }
         } else {
-            return Err(Error::IoError(String::from("can not read temporary file"), output));
+            return Err(Error::IoError(
+                String::from("can not read temporary file"),
+                output,
+            ));
         }
     }
 

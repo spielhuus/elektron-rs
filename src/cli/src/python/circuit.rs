@@ -1,9 +1,9 @@
 #![allow(clippy::borrow_deref_ref)]
 use std::collections::HashMap;
 
+use pyo3::{exceptions::PyOSError, prelude::*};
 use simulation::Circuit as SpiceCircuit;
 use simulation::Simulation as SpiceSimulation;
-use pyo3::{exceptions::PyOSError, prelude::*};
 
 use crate::error::Error;
 

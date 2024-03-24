@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use crate::{error::Error, notebook::ArgType};
 
-use super::{args_to_string, echo, newlines, write_plot, CellWrite, CellWriter, LoggingStderr, LoggingStdout};
+use super::{
+    args_to_string, echo, newlines, write_plot, CellWrite, CellWriter, LoggingStderr, LoggingStdout,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PythonCell(pub HashMap<String, ArgType>, pub Vec<String>);

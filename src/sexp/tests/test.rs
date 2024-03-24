@@ -1,11 +1,12 @@
-
 mod tests {
     mod parser {
+        use ndarray::{arr1, s, Array1};
         use sexp::{
-            Sexp, SexpParser, SexpTree, State, SexpValueQuery, SexpValuesQuery, utils, el,
-            SexpProperty, math::{Shape, Transform}, 
+            el,
+            math::{Shape, Transform},
+            utils, Sexp, SexpParser, SexpProperty, SexpTree, SexpValueQuery, SexpValuesQuery,
+            State,
         };
-        use ndarray::{arr1, Array1, s};
         #[test]
         fn next_siebling() {
             let doc = SexpParser::load("tests/summe.kicad_sch").unwrap();
@@ -294,8 +295,12 @@ mod tests {
         }
     }
     mod math {
-        use ndarray::{arr2, arr1};
-        use sexp::{Builder, SexpParser, SexpTree, SexpValueQuery, SexpProperty, utils, math::{Bounds, CalcArc, MathUtils, normalize_angle}, el};
+        use ndarray::{arr1, arr2};
+        use sexp::{
+            el,
+            math::{normalize_angle, Bounds, CalcArc, MathUtils},
+            utils, Builder, SexpParser, SexpProperty, SexpTree, SexpValueQuery,
+        };
 
         #[test]
         fn shape_opamp_a() {
@@ -311,7 +316,8 @@ mod tests {
                     name == "U1" && unit == 1
                 })
                 .unwrap();
-            let lib_symbol = utils::get_library(tree.root().unwrap(), "Amplifier_Operational:TL072").unwrap();
+            let lib_symbol =
+                utils::get_library(tree.root().unwrap(), "Amplifier_Operational:TL072").unwrap();
             let size = symbol.bounds(lib_symbol).unwrap();
             assert_eq!(arr2(&[[-7.62, -5.08], [7.62, 5.08]]), size)
         }
@@ -329,7 +335,8 @@ mod tests {
                     name == "U1" && unit == 3
                 })
                 .unwrap();
-            let lib_symbol = utils::get_library(tree.root().unwrap(), "Amplifier_Operational:TL072").unwrap();
+            let lib_symbol =
+                utils::get_library(tree.root().unwrap(), "Amplifier_Operational:TL072").unwrap();
 
             let size = symbol.bounds(lib_symbol).unwrap();
             assert_eq!(arr2(&[[-2.54, -7.62], [-2.54, 7.62]]), size)
@@ -391,9 +398,18 @@ mod tests {
         }
         #[test]
         fn test_vector_distance() {
-            assert_eq!(arr1(&[10.0, 0.0]), MathUtils::projection(&arr1(&[0.0, 0.0]), 0.0, 10.0));
-            assert_eq!(arr1(&[0.0, 10.0]), MathUtils::projection(&arr1(&[0.0, 0.0]), 90.0, 10.0));
-            assert_eq!(arr1(&[-10.0, 0.0]), MathUtils::projection(&arr1(&[0.0, 0.0]), 180.0, 10.0));
-        } 
+            assert_eq!(
+                arr1(&[10.0, 0.0]),
+                MathUtils::projection(&arr1(&[0.0, 0.0]), 0.0, 10.0)
+            );
+            assert_eq!(
+                arr1(&[0.0, 10.0]),
+                MathUtils::projection(&arr1(&[0.0, 0.0]), 90.0, 10.0)
+            );
+            assert_eq!(
+                arr1(&[-10.0, 0.0]),
+                MathUtils::projection(&arr1(&[0.0, 0.0]), 180.0, 10.0)
+            );
+        }
     }
 }

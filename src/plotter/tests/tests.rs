@@ -1,7 +1,7 @@
 mod test {
     mod plot_svg {
+        use plotter::{svg::SvgPlotter, themer::Themer, PlotterImpl, Theme};
         use sexp::{SexpParser, SexpTree};
-        use plotter::{PlotterImpl, themer::Themer, Theme, svg::SvgPlotter};
 
         #[test]
         fn plt_schema() {
@@ -9,7 +9,6 @@ mod test {
             let tree = SexpTree::from(doc.iter()).unwrap();
 
             let svg_plotter = SvgPlotter::new("test", Some(Themer::new(Theme::Kicad2020)));
-
 
             let mut buffer = Vec::<u8>::new();
             svg_plotter

@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use plotters::prelude::*;
 
-use crate::notebook::ArgType;
 use crate::cells::{CellWrite, CellWriter};
+use crate::notebook::ArgType;
 use crate::Error;
 
 use super::args_to_string;

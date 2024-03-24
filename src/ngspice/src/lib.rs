@@ -18,45 +18,45 @@ use std::os::raw::{c_char, c_int, c_void};
 #[derive(Error, Debug)]
 pub enum NgSpiceError {
     #[error("ill-formed matrix can't be decomposed")]
-    Badmatrix, 
+    Badmatrix,
     #[error("matrix is singular")]
-    Singular, 
+    Singular,
     #[error("iteration limit reached,operation aborted")]
-    Iterlim, 
+    Iterlim,
     #[error("integration order not supported")]
-    Order, 
+    Order,
     #[error("integration method not supported")]
-    Method, 
+    Method,
     #[error("timestep too small")]
-    TimeStep, 
+    TimeStep,
     #[error("transmission line in pz analysis")]
-    Xmissionline, 
+    Xmissionline,
     #[error("pole-zero magnitude too large")]
-    Magexceeded, 
+    Magexceeded,
     #[error("pole-zero input or output shorted")]
-    Short, 
+    Short,
     #[error("pole-zero input is output")]
-    Inisout, 
+    Inisout,
     #[error("ac currents cannot be ASKed")]
-    AskCurrent, 
+    AskCurrent,
     #[error("ac powers cannot be ASKed")]
-    AskPower, 
+    AskPower,
     #[error("node not defined in noise anal")]
-    Nodundef, 
+    Nodundef,
     #[error("no ac input src specified for noise")]
-    Noacinput, 
+    Noacinput,
     #[error("no source at F2 for IM disto analysis")]
-    Nof2src, 
+    Nof2src,
     #[error("no distortion analysis - NODISTO defined")]
-    NoDisto, 
+    NoDisto,
     #[error("no noise analysis - NONOISE defined")]
-    NoNoise, 
+    NoNoise,
     #[error("can not load the ngspice library.")]
-    Init, 
+    Init,
     #[error("encoding error.")]
-    Encoding, 
+    Encoding,
     #[error("Unknown error: {0}")]
-    Unknown(i32), 
+    Unknown(i32),
     #[error("No Results from ngspice.")]
     NoResults,
     #[error("Interior nul byte was found.")]
@@ -158,39 +158,39 @@ impl From<libloading::Error> for NgSpiceError {
 impl From<i32> for NgSpiceError {
     fn from(e: i32) -> NgSpiceError {
         if e == 101 {
-          NgSpiceError::Badmatrix
+            NgSpiceError::Badmatrix
         } else if e == 102 {
-          NgSpiceError::Singular
+            NgSpiceError::Singular
         } else if e == 103 {
-          NgSpiceError::Iterlim
+            NgSpiceError::Iterlim
         } else if e == 104 {
-          NgSpiceError::Order
+            NgSpiceError::Order
         } else if e == 105 {
-          NgSpiceError::Method
+            NgSpiceError::Method
         } else if e == 106 {
-          NgSpiceError::TimeStep
+            NgSpiceError::TimeStep
         } else if e == 107 {
-          NgSpiceError::Xmissionline
+            NgSpiceError::Xmissionline
         } else if e == 108 {
-          NgSpiceError::Magexceeded
+            NgSpiceError::Magexceeded
         } else if e == 109 {
-          NgSpiceError::Short
+            NgSpiceError::Short
         } else if e == 110 {
-          NgSpiceError::Inisout
+            NgSpiceError::Inisout
         } else if e == 111 {
-          NgSpiceError::AskCurrent
+            NgSpiceError::AskCurrent
         } else if e == 112 {
-          NgSpiceError::AskPower
+            NgSpiceError::AskPower
         } else if e == 113 {
-          NgSpiceError::Nodundef
+            NgSpiceError::Nodundef
         } else if e == 114 {
-          NgSpiceError::Noacinput
+            NgSpiceError::Noacinput
         } else if e == 115 {
-          NgSpiceError::Nof2src
+            NgSpiceError::Nof2src
         } else if e == 116 {
-          NgSpiceError::NoDisto
+            NgSpiceError::NoDisto
         } else if e == 117 {
-          NgSpiceError::NoNoise
+            NgSpiceError::NoNoise
         } else {
             NgSpiceError::Unknown(e)
         }
@@ -464,7 +464,7 @@ pub trait Callbacks {
 //             spice.command("  dc vin 0 2 0.01").unwrap();
 //             spice.command("  let vccc = vccc + 0.2").unwrap();
 //             spice.command("end").unwrap();
-//             spice.command("save all").unwrap(); 
+//             spice.command("save all").unwrap();
 //
 //         assert_eq!(6, spice.all_plots().expect("plots failed").len());
 //     }

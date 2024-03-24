@@ -8,13 +8,11 @@ use std::{
 use indexmap::IndexMap;
 use ndarray::{arr1, s, Array1};
 
-use crate::{
-    circuit::Circuit,
-    error::Error,
-};
+use crate::{circuit::Circuit, error::Error};
 use sexp::{
-    el, utils, Sexp, SexpProperty, SexpTree, SexpValueQuery, SexpValuesQuery,
+    el,
     math::{Shape, Transform},
+    utils, Sexp, SexpProperty, SexpTree, SexpValueQuery, SexpValuesQuery,
 };
 
 ///return the pin name, pin and unit number from a libary symbol.

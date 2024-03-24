@@ -3,7 +3,7 @@
 //! # Examples
 //! ```
 //! use sexp::{SexpParser, SexpTree};
-//! 
+//!
 //! let doc = SexpParser::load("tests/summe.kicad_sch").unwrap();
 //! let tree = SexpTree::from(doc.iter()).unwrap();
 //! let root = tree.root().unwrap();
@@ -189,12 +189,7 @@ impl Circuit {
         for path in &self.pathlist {
             let content = match fs::read_dir(path) {
                 Ok(content) => content,
-                Err(e) => {
-                    return Err(Error::DirectoryError(
-                        path.to_string(),
-                        e.to_string(),
-                    ))
-                }
+                Err(e) => return Err(Error::DirectoryError(path.to_string(), e.to_string())),
             };
             for entry in content {
                 let dir = entry.unwrap();

@@ -10,7 +10,7 @@
 //! println!("Items not found {:#?}", result.1);
 //!
 use crate::Error;
-use sexp::{SexpProperty, SexpTree, SexpValueQuery, el};
+use sexp::{el, SexpProperty, SexpTree, SexpValueQuery};
 use std::collections::HashMap;
 use yaml_rust::{Yaml, YamlLoader};
 
@@ -73,7 +73,6 @@ impl From<Yaml> for BomItem {
 }
 
 pub fn get_partlist(partlist: &str) -> Result<Vec<BomItem>, Error> {
-
     let content = match std::fs::read_to_string(partlist) {
         Ok(content) => content,
         Err(err) => return Err(Error::PartlistError(partlist.to_string(), err.to_string())),
@@ -107,7 +106,11 @@ fn reference(value: &str) -> String {
     format!("{}{:0>4}", reference_characters, reference_numbers)
 }
 
-pub fn search_part<'a>(partlist: &'a [BomItem], footprint: &str, value: &str) -> Option<&'a BomItem> {
+pub fn search_part<'a>(
+    partlist: &'a [BomItem],
+    footprint: &str,
+    value: &str,
+) -> Option<&'a BomItem> {
     partlist
         .iter()
         .find(|item| item.footprint == footprint && (item.value == value || item.value == "*"))
@@ -244,6 +247,4 @@ pub fn bom(
 }
 
 #[cfg(test)]
-mod tests {
-
-}
+mod tests {}

@@ -11,12 +11,8 @@ pub mod model;
 use crate::error::Error;
 
 use draw::{At, Attribute, Direction, Dot, DotPosition, Draw, Drawer, Label, Nc, Symbol, To};
+use plotter::{svg::SvgPlotter, themer::Themer, PlotterImpl, Theme};
 use sexp::{el, utils, Sexp, SexpValuesQuery};
-use plotter::{
-    svg::SvgPlotter,
-    themer::Themer,
-    PlotterImpl, Theme
-};
 
 macro_rules! at {
     ($drawing:expr, $element:expr) => {
@@ -286,7 +282,6 @@ impl PyDraw {
                 let xy2: Array1<f64> = xy.get(1).unwrap().values();
 
                 item.call_method1("set_points", ((xy1[0], xy1[1]), (xy2[0], xy2[1])))?;
-
             } else {
                 //TODO create error
                 println!("no wire returned");

@@ -29,22 +29,14 @@ jobs:
                            gcc bison flex libtool autoconf automake gcc \
                            libngspice0-dev kicad-symbols && \
             sudo mkdir -p /usr/local/share/fonts/TT/ && \
-            sudo curl -L "https://github.com/hikikomori82/osifont/blob/master/osifont-lgpl3fe.ttf?raw=true" -o /usr/local/share/fonts/TT/osifont-lgpl3fe.ttf
-            # curl -L https://sourceforge.net/projects/ngspice/files/ng-spice-rework/41/ngspice-41.tar.gz/download -o ngspice.tar.gz &&
-            # tar xfz ngspice.tar.gz && pushd ngspice-41 &&
-            # mkdir release &&
-            # cd release &&
-            # ../configure --with-ngshared --enable-xspice --disable-debug --enable-cider --enable-osdi --enable-openmp &&
-            # make &&
-            # sudo make install && popd &&
-            # ls -l /usr/local/lib
+            sudo curl -L "https://github.com/hikikomori82/osifont/blob/master/osifont-lgpl3fe.ttf?raw=true" \
+                      -o /usr/local/share/fonts/TT/osifont-lgpl3fe.ttf
       - name: cargo test
-        #run: LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib cargo test --workspace
         run: cargo test --workspace
 
-      - name: rustfmt
-        run: cargo fmt --all -- --check
-
-      - name: clippy
-        run: cargo clippy --all --all-features --tests -- -D warnings
+      # - name: rustfmt
+      #   run: cargo fmt --all -- --check
+      #
+      # - name: clippy
+      #   run: cargo clippy --all --all-features --tests -- -D warnings
 

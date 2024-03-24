@@ -1,10 +1,12 @@
 use std::{collections::HashMap, path::Path};
 
-use rand::{
-    thread_rng, Rng
-};
+use rand::{thread_rng, Rng};
 
-use crate::{error::Error, notebook::ArgType, utils::{check_directory, Symbols}};
+use crate::{
+    error::Error,
+    notebook::ArgType,
+    utils::{check_directory, Symbols},
+};
 
 use super::{args_to_string, get_value, param, param_or, CellWrite, CellWriter};
 
@@ -32,7 +34,7 @@ impl CellWrite<AudioCell> for CellWriter {
         );
 
         //get the data from the pyhton context
-        let Ok(py_data) = get_value(samplerate, py, globals, locals) else  {
+        let Ok(py_data) = get_value(samplerate, py, globals, locals) else {
             return Err(Error::VariableNotFound(format!(
                 "Variable with name '{}' can not be found.",
                 data_key

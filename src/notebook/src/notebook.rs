@@ -44,7 +44,10 @@ impl Lang {
             Ok(Lang::Elektron)
         } else {
             trace!("Unknwon language: {}", lang);
-            Err(Error::Notebook("Unknwon Lang:".to_string(), lang.to_string())) 
+            Err(Error::Notebook(
+                "Unknwon Lang:".to_string(),
+                lang.to_string(),
+            ))
         }
     }
 }
@@ -130,26 +133,34 @@ impl Notebook {
 
     ///push a new line to the notebook.
     fn push(&mut self, line: &str) -> Result<(), Error> {
-
         self.line += 1;
 
         if self.state == State::Content && line.starts_with("```") {
-
             if !self.code.is_empty() {
-                self.cells.push(Cell::Content(crate::cells::content::ContentCell(self.code.clone())));
+                self.cells
+                    .push(Cell::Content(crate::cells::content::ContentCell(
+                        self.code.clone(),
+                    )));
                 self.clear();
             }
 
             self.parse(line)?;
             if line.ends_with("```") {
-                self.cells.push(Cell::from(&self.language, self.arguments.clone(), self.code.clone()));
+                self.cells.push(Cell::from(
+                    &self.language,
+                    self.arguments.clone(),
+                    self.code.clone(),
+                ));
                 self.clear();
             } else {
                 self.state = State::Collect;
             }
-
         } else if self.state == State::Collect && line.starts_with("```") {
-            self.cells.push(Cell::from(&self.language, self.arguments.clone(), self.code.clone()));
+            self.cells.push(Cell::from(
+                &self.language,
+                self.arguments.clone(),
+                self.code.clone(),
+            ));
             self.state = State::Content;
             self.clear();
         } else {
@@ -161,7 +172,10 @@ impl Notebook {
 
     fn close(&mut self) {
         if !self.code.is_empty() {
-            self.cells.push(Cell::Content(crate::cells::content::ContentCell(self.code.clone())));
+            self.cells
+                .push(Cell::Content(crate::cells::content::ContentCell(
+                    self.code.clone(),
+                )));
             self.code.clear();
         }
     }
@@ -193,14 +207,14 @@ impl Notebook {
                     } else {
                         value.push(c);
                     }
-                },
+                }
                 ParserState::ListQuote => {
                     if (c == '"' || c == '\'') && last_char != '\\' {
                         state = ParserState::List;
                     } else {
                         value.push(c);
                     }
-                },
+                }
                 ParserState::List => {
                     if c == ',' {
                         list.push(value.trim().to_string());
@@ -208,7 +222,8 @@ impl Notebook {
                     } else if c == ']' {
                         list.push(value.trim().to_string());
                         value.clear();
-                        self.arguments.insert(key.clone(), ArgType::List(list.clone()));
+                        self.arguments
+                            .insert(key.clone(), ArgType::List(list.clone()));
                         key.clear();
                         list.clear();
                         state = Key;
@@ -217,75 +232,72 @@ impl Notebook {
                     } else {
                         value.push(c);
                     }
-                },
+                }
                 ParserState::NotStarted => {
                     if c == INSTR {
                         state = StartInstruction(1);
                     } else {
                         return Err(Error::Notebook(
-                                String::from("error parsing instruction"), 
-                                String::from("instruction must begin with '")
+                            String::from("error parsing instruction"),
+                            String::from("instruction must begin with '"),
                         ));
                     }
-                },
+                }
                 ParserState::StartInstruction(n) => {
                     if c == INSTR {
                         match n.cmp(&2) {
                             std::cmp::Ordering::Less => {
-                                state = StartInstruction(n+1);
-                            },
+                                state = StartInstruction(n + 1);
+                            }
                             std::cmp::Ordering::Equal => {
                                 state = Lang;
-                            },
+                            }
                             std::cmp::Ordering::Greater => {
                                 return Err(Error::Notebook(
-                                        String::from("error parsing instruction"), 
-                                        String::from("to many starting !.")
+                                    String::from("error parsing instruction"),
+                                    String::from("to many starting !."),
                                 ));
-                            },
+                            }
                         }
                     } else {
                         return Err(Error::Notebook(
-                                String::from("error parsing instruction"), 
-                                String::from("instruction must begin with !")
+                            String::from("error parsing instruction"),
+                            String::from("instruction must begin with !"),
                         ));
                     }
-
-                },
-                ParserState::Lang => {
-                    match c {
-                        ',' | COPEN => {}
-                        ' ' => {
-                            let Ok(lang) = crate::notebook::Lang::from(&lang) else {
-                                return Err(Error::Notebook(format!("Unknown lang at line: {}", self.line), format!("lang {} is not supported.", lang)));
-                            };
-                            self.language = lang;
-                            state = Key;
-                            continue
-                        },
-                        c => lang.push(c),
+                }
+                ParserState::Lang => match c {
+                    ',' | COPEN => {}
+                    ' ' => {
+                        let Ok(lang) = crate::notebook::Lang::from(&lang) else {
+                            return Err(Error::Notebook(
+                                format!("Unknown lang at line: {}", self.line),
+                                format!("lang {} is not supported.", lang),
+                            ));
+                        };
+                        self.language = lang;
+                        state = Key;
+                        continue;
                     }
+                    c => lang.push(c),
                 },
-                ParserState::Key => {
-                    match c {
-                        '{' | ',' | ' ' => continue,
-                        '=' => state = Value,
-                        c => key.push(c),
-                    }
+                ParserState::Key => match c {
+                    '{' | ',' | ' ' => continue,
+                    '=' => state = Value,
+                    c => key.push(c),
                 },
-                ParserState::Value => {
-                    match c {
-                        '[' => state = ParserState::List,
-                        ',' => {},
-                        ' ' | '}' => {
-                            self.arguments.insert(key.clone(), ArgType::String(value.clone()));
-                            key = String::new();
-                            value = String::new();
-                            state = Key;
-                        },
-                        '"' | '\'' => state = ParserState::Quote,
-                        c => value.push(c),
+                ParserState::Value => match c {
+                    '[' => state = ParserState::List,
+                    ',' => {}
+                    ' ' | '}' => {
+                        self.arguments
+                            .insert(key.clone(), ArgType::String(value.clone()));
+                        key = String::new();
+                        value = String::new();
+                        state = Key;
                     }
+                    '"' | '\'' => state = ParserState::Quote,
+                    c => value.push(c),
                 },
             }
             last_char = c;
@@ -293,7 +305,10 @@ impl Notebook {
         if let ParserState::Lang = state {
             if !lang.is_empty() {
                 let Ok(lang) = crate::notebook::Lang::from(&lang) else {
-                    return Err(Error::Notebook(format!("Unknown lang at line: {}", self.line), format!("lang {} is not supported.", lang)));
+                    return Err(Error::Notebook(
+                        format!("Unknown lang at line: {}", self.line),
+                        format!("lang {} is not supported.", lang),
+                    ));
                 };
                 self.language = lang;
             }
@@ -307,17 +322,19 @@ impl Notebook {
 
 #[cfg(test)]
 mod tests {
-    use crate::notebook::{ArgType, Lang, Cell};
     use super::Notebook;
+    use crate::notebook::{ArgType, Cell, Lang};
 
     #[test]
     fn test_unknown_lang() {
         let mut command = Notebook::new();
-        let res = command
-            .parse("```{suaheli, error=TRUE, echo=FALSE, include=TRUE}");
+        let res = command.parse("```{suaheli, error=TRUE, echo=FALSE, include=TRUE}");
 
         if let Err(err) = res {
-            assert_eq!("`Unknown lang at line: 0`: lang suaheli is not supported.", err.to_string());
+            assert_eq!(
+                "`Unknown lang at line: 0`: lang suaheli is not supported.",
+                err.to_string()
+            );
         } else {
             panic!("should fail");
         }
@@ -325,9 +342,7 @@ mod tests {
     #[test]
     fn test_parse_lang() {
         let mut command = Notebook::new();
-        command
-            .parse("```python")
-            .unwrap();
+        command.parse("```python").unwrap();
 
         assert_eq!(Lang::Python, command.language);
     }
@@ -340,9 +355,18 @@ mod tests {
 
         assert_eq!(Lang::Python, command.language);
         assert_eq!(3, command.arguments.len());
-        assert_eq!(ArgType::String("TRUE".to_string()), *command.arguments.get("error").unwrap());
-        assert_eq!(ArgType::String("FALSE".to_string()), *command.arguments.get("echo").unwrap());
-        assert_eq!(ArgType::String("TRUE".to_string()), *command.arguments.get("include").unwrap());
+        assert_eq!(
+            ArgType::String("TRUE".to_string()),
+            *command.arguments.get("error").unwrap()
+        );
+        assert_eq!(
+            ArgType::String("FALSE".to_string()),
+            *command.arguments.get("echo").unwrap()
+        );
+        assert_eq!(
+            ArgType::String("TRUE".to_string()),
+            *command.arguments.get("include").unwrap()
+        );
     }
     #[test]
     fn no_arg_quoted() {
@@ -464,7 +488,7 @@ mod tests {
             .push(r#"```{elektron, command="schema", input=["main", "mount"], border=TRUE, theme="Mono"}```"#);
         assert!(res.is_ok());
         for content in command.iter() {
-        println!("{:?}", content);
+            println!("{:?}", content);
             if let Cell::Elektron(cell) = content {
                 assert!(cell.1.is_empty());
                 assert_eq!(4, cell.0.len());
@@ -564,7 +588,7 @@ mod tests {
     //         }
     //     }
     // }
- 
+
     #[test]
     fn test_parse_notebook() {
         let content = r#"---
@@ -701,7 +725,7 @@ This is the first setup with the 4069 as a voltage follower. C1 and C2 are DC bl
 
         let notebook = Notebook::from(content).unwrap();
         assert_eq!(4, notebook.cells.len());
-        
+
         let mut cells = notebook.iter();
 
         let first = cells.next().unwrap();

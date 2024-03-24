@@ -257,7 +257,6 @@ impl MathUtils {
 
 //TODO const M_SQRT1_2: f64 = 0.70710678118654752440; /* 1/sqrt(2) */
 // const M_SQRT1_2: f64 = 0.707_106_781_186_547_6; /* 1/sqrt(2) */
-
 ///Utils for the Arc coordinates.
 pub trait CalcArc {
     ///The Arc radius.
@@ -340,19 +339,25 @@ impl CalcArc for Sexp {
         let dab_slope_start_end_y = ab_slope_start_end_y
             * ((da_slope / a_slope * da_slope / a_slope)
                 + (db_slope / b_slope * db_slope / b_slope)
-                + (std::f64::consts::FRAC_1_SQRT_2 / (start[1] - end[1]) * std::f64::consts::FRAC_1_SQRT_2 / (start[1] - end[1])))
+                + (std::f64::consts::FRAC_1_SQRT_2 / (start[1] - end[1])
+                    * std::f64::consts::FRAC_1_SQRT_2
+                    / (start[1] - end[1])))
                 .sqrt();
 
         let b_slope_start_mid_x = b_slope * (start[0] + mid[0]);
         let db_slope_start_mid_x = b_slope_start_mid_x
             * ((db_slope / b_slope * db_slope / b_slope)
-                + (std::f64::consts::FRAC_1_SQRT_2 / (start[0] + mid[0]) * std::f64::consts::FRAC_1_SQRT_2 / (start[0] + mid[0])))
+                + (std::f64::consts::FRAC_1_SQRT_2 / (start[0] + mid[0])
+                    * std::f64::consts::FRAC_1_SQRT_2
+                    / (start[0] + mid[0])))
                 .sqrt();
 
         let a_slope_mid_end_x = a_slope * (mid[0] + end[0]);
         let da_slope_mid_end_x = a_slope_mid_end_x
             * ((da_slope / a_slope * da_slope / a_slope)
-                + (std::f64::consts::FRAC_1_SQRT_2 / (mid[0] + end[0]) * std::f64::consts::FRAC_1_SQRT_2 / (mid[0] + end[0])))
+                + (std::f64::consts::FRAC_1_SQRT_2 / (mid[0] + end[0])
+                    * std::f64::consts::FRAC_1_SQRT_2
+                    / (mid[0] + end[0])))
                 .sqrt();
 
         let twice_ba_slope_diff = 2.0 * (b_slope - a_slope);

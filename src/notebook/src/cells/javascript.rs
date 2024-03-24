@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use crate::notebook::ArgType;
 use crate::cells::{CellWrite, CellWriter};
+use crate::notebook::ArgType;
 
 use super::{parse_variables, Error};
 

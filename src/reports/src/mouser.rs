@@ -11,8 +11,8 @@
 //! mouser("target/mouser-bom.xls", &result.0).unwrap();
 use std::collections::HashMap;
 
-use xlsxwriter::{Workbook, Worksheet};
 use crate::{bom::BomItem, Error};
+use xlsxwriter::{Workbook, Worksheet};
 
 use colored::*;
 

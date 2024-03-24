@@ -570,7 +570,6 @@ impl Element {
         _py: Python,
         pos: &'_ PyAny,
     ) -> PyRefMut<'py, Self> {
-
         let name: Result<String, PyErr> = pos.extract();
         if let Ok(name) = name {
             slf.label = Some(name);

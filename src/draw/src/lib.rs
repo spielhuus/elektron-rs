@@ -17,8 +17,10 @@ pub use error::Error;
 use reports::erc;
 
 use sexp::{
-    self, el, math::{Bounds, PinOrientation, Shape, Transform, MIRROR}, utils, Builder, Sexp, 
-    SexpAtom, SexpParser, SexpProperty, SexpTree, SexpValueQuery, SexpValuesQuery, SexpWriter
+    self, el,
+    math::{Bounds, PinOrientation, Shape, Transform, MIRROR},
+    utils, Builder, Sexp, SexpAtom, SexpParser, SexpProperty, SexpTree, SexpValueQuery,
+    SexpValuesQuery, SexpWriter,
 };
 
 pub use model::{
@@ -73,15 +75,17 @@ pub fn from_library(
 
     //let lib_symbol: String = library.get(0).unwrap();
     symbol.push(SexpAtom::Node(
-        sexp::sexp!((lib_id !{lib_id.as_str()}))
-            .root()?
-            .clone(),
+        sexp::sexp!((lib_id! {lib_id.as_str()})).root()?.clone(),
     ))?;
-    symbol.push(SexpAtom::Node(sexp::sexp!(
-                (at {at[0].to_string().as_str()} 
-                    {at[1].to_string().as_str()} 
-                    {angle.to_string().as_str()})
-                ).root()?.clone()))?;
+    symbol.push(SexpAtom::Node(
+        sexp::sexp!(
+        (at {at[0].to_string().as_str()}
+            {at[1].to_string().as_str()}
+            {angle.to_string().as_str()})
+        )
+        .root()?
+        .clone(),
+    ))?;
     symbol.push(SexpAtom::Node(
         sexp::sexp!((unit {unit.to_string().as_str()}))
             .root()?
@@ -101,7 +105,7 @@ pub fn from_library(
                     }
                     symbol.push(SexpAtom::Node(prop))?;
                 } else if n.name != "extends"
-                    && n.name != el::SYMBOL 
+                    && n.name != el::SYMBOL
                     && n.name != "pin_numbers"
                     && n.name != "pin_names"
                     && n.name != "power"
@@ -178,9 +182,10 @@ impl PropertyKey {
 
     pub fn matches(&self, key: String) -> bool {
         let other: (String, usize) = if let Some(captures) = RE_KEY.captures(&key) {
-                (captures.get(1).unwrap().as_str().to_string(),
-                 captures.get(2).unwrap().as_str().parse::<usize>().unwrap())
-
+            (
+                captures.get(1).unwrap().as_str().to_string(),
+                captures.get(2).unwrap().as_str().parse::<usize>().unwrap(),
+            )
         } else {
             return false;
         };
@@ -188,18 +193,10 @@ impl PropertyKey {
         match self {
             PropertyKey::Exact(k) => key == *k,
             PropertyKey::Range(k, start, end) => {
-                other.0 == *k &&
-                other.1 >= *start &&
-                other.1 <= *end
+                other.0 == *k && other.1 >= *start && other.1 <= *end
             }
-            PropertyKey::From(k, start) => {
-                other.0 == *k &&
-                other.1 >= *start
-            }
-            PropertyKey::To(k, end) => {
-                other.0 == *k &&
-                other.1 <= *end
-            }
+            PropertyKey::From(k, start) => other.0 == *k && other.1 >= *start,
+            PropertyKey::To(k, end) => other.0 == *k && other.1 <= *end,
         }
     }
 }
@@ -225,39 +222,76 @@ impl Draw {
             } else {
                 String::from("A4")
             }
-        } else { String::from("A4") };
-        let mut schema = 
-            sexp::sexp!((kicad_sch (version {sexp::KICAD_SCHEMA_VERSION}) (generator !{sexp::KICAD_SCHEMA_GENERATOR})
+        } else {
+            String::from("A4")
+        };
+        let mut schema = sexp::sexp!((kicad_sch (version {sexp::KICAD_SCHEMA_VERSION}) (generator !{sexp::KICAD_SCHEMA_GENERATOR})
                 (uuid !{sexp::uuid!()})
                 (paper !{paper.as_str()})
-            ) 
+            )
         );
         if let Some(kwargs) = kwargs {
             let mut title_block = Sexp::from(String::from(el::TITLE_BLOCK));
             if let Some(title) = kwargs.get(el::TITLE_BLOCK_TITLE) {
-                title_block.push(SexpAtom::Node(sexp::sexp!(
-                            (title !{title.as_str()})).root().unwrap().clone())).unwrap();
+                title_block
+                    .push(SexpAtom::Node(
+                        sexp::sexp!((title! {title.as_str()}))
+                            .root()
+                            .unwrap()
+                            .clone(),
+                    ))
+                    .unwrap();
             }
             if let Some(date) = kwargs.get(el::TITLE_BLOCK_DATE) {
-                title_block.push(SexpAtom::Node(sexp::sexp!((date !{date.as_str()})).root().unwrap().clone())).unwrap();
+                title_block
+                    .push(SexpAtom::Node(
+                        sexp::sexp!((date! {date.as_str()})).root().unwrap().clone(),
+                    ))
+                    .unwrap();
             }
             if let Some(rev) = kwargs.get(el::TITLE_BLOCK_REV) {
-                title_block.push(SexpAtom::Node(sexp::sexp!((rev !{rev.as_str()})).root().unwrap().clone())).unwrap();
+                title_block
+                    .push(SexpAtom::Node(
+                        sexp::sexp!((rev! {rev.as_str()})).root().unwrap().clone(),
+                    ))
+                    .unwrap();
             }
             if let Some(company) = kwargs.get(el::TITLE_BLOCK_COMPANY) {
-                title_block.push(SexpAtom::Node(sexp::sexp!((company !{company.as_str()})).root().unwrap().clone())).unwrap();
+                title_block
+                    .push(SexpAtom::Node(
+                        sexp::sexp!((company! {company.as_str()}))
+                            .root()
+                            .unwrap()
+                            .clone(),
+                    ))
+                    .unwrap();
             }
             for i in 1..5 {
                 if let Some(comment) = kwargs.get(&format!("comment{}", i)) {
-                    title_block.push(SexpAtom::Node(sexp::sexp!(
-                                (comment {i.to_string().as_str()} 
-                                        !{comment.as_str()})
-                                ).root().unwrap().clone())).unwrap();
+                    title_block
+                        .push(SexpAtom::Node(
+                            sexp::sexp!(
+                            (comment {i.to_string().as_str()}
+                                    !{comment.as_str()})
+                            )
+                            .root()
+                            .unwrap()
+                            .clone(),
+                        ))
+                        .unwrap();
                 }
             }
-            schema.root_mut().unwrap().push(SexpAtom::Node(title_block)).unwrap();
+            schema
+                .root_mut()
+                .unwrap()
+                .push(SexpAtom::Node(title_block))
+                .unwrap();
         }
-        schema.root_mut().unwrap().push(SexpAtom::Node(Sexp::from(String::from(el::LIB_SYMBOLS)))).unwrap();
+        schema
+            .root_mut()
+            .unwrap()
+            .push(SexpAtom::Node(Sexp::from(String::from(el::LIB_SYMBOLS))))
+            .unwrap();
         Self {
             pos: At::Pos((25.4, 25.4)),
             schema,
@@ -330,7 +364,11 @@ impl Draw {
                 if !found {
                     symbol.push(SexpAtom::Node(
                         sexp::sexp!((property !{key.as_str()} !{value.as_str()} (at "0" "0" "0")
-                        (effects (font (size "1.27" "1.27")) "hide"))).root().unwrap().clone()))?;
+                        (effects (font (size "1.27" "1.27")) "hide")))
+                        .root()
+                        .unwrap()
+                        .clone(),
+                    ))?;
                 }
             }
         }
@@ -342,7 +380,12 @@ impl Draw {
         let items = erc::erc_from_tree(&self.schema).unwrap();
         let mut res = Vec::<u8>::new();
         for item in items {
-            writeln!(res, "{}: {} ({}x{})", item.id, item.reference, item.at[0], item.at[1]).unwrap();
+            writeln!(
+                res,
+                "{}: {} ({}x{})",
+                item.id, item.reference, item.at[0], item.at[1]
+            )
+            .unwrap();
             /* match i {
                 erc::ErcItem::NoReference { reference, at } => {
                     writeln!(res, "NoReference: {} ({}x{})", reference, at[0], at[1]).unwrap();
@@ -429,7 +472,6 @@ impl Draw {
 
     // return a library symbol when it exists or load it from the libraries.
     fn get_library(&self, name: &str) -> Result<Sexp, Error> {
-
         //get existing library
         for lib in self
             .schema
@@ -471,8 +513,8 @@ impl Draw {
         let lib = library(name, self.library_path.clone())?;
         let extends: Option<String> = lib.value("extends");
         if let Some(extends) = extends {
-            let library = &name[0 .. name.find(':').unwrap()];
-            let symbol_name = &name[name.find(':').unwrap()+1 .. name.len()];
+            let library = &name[0..name.find(':').unwrap()];
+            let symbol_name = &name[name.find(':').unwrap() + 1..name.len()];
             let extend_symbol = crate::library(
                 format!("{}:{}", library, extends).as_str(),
                 self.library_path.clone(),
@@ -488,19 +530,13 @@ impl Draw {
                         SexpAtom::Node(element) => {
                             if element.name == el::SYMBOL {
                                 let sub_name: String = element.get(0).unwrap();
-                                let number = &sub_name
-                                    [extends.len() + 1 .. sub_name.len()];
+                                let number = &sub_name[extends.len() + 1..sub_name.len()];
                                 let mut subsymbol = element.clone();
                                 subsymbol
                                     .set(
                                         0,
                                         SexpAtom::Value(
-                                            format!(
-                                                "{}_{}",
-                                                symbol_name,
-                                                number
-                                            )
-                                            .to_string(),
+                                            format!("{}_{}", symbol_name, number).to_string(),
                                         ),
                                     )
                                     .unwrap();
@@ -552,31 +588,38 @@ impl Draw {
 
     fn align(&self, position: LabelPosition, angle: f64, mirror: String) -> String {
         match position {
-            LabelPosition::North => {
-                "center"
-            },
-            LabelPosition::South => {
-                "center"
-            },
+            LabelPosition::North => "center",
+            LabelPosition::South => "center",
             LabelPosition::West => {
-                let orientation = if angle == 180.0 { el::JUSTIFY_LEFT } else { el::JUSTIFY_RIGHT };
-                if !mirror.is_empty() && mirror.contains('x') { 
+                let orientation = if angle == 180.0 {
+                    el::JUSTIFY_LEFT
+                } else {
+                    el::JUSTIFY_RIGHT
+                };
+                if !mirror.is_empty() && mirror.contains('x') {
                     //TODO what to do here?
                     // orientation = if orientation == el::JUSTIFY_RIGHT { el::JUSTIFY_LEFT } else { el::JUSTIFY_RIGHT };
                 }
                 orientation
-            },
+            }
             LabelPosition::East => {
-                let mut orientation = if angle == 180.0 { el::JUSTIFY_RIGHT } else { el::JUSTIFY_LEFT };
-                if !mirror.is_empty() { 
-                    orientation = if orientation == el::JUSTIFY_RIGHT { el::JUSTIFY_LEFT } else { el::JUSTIFY_RIGHT };
+                let mut orientation = if angle == 180.0 {
+                    el::JUSTIFY_RIGHT
+                } else {
+                    el::JUSTIFY_LEFT
+                };
+                if !mirror.is_empty() {
+                    orientation = if orientation == el::JUSTIFY_RIGHT {
+                        el::JUSTIFY_LEFT
+                    } else {
+                        el::JUSTIFY_RIGHT
+                    };
                 }
                 orientation
-            },
-            LabelPosition::Offset(_, _) => {
-                "center"
-            },
-        }.to_string()
+            }
+            LabelPosition::Offset(_, _) => "center",
+        }
+        .to_string()
     }
 
     fn angle(&self, symbol_angle: f64) -> f64 {
@@ -592,7 +635,6 @@ impl Draw {
         symbol: &mut Sexp,
         label: Option<LabelPosition>,
     ) -> Result<(), Error> {
-
         let lib_id: String = symbol.value(el::LIB_ID).unwrap();
         let lib = self.get_library(&lib_id).unwrap();
 
@@ -627,8 +669,9 @@ impl Draw {
         let mut offset = 0.0;
         let pins = if let Ok(pins) = utils::pins(&lib, unit) {
             pins.len()
-        } else { 0 };
-
+        } else {
+            0
+        };
 
         //count the visible fields
         let mut vis_props: Vec<&mut Sexp> = symbol
@@ -648,21 +691,21 @@ impl Draw {
                         values.contains(&"hide".to_string())
                     }
                 } else {
-                    true 
+                    true
                 };
 
                 if hide {
-                    None 
+                    None
                 } else {
                     Option::from(node)
                 }
-            }).collect();
+            })
+            .collect();
         let vis_len = vis_props.len();
 
         for prop in &mut vis_props {
             let position = if let Some(label) = label.clone() {
                 label
-            
             } else if pins == 1 {
                 if positions.contains(&PinOrientation::Up) {
                     LabelPosition::North
@@ -676,7 +719,6 @@ impl Draw {
                     LabelPosition::North
                     //TODO todo!("unplacable property");
                 }
-
             } else if !positions.contains(&PinOrientation::Up) {
                 LabelPosition::North
             } else if !positions.contains(&PinOrientation::Right) {
@@ -689,56 +731,86 @@ impl Draw {
                 LabelPosition::North
                 //TODO todo!("unplacable property");
             };
-                        
+
             let at = if pins == 1 {
-                    match position {
-                        LabelPosition::North => {
-                            arr1(&[symbol_position[0], _size[[1, 1]] + LABEL_BORDER, 0.0 /*- symbol_angle*/])
-                        },
-                        LabelPosition::South => {
-                            arr1(&[symbol_position[0], _size[[0, 1]] - LABEL_BORDER, 0.0 - symbol_angle])
-                        },
-                        LabelPosition::West => {
-                            arr1(&[_size[[1, 0]] + LABEL_BORDER, symbol_position[1], symbol_angle])
-                        }
-                        LabelPosition::East => {
-                            arr1(&[_size[[0, 0]] - LABEL_BORDER, symbol_position[1], 0.0 - symbol_angle])
-                        },
-                        LabelPosition::Offset(x, y) => {
-                            arr1(&[symbol_position[0] + x, symbol_position[1] - y, 0.0 - symbol_angle])
-                        },
+                match position {
+                    LabelPosition::North => {
+                        arr1(&[
+                            symbol_position[0],
+                            _size[[1, 1]] + LABEL_BORDER,
+                            0.0, /*- symbol_angle*/
+                        ])
                     }
-                } else {
-                    match position {
+                    LabelPosition::South => arr1(&[
+                        symbol_position[0],
+                        _size[[0, 1]] - LABEL_BORDER,
+                        0.0 - symbol_angle,
+                    ]),
+                    LabelPosition::West => arr1(&[
+                        _size[[1, 0]] + LABEL_BORDER,
+                        symbol_position[1],
+                        symbol_angle,
+                    ]),
+                    LabelPosition::East => arr1(&[
+                        _size[[0, 0]] - LABEL_BORDER,
+                        symbol_position[1],
+                        0.0 - symbol_angle,
+                    ]),
+                    LabelPosition::Offset(x, y) => arr1(&[
+                        symbol_position[0] + x,
+                        symbol_position[1] - y,
+                        0.0 - symbol_angle,
+                    ]),
+                }
+            } else {
+                match position {
                     LabelPosition::North => {
                         let top_pos = if _size[[0, 1]] < _size[[1, 1]] {
                             _size[[0, 1]] - ((vis_len as f64 - 1.0) * LABEL_BORDER) - LABEL_BORDER
                         } else {
                             _size[[1, 1]] - ((vis_len as f64 - 1.0) * LABEL_BORDER) - LABEL_BORDER
                         };
-                        arr1(&[symbol_position[0], top_pos - offset, self.angle(symbol_angle)])
-                    },
+                        arr1(&[
+                            symbol_position[0],
+                            top_pos - offset,
+                            self.angle(symbol_angle),
+                        ])
+                    }
                     LabelPosition::South => {
                         let bottom_pos = if _size[[0, 1]] < _size[[1, 1]] {
                             _size[[1, 1]] + LABEL_BORDER
                         } else {
                             _size[[0, 1]] + LABEL_BORDER
                         };
-                        arr1(&[symbol_position[0], bottom_pos - offset, 0.0 - self.angle(symbol_angle)])
-                    },
+                        arr1(&[
+                            symbol_position[0],
+                            bottom_pos - offset,
+                            0.0 - self.angle(symbol_angle),
+                        ])
+                    }
                     LabelPosition::West => {
                         let top_pos = _size[[0, 1]] + ((_size[[1, 1]] - _size[[0, 1]]) / 2.0)
                             - ((vis_len as f64 - 1.0) * LABEL_BORDER) / 2.0;
-                        arr1(&[_size[[0, 0]] - LABEL_BORDER / 2.0, top_pos - offset, self.angle(symbol_angle)])
-                    },
+                        arr1(&[
+                            _size[[0, 0]] - LABEL_BORDER / 2.0,
+                            top_pos - offset,
+                            self.angle(symbol_angle),
+                        ])
+                    }
                     LabelPosition::East => {
                         let top_pos = _size[[0, 1]] + ((_size[[1, 1]] - _size[[0, 1]]) / 2.0)
                             - ((vis_len as f64 - 1.0) * LABEL_BORDER) / 2.0;
-                        arr1(&[_size[[1, 0]] + LABEL_BORDER / 2.0, top_pos - offset, self.angle(symbol_angle)])
-                    },
-                    LabelPosition::Offset(x, y) => {
-                        arr1(&[symbol_position[0] + x, symbol_position[1] + y - offset, 0.0 - symbol_angle])
-                    },
+                        arr1(&[
+                            _size[[1, 0]] + LABEL_BORDER / 2.0,
+                            top_pos - offset,
+                            self.angle(symbol_angle),
+                        ])
+                    }
+                    LabelPosition::Offset(x, y) => arr1(&[
+                        symbol_position[0] + x,
+                        symbol_position[1] + y - offset,
+                        0.0 - symbol_angle,
+                    ]),
                 }
             };
 
@@ -749,20 +821,39 @@ impl Draw {
                     effects.remove(el::JUSTIFY).unwrap();
                 }
             } else if effects.has(el::JUSTIFY) {
-                    let justify = effects.query_mut(el::JUSTIFY).next().unwrap();
-                    justify.set(0, SexpAtom::Value(orientation.to_string())).unwrap();
+                let justify = effects.query_mut(el::JUSTIFY).next().unwrap();
+                justify
+                    .set(0, SexpAtom::Value(orientation.to_string()))
+                    .unwrap();
             } else {
-                effects.insert(1, SexpAtom::Node(
-                        sexp::sexp!(
+                effects
+                    .insert(
+                        1,
+                        SexpAtom::Node(
+                            sexp::sexp!(
                             (justify {orientation.as_str()}))
-                        .root().unwrap().clone())).unwrap();
+                            .root()
+                            .unwrap()
+                            .clone(),
+                        ),
+                    )
+                    .unwrap();
             }
 
-            prop.set(2, SexpAtom::Node(sexp::sexp!(
-                        (at {at[0].to_string().as_str()} 
-                            {at[1].to_string().as_str()} 
-                            {at[2].to_string().as_str()})
-                        ).root().unwrap().clone())).unwrap();
+            prop.set(
+                2,
+                SexpAtom::Node(
+                    sexp::sexp!(
+                    (at {at[0].to_string().as_str()}
+                        {at[1].to_string().as_str()}
+                        {at[2].to_string().as_str()})
+                    )
+                    .root()
+                    .unwrap()
+                    .clone(),
+                ),
+            )
+            .unwrap();
             offset -= LABEL_BORDER;
         }
         Ok(())
@@ -841,8 +932,8 @@ impl Drawer<Nc> for Draw {
         let pos = round!(self.at(&self.pos)?);
 
         let result = sexp::sexp!(
-            (no_connect (at {pos[0].to_string().as_str()} {pos[1].to_string().as_str()}) (uuid {sexp::uuid!()})
-            ));
+        (no_connect (at {pos[0].to_string().as_str()} {pos[1].to_string().as_str()}) (uuid {sexp::uuid!()})
+        ));
 
         self.schema
             .root_mut()
@@ -895,8 +986,7 @@ impl Drawer<Symbol> for Draw {
         //calculate the position.
         let pos = self.at(&self.pos)?;
 
-        let mut symbol = if let Some(sym_pin) = utils::pin(&lib_symbol, &pin)
-        {
+        let mut symbol = if let Some(sym_pin) = utils::pin(&lib_symbol, &pin) {
             // transform pin pos
             let theta = -angle.to_radians();
             let rot = arr2(&[[theta.cos(), -theta.sin()], [theta.sin(), theta.cos()]]);
@@ -1037,7 +1127,17 @@ impl Drawer<Symbol> for Draw {
                     let on: &mut Sexp = symbol.query_mut("on_schema").next().unwrap();
                     on.set(0, SexpAtom::Value(on_schema.clone())).unwrap();
                 } else {
-                    symbol.insert(5, SexpAtom::Node(sexp::sexp!((on_schema {on_schema})).root().unwrap().clone())).unwrap();
+                    symbol
+                        .insert(
+                            5,
+                            SexpAtom::Node(
+                                sexp::sexp!((on_schema { on_schema }))
+                                    .root()
+                                    .unwrap()
+                                    .clone(),
+                            ),
+                        )
+                        .unwrap();
                 }
             }
         }
@@ -1046,7 +1146,14 @@ impl Drawer<Symbol> for Draw {
                 let on: &mut Sexp = symbol.query_mut("on_board").next().unwrap();
                 on.set(0, SexpAtom::Value(on_board.clone())).unwrap();
             } else {
-                symbol.insert(5, SexpAtom::Node(sexp::sexp!((on_board {on_board})).root().unwrap().clone())).unwrap();
+                symbol
+                    .insert(
+                        5,
+                        SexpAtom::Node(
+                            sexp::sexp!((on_board { on_board })).root().unwrap().clone(),
+                        ),
+                    )
+                    .unwrap();
             }
         }
 
@@ -1070,7 +1177,7 @@ impl Drawer<Symbol> for Draw {
             .unwrap()
             .push(SexpAtom::Node(symbol.clone()))?;
 
-        Ok(Some(symbol)) 
+        Ok(Some(symbol))
     }
 }
 
@@ -1135,11 +1242,11 @@ impl Drawer<To> for Draw {
         };
 
         let wire = sexp::sexp!(
-              (wire (pts (xy {coord[[0, 0]].to_string().as_str()} {coord[[0, 1]].to_string().as_str()}) 
-                             (xy {coord[[1, 0]].to_string().as_str()} {coord[[1, 1]].to_string().as_str()}))
-                (stroke (width "0") (type "default"))
-                (uuid {sexp::uuid!()})
-            ));
+          (wire (pts (xy {coord[[0, 0]].to_string().as_str()} {coord[[0, 1]].to_string().as_str()})
+                         (xy {coord[[1, 0]].to_string().as_str()} {coord[[1, 1]].to_string().as_str()}))
+            (stroke (width "0") (type "default"))
+            (uuid {sexp::uuid!()})
+        ));
 
         //set the new start position
         self.pos = At::Pos((coord[[1, 0]], coord[[1, 1]]));
@@ -1155,7 +1262,7 @@ impl Drawer<To> for Draw {
                               )
                             ).root().unwrap().clone(),
                         ))?;
-                    },
+                    }
                     DotPosition::End => {
                         //create the junction.
                         self.schema.root_mut().unwrap().push(SexpAtom::Node(
@@ -1180,11 +1287,9 @@ impl Drawer<To> for Draw {
 
 #[cfg(test)]
 mod tests {
+    use crate::{At, Attribute, Direction, Draw, Drawer, Label, Nc, PropertyKey, To};
     use ndarray::arr1;
-    use crate::{
-        At, Attribute, Direction, Draw, Drawer, Label, Nc, To, PropertyKey,
-    };
-    use sexp::{SexpValueQuery, SexpWriter, el, SexpProperty};
+    use sexp::{el, SexpProperty, SexpValueQuery, SexpWriter};
 
     #[test]
     fn drawer_label() {
@@ -1737,10 +1842,22 @@ mod tests {
     */
     #[test]
     fn property_match() {
-        assert_eq!(PropertyKey::Range(String::from("R"), 1, 10), PropertyKey::from(String::from("R[1..10]")));
-        assert_eq!(PropertyKey::From(String::from("R"), 3), PropertyKey::from(String::from("R[3..]")));
-        assert_eq!(PropertyKey::To(String::from("R"), 4), PropertyKey::from(String::from("R[..4]")));
-        assert_eq!(PropertyKey::Exact(String::from("R1")), PropertyKey::from(String::from("R1")));
+        assert_eq!(
+            PropertyKey::Range(String::from("R"), 1, 10),
+            PropertyKey::from(String::from("R[1..10]"))
+        );
+        assert_eq!(
+            PropertyKey::From(String::from("R"), 3),
+            PropertyKey::from(String::from("R[3..]"))
+        );
+        assert_eq!(
+            PropertyKey::To(String::from("R"), 4),
+            PropertyKey::from(String::from("R[..4]"))
+        );
+        assert_eq!(
+            PropertyKey::Exact(String::from("R1")),
+            PropertyKey::from(String::from("R1"))
+        );
 
         assert!(PropertyKey::from(String::from("R[1..10]")).matches(String::from("R5")));
         assert!(PropertyKey::from(String::from("R[..10]")).matches(String::from("R5")));

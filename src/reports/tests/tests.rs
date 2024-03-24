@@ -1,9 +1,9 @@
 mod reports {
     mod tests {
         mod bom {
-            use yaml_rust::{Yaml, YamlLoader};
-            use sexp::{SexpParser, SexpTree};
             use reports::{bom, bom::BomItem};
+            use sexp::{SexpParser, SexpTree};
+            use yaml_rust::{Yaml, YamlLoader};
             #[test]
             fn test_bom() {
                 let doc = SexpParser::load("tests/summe.kicad_sch").unwrap();
@@ -99,7 +99,9 @@ mod reports {
                     amount: 2,
                     references: vec![String::from("C1")],
                     value: String::from("0.1u"),
-                    footprint: String::from("Capacitor_SMD:C_0805_2012Metric_Pad1.18x1.45mm_HandSolder"),
+                    footprint: String::from(
+                        "Capacitor_SMD:C_0805_2012Metric_Pad1.18x1.45mm_HandSolder",
+                    ),
                     datasheet: String::new(),
                     description: String::new(),
                     mouser_nr: String::new(),
@@ -128,9 +130,9 @@ mod reports {
             }
         }
         mod erc {
-            use sexp::{SexpParser, SexpTree};
             use itertools::Itertools;
             use reports::{erc, erc::symbols};
+            use sexp::{SexpParser, SexpTree};
             #[test]
             fn collect_symbols() {
                 let doc = SexpParser::load("tests/low_pass_filter_unconnected.kicad_sch").unwrap();

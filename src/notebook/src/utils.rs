@@ -1,5 +1,7 @@
 use rand::{
-    distributions::{Alphanumeric, DistString}, prelude::Distribution, Rng
+    distributions::{Alphanumeric, DistString},
+    prelude::Distribution,
+    Rng,
 };
 
 use crate::error::Error;

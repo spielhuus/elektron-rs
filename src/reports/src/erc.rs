@@ -10,13 +10,13 @@
 use std::{collections::HashMap, fmt};
 
 use itertools::Itertools;
-use ndarray::{Array1, arr1};
+use ndarray::{arr1, Array1};
 
 use crate::Error;
 use sexp::math::{Shape, Transform};
 use simulation::{Netlist, Point};
 
-use sexp::{el, utils, Sexp, SexpProperty, SexpTree, SexpValueQuery, SexpParser};
+use sexp::{el, utils, Sexp, SexpParser, SexpProperty, SexpTree, SexpValueQuery};
 #[derive(Debug, Clone)]
 /// ERC error types.
 pub enum ErcType {
@@ -49,7 +49,7 @@ impl fmt::Display for ErcType {
 pub struct ErcItem {
     ///Reference for Symbol is not set or '?'.
     pub id: ErcType,
-    pub reference: String, 
+    pub reference: String,
     pub at: Array1<f64>,
     pub description: String,
 }
@@ -60,8 +60,7 @@ impl ErcItem {
             id,
             reference: reference.to_string(),
             at: at.clone(),
-            description
-
+            description,
         }
     }
 }
@@ -92,7 +91,12 @@ pub fn erc(input: &str) -> Result<Vec<ErcItem>, Error> {
             results.append(&mut pins(&document, &elements, &netlist));
         }
         Err(netlist) => {
-            results.push(ErcItem::from(ErcType::Netlist, &netlist.to_string(), arr1(&[]), String::from("netlist not found")));
+            results.push(ErcItem::from(
+                ErcType::Netlist,
+                &netlist.to_string(),
+                arr1(&[]),
+                String::from("netlist not found"),
+            ));
         }
     }
     Ok(results)
@@ -115,7 +119,12 @@ pub fn erc_from_tree(document: &SexpTree) -> Result<Vec<ErcItem>, Error> {
             results.append(&mut pins(document, &elements, &netlist));
         }
         Err(netlist) => {
-            results.push(ErcItem::from(ErcType::Netlist, &netlist.to_string(), arr1(&[]), String::from("netlist not found")));
+            results.push(ErcItem::from(
+                ErcType::Netlist,
+                &netlist.to_string(),
+                arr1(&[]),
+                String::from("netlist not found"),
+            ));
         }
     }
     Ok(results)
@@ -156,28 +165,27 @@ fn pins(
                         let point: Array1<f64> = Shape::transform(*symbol, &at);
                         let number: String = pin.value(el::PIN_NUMBER).unwrap();
                         if netlist.node_name(&Point::new(point[0], point[1])).is_none() {
-                            if let Some(pin_type) = <Sexp as SexpValueQuery::<String>>::get(pin, 0) {
+                            if let Some(pin_type) = <Sexp as SexpValueQuery<String>>::get(pin, 0) {
                                 if pin_type == "no_connect" {
                                     break;
                                 }
                             };
                             if unit > 1 {
-                                results.push(
-                                    ErcItem::from(
-                                        ErcType::PinNotConnected,
-                                        &format!(
-                                            "{}{}:{}",
-                                            <Sexp as SexpProperty::<String>>::property(
-                                                symbol,
-                                                el::PROPERTY_REFERENCE
-                                            ).unwrap(),
-                                            alphabet[unit - 1],
-                                            number,
-                                        ),
-                                        point,
-                                        format!("Pin {} not connected", number)
-                                    )
-                                );
+                                results.push(ErcItem::from(
+                                    ErcType::PinNotConnected,
+                                    &format!(
+                                        "{}{}:{}",
+                                        <Sexp as SexpProperty::<String>>::property(
+                                            symbol,
+                                            el::PROPERTY_REFERENCE
+                                        )
+                                        .unwrap(),
+                                        alphabet[unit - 1],
+                                        number,
+                                    ),
+                                    point,
+                                    format!("Pin {} not connected", number),
+                                ));
                             } else {
                                 results.push(ErcItem::from(
                                     ErcType::PinNotConnected,
@@ -191,7 +199,7 @@ fn pins(
                                         number
                                     ),
                                     point,
-                                    format!("Pin {} not connected", number)
+                                    format!("Pin {} not connected", number),
                                 ));
                             }
                         }
@@ -214,11 +222,16 @@ fn values(elements: &HashMap<String, Vec<&Sexp>>) -> Vec<ErcItem> {
             {
                 let at = utils::at(symbols.first().unwrap()).unwrap();
                 results.push(ErcItem::from(
-                    ErcType::ValuesDiffer, 
-                    &<Sexp as SexpProperty<String>>::property(symbol, el::PROPERTY_REFERENCE).unwrap(),
+                    ErcType::ValuesDiffer,
+                    &<Sexp as SexpProperty<String>>::property(symbol, el::PROPERTY_REFERENCE)
+                        .unwrap(),
                     at.clone(),
-                    format!("Symbol values differ: {}:{}", value,
-                        <Sexp as SexpProperty<String>>::property(symbol, el::PROPERTY_VALUE).unwrap()),
+                    format!(
+                        "Symbol values differ: {}:{}",
+                        value,
+                        <Sexp as SexpProperty<String>>::property(symbol, el::PROPERTY_VALUE)
+                            .unwrap()
+                    ),
                 ));
             }
         }
@@ -237,7 +250,7 @@ fn references(document: &SexpTree, elements: &HashMap<String, Vec<&Sexp>>) -> Ve
                 ErcType::NoReference,
                 reference,
                 at.clone(),
-                String::from("no reference for symbol")
+                String::from("no reference for symbol"),
             ));
         }
         let Some(libsymbol) = utils::get_library(document.root().unwrap(), &lib_id) else {
@@ -264,7 +277,7 @@ fn references(document: &SexpTree, elements: &HashMap<String, Vec<&Sexp>>) -> Ve
                 ErcType::NotAllParts,
                 reference,
                 at.clone(),
-                String::from("not all unit for symbol in schema")
+                String::from("not all unit for symbol in schema"),
             ));
         }
     }

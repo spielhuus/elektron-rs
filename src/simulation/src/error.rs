@@ -10,7 +10,7 @@ pub enum Error {
     SpiceModelNotFound(String),
     #[error("Unknown circuit element {0}")]
     UnknownCircuitElement(String),
-     #[error("File manipulatuion error {0}.")]
+    #[error("File manipulatuion error {0}.")]
     IoError(String),
     #[error("NgSpice Error: \"{0}\"")]
     NgSpiceError(String),

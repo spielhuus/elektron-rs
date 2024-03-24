@@ -1,13 +1,11 @@
 //! Draw the model with svglib
 use crate::{
-    error::Error,
-    Theme,
-        no_fill, themer::Themer, Arc, Circle, Draw, Drawer, FillType, Line, Outline, PlotItem,
-        PlotterImpl, Polyline, Rectangle, Style, Text,
+    error::Error, no_fill, themer::Themer, Arc, Circle, Draw, Drawer, FillType, Line, Outline,
+    PlotItem, PlotterImpl, Polyline, Rectangle, Style, Text, Theme,
 };
 
-use simulation::Netlist;
 use sexp::{el, PaperSize, Sexp, SexpProperty, SexpTree, SexpValueQuery};
+use simulation::Netlist;
 
 use itertools::Itertools;
 use ndarray::arr2;
@@ -79,7 +77,7 @@ impl<'a> PlotterImpl<'a, SexpTree> for SvgPlotter<'a> {
 
         //and finally plot the pages.
         for page in schema_pages.iter().sorted() {
-            if log_enabled!(Level::Info)  {
+            if log_enabled!(Level::Info) {
                 debug!("plot page {} '{}'", page.0, page.1);
             }
             if pages.as_ref().is_none() || pages.as_ref().unwrap().contains(page.0) {
@@ -88,7 +86,7 @@ impl<'a> PlotterImpl<'a, SexpTree> for SvgPlotter<'a> {
                         <Sexp as SexpValueQuery<PaperSize>>::value(schema.root().unwrap(), "paper")
                             .unwrap()
                             .into();
-                
+
                     let plot_items = crate::schema::plot(schema, &netlist, Some(paper_size));
 
                     let mut document = Document::new()
@@ -103,15 +101,14 @@ impl<'a> PlotterImpl<'a, SexpTree> for SvgPlotter<'a> {
                     self.draw(&plot_items, &mut g);
                     document.append(g);
                     if let Some(themer) = &self.themer {
-                        document.append(element::Style::new(themer.css()
-                        /* TODO             format!(
-                            "<![CDATA[\n{}\n]]>",
-                            themer.css() */
+                        document.append(element::Style::new(
+                            themer.css(), /* TODO             format!(
+                                          "<![CDATA[\n{}\n]]>",
+                                          themer.css() */
                         ));
                     }
                     document
                 } else {
-
                     let plot_items = crate::schema::plot(schema, &netlist, None);
 
                     let size = self.bounds(
@@ -318,7 +315,10 @@ impl<'a> Drawer<Circle, element::Group> for SvgPlotter<'a> {
                 circle.class.iter().map(|i| i.to_string()).join(" "),
             );
         if circle.stroke.linewidth != 0.0 {
-            c = c.set("style", format!("stroke-width: {};", circle.stroke.linewidth));
+            c = c.set(
+                "style",
+                format!("stroke-width: {};", circle.stroke.linewidth),
+            );
         }
         if no_fill(&circle.class) {
             c = c.set("fill", "none");
@@ -407,5 +407,4 @@ impl<'a> Drawer<Arc, element::Group> for SvgPlotter<'a> {
 }
 
 #[cfg(test)]
-mod tests {
-}
+mod tests {}

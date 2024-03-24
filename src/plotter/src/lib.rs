@@ -93,7 +93,7 @@ impl From<&Sexp> for Effects {
             }
 
             if let Some(justify) = e.query(el::EFFECTS_JUSTIFY).next() {
-               effects.justify = justify.values()
+                effects.justify = justify.values()
             }
 
             let values: Vec<String> = e.values();

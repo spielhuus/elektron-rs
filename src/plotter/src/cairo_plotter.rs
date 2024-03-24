@@ -1,15 +1,17 @@
 use crate::{
-    error::Error,
-        themer::Themer, Arc, Circle, Draw, Drawer, Line, Outline, PlotItem,
-        PlotterImpl, Polyline, Rectangle, Text,
+    error::Error, themer::Themer, Arc, Circle, Draw, Drawer, Line, Outline, PlotItem, PlotterImpl,
+    Polyline, Rectangle, Text,
 };
 
-use sexp::{el, PaperSize, Sexp, SexpProperty, SexpTree, SexpValueQuery};
-use simulation::Netlist;
 use itertools::Itertools;
 use ndarray::{arr2, Array2};
-use pangocairo::{pango::SCALE, functions::{create_layout, show_layout, update_layout}};
-use std::{io::Write, collections::HashMap};
+use pangocairo::{
+    functions::{create_layout, show_layout, update_layout},
+    pango::SCALE,
+};
+use sexp::{el, PaperSize, Sexp, SexpProperty, SexpTree, SexpValueQuery};
+use simulation::Netlist;
+use std::{collections::HashMap, io::Write};
 extern crate cairo;
 use cairo::{Context, Format, ImageSurface, PdfSurface, SvgSurface};
 
@@ -35,10 +37,12 @@ macro_rules! color {
     ($element:expr, $themer:expr) => {
         if $element.stroke.linecolor.is_empty() {
             if $element.stroke.linecolor != vec![0, 0, 0, 0] {
-                ($element.stroke.linecolor[0] as f64, 
-                $element.stroke.linecolor[1] as f64, 
-                $element.stroke.linecolor[2] as f64, 
-                $element.stroke.linecolor[3] as f64)
+                (
+                    $element.stroke.linecolor[0] as f64,
+                    $element.stroke.linecolor[1] as f64,
+                    $element.stroke.linecolor[2] as f64,
+                    $element.stroke.linecolor[3] as f64,
+                )
             } else {
                 $themer.unwrap().stroke(&$element.class)
             }
@@ -52,7 +56,11 @@ macro_rules! stroke {
     ($context:expr, $element:expr, $themer:expr) => {
         let color = color!($element, $themer);
         $context.set_source_rgba(color.0, color.1, color.2, color.3);
-        $context.set_line_width($themer.unwrap().stroke_width(Some($element.stroke.linewidth), &$element.class));
+        $context.set_line_width(
+            $themer
+                .unwrap()
+                .stroke_width(Some($element.stroke.linewidth), &$element.class),
+        );
     };
 }
 macro_rules! fill {
@@ -62,7 +70,7 @@ macro_rules! fill {
             $context.set_source_rgba(fill.0, fill.1, fill.2, fill.3);
             $context.fill().unwrap();
         }
-    }; 
+    };
 }
 
 /// Plotter implemntation for SVG and PDF file.
@@ -247,7 +255,7 @@ impl<'a> PlotterImpl<'a, SexpTree> for CairoPlotter<'a> {
                             context.translate(-size[[0, 0]], -size[[0, 1]]);
                             self.draw(&iter, &mut context);
                             surface.finish_output_stream().unwrap();
-                        }, 
+                        },
                     } */
                 };
             }
@@ -420,15 +428,23 @@ impl<'a> Drawer<Text, Context> for CairoPlotter<'a> {
         let layout = create_layout(&self.context);
         let markup = format!(
             "<span face=\"{}\" foreground=\"{}\" size=\"{}\">{}</span>",
-            self.themer.as_ref().unwrap().font(Some(text.effects.font_face.to_string()), &text.class),
+            self.themer
+                .as_ref()
+                .unwrap()
+                .font(Some(text.effects.font_face.to_string()), &text.class),
             rgba_color((
-                    text.effects.font_color[0] as f64,
-                    text.effects.font_color[1] as f64,
-                    text.effects.font_color[2] as f64,
-                    text.effects.font_color[3] as f64,
-                    //TODO decide which type the color has
+                text.effects.font_color[0] as f64,
+                text.effects.font_color[1] as f64,
+                text.effects.font_color[2] as f64,
+                text.effects.font_color[3] as f64,
+                //TODO decide which type the color has
             )),
-            (self.themer.as_ref().unwrap().font_size(Some(text.effects.font_size[0]), &text.class) * 1024.0) as i32,
+            (self
+                .themer
+                .as_ref()
+                .unwrap()
+                .font_size(Some(text.effects.font_size[0]), &text.class)
+                * 1024.0) as i32,
             text.text
         );
         layout.set_markup(markup.as_str());

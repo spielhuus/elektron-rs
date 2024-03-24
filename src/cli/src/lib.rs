@@ -1,22 +1,22 @@
-//! these methods are exposed over the python APi. 
+//! these methods are exposed over the python APi.
 
-extern crate pyo3;
-extern crate comfy_table;
-extern crate itertools;
-extern crate rust_fuzzy_search;
-extern crate tempfile;
 extern crate colored;
-extern crate thiserror;
-extern crate ndarray;
-extern crate rand;
+extern crate comfy_table;
 extern crate draw;
+extern crate itertools;
+extern crate ndarray;
 extern crate ngspice;
 extern crate notebook;
 extern crate plotter;
+extern crate pyo3;
+extern crate rand;
 extern crate reports;
+extern crate rust_fuzzy_search;
 extern crate sexp;
 extern crate sexp_macro;
 extern crate simulation;
+extern crate tempfile;
+extern crate thiserror;
 
 use log::info;
 
@@ -24,7 +24,8 @@ use pyo3::prelude::*;
 
 use std::{
     fs::File,
-    io::{BufWriter, Write}, path::Path,
+    io::{BufWriter, Write},
+    path::Path,
 };
 
 use comfy_table::{
@@ -42,13 +43,13 @@ mod python;
 
 use crate::error::Error;
 
-use sexp::{SexpParser, SexpTree, State, SexpValueQuery, SexpProperty, el};
 use plotter::{
     cairo_plotter::{CairoPlotter, ImageType},
     svg::SvgPlotter,
     themer::Themer,
     PlotterImpl, Theme,
 };
+use sexp::{el, SexpParser, SexpProperty, SexpTree, SexpValueQuery, State};
 
 use reports::{bom, drc, erc, mouser};
 use simulation::{Circuit, Netlist};
@@ -126,7 +127,11 @@ pub fn make_bom(
                     )));
                 };
                 let Ok(mut out) = File::create(output.clone()) else {
-                    return Err(Error::FileIo(format!("{} can not create output file: '{}'", "Error:".red(), output.bold())));
+                    return Err(Error::FileIo(format!(
+                        "{} can not create output file: '{}'",
+                        "Error:".red(),
+                        output.bold()
+                    )));
                 };
                 if let Err(err) = data.write(&mut out) {
                     return Err(Error::FileIo(format!(
@@ -261,7 +266,12 @@ pub fn plot(input: &str, output: Option<&str>) -> Result<(), Error> {
     } else if input.ends_with(".kicad_pcb") {
         info!("Write PCB: input:{}, output:{:?}", input, output);
         if let Some(output) = output {
-            plotter::pcb::plot_pcb(input.to_string(), output.to_string(), None /* TODO */, None)?; //TODO set layers
+            plotter::pcb::plot_pcb(
+                input.to_string(),
+                output.to_string(),
+                None, /* TODO */
+                None,
+            )?; //TODO set layers
         } else {
             println!("no output file");
         }
@@ -323,7 +333,6 @@ pub fn make_spice(input: &str, path: Vec<String>, output: Option<String>) -> Res
 /// * `return`   - possible error.
 #[pyfunction]
 pub fn convert(input: &str, output: &str) -> Result<(), Error> {
-
     env_logger::init();
     info!("Write notebook: input:{}, output:{:?}", input, output);
 
@@ -338,25 +347,27 @@ pub fn convert(input: &str, output: &str) -> Result<(), Error> {
 
     let out: Box<dyn Write> = Box::new(BufWriter::new(File::create(&tmppath).unwrap()));
 
-    notebook::convert(input, out,
-                 Path::new(&input)
-                     .parent()
-                     .unwrap()
-                     .to_str()
-                     .unwrap()
-                     .to_string(),
-                 Path::new(&output)
-                     .parent()
-                     .unwrap()
-                     .to_str()
-                     .unwrap()
-                     .to_string())?;
+    notebook::convert(
+        input,
+        out,
+        Path::new(&input)
+            .parent()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string(),
+        Path::new(&output)
+            .parent()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string(),
+    )?;
 
     if let Err(err) = std::fs::copy(tmppath, output) {
         Err(Error::FileIo(format!(
             "Can not write destination markdown file {} ({})",
-            output,
-            err
+            output, err
         )))
     } else {
         Ok(())
@@ -471,7 +482,8 @@ pub fn make_drc(input: &str, output: Option<String>) -> Result<(), Error> {
                 "{} can not load drc information from pcb: {} ({}))",
                 "Error".red(),
                 input,
-                error)));
+                error
+            )));
         }
     };
     if let Some(output) = output {
@@ -490,7 +502,6 @@ pub fn make_drc(input: &str, output: Option<String>) -> Result<(), Error> {
         let mut out = File::create(output).unwrap();
         data.write(&mut out).unwrap(); //TODO create error
         out.flush().unwrap(); //TODO create Error
-                              
     } else {
         let mut table = Table::new();
         table
@@ -630,13 +641,15 @@ pub fn list(input: &str) -> Result<(), Error> {
                 data.push(json::object! {
                     library: sym_name,
                     description: sym_desc,
-                }).unwrap();
+                })
+                .unwrap();
             }
         }
     }
 
-
-    std::io::stdout().write_all(data.to_string().as_bytes()).unwrap();
+    std::io::stdout()
+        .write_all(data.to_string().as_bytes())
+        .unwrap();
     std::io::stdout().write_all("\n".as_bytes()).unwrap();
     Ok(())
 }

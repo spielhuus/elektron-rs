@@ -1,4 +1,4 @@
-use pyo3::{PyErr, exceptions::PyOSError};
+use pyo3::{exceptions::PyOSError, PyErr};
 
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum Error {
