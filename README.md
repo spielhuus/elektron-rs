@@ -1,7 +1,6 @@
 ![GitHub Tag](https://img.shields.io/github/v/tag/spielhuus/elektron-rs)
 [![Deploy](https://github.com/spielhuus/elektron-rs/actions/workflows/CI.yml/badge.svg)](https://github.com/spielhuus/elektron-rs/actions/workflows/CI.yml)
 [![Test](https://github.com/spielhuus/elektron-rs/actions/workflows/test.yml/badge.svg)](https://github.com/spielhuus/elektron-rs/actions/workflows/test.yml)
-[![Docs](https://github.com/spielhuus/elektron-rs/actions/workflows/doc.yml/badge.svg)](https://github.com/spielhuus/elektron-rs/actions/workflows/doc.yml)
 [![PyPI](https://img.shields.io/pypi/v/elektron-rs)](https://pypi.org/project/elektron-rs/)
 [![Read the Docs](https://readthedocs.org/projects/elektron/badge/?version=latest)](https://elektron.readthedocs.io/en/latest/)
 
