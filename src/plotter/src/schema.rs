@@ -132,10 +132,13 @@ impl<'a> SchemaPlot<'a> {
         self.tree = Some(tree);
     }
 
-    pub fn open(&mut self, path: &str) {
-        let document = SexpParser::load(path).unwrap();
-        let tree = SexpTree::from(document.iter()).unwrap();
+    pub fn open(&mut self, path: &str) -> Result<(), Error> {
+        let Ok(document) = SexpParser::load(path) else {
+            return Err(Error::Plotter(format!("could not load schema: {}", path)));
+        };
+        let tree = SexpTree::from(document.iter())?;
         self.open_buffer(tree);
+        Ok(())
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (&usize, &String)> {

@@ -6,12 +6,12 @@ mod test {
         use sexp::{SexpParser, SexpTree};
 
         #[test]
-        fn plt_schema() {
+        fn plt_hall() {
             let mut plotter = SchemaPlot::new()
                 .border(false).theme(Theme::Kicad2020).scale(2.0);
 
             //plotter.open("tests/dco.kicad_sch");
-            plotter.open("/home/etienne/github/elektrophon/src/hall/main/main.kicad_sch");
+            plotter.open("tests/hall.kicad_sch").unwrap();
             //plotter.open("/home/etienne/github/elektrophon/src/resonanz/main/main.kicad_sch");
             for page in plotter.iter() {
                 println!("{:?}", page);

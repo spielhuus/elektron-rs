@@ -17,6 +17,11 @@ pub enum Error {
     #[error("NgSpice Error: \"{0}\"")]
     NgSpiceError(String),
 }
+impl std::convert::From<sexp::Error> for Error {
+    fn from(err: sexp::Error) -> Self {
+        Error::IoError(err.to_string())
+    }
+}
 impl std::convert::From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
         Error::IoError(err.to_string())
