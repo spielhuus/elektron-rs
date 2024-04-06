@@ -177,7 +177,7 @@ impl std::convert::From<PaperSize> for (f64, f64) {
         } else if size == PaperSize::A4 {
             (297.0, 210.0)
         } else if size == PaperSize::A3 {
-            (297.0, 420.0)
+            (420.0, 297.0)
         } else if size == PaperSize::A2 {
             (420.0, 594.0)
         } else if size == PaperSize::A1 {

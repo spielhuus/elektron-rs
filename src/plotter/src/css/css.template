@@ -33,6 +33,11 @@
   stroke: rgb(132, 0, 0);
   stroke-width: 0.1;
 }}
+.schema-global-label {{
+  stroke: {schematic[component_outline]};
+  fill: {schematic[component_body]};
+  stroke-width: 0.18;
+}}
 .fill-background {{
   fill: {schematic[component_body]};
 }}

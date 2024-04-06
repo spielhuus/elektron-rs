@@ -33,6 +33,11 @@
   stroke: rgb(132, 0, 0);
   stroke-width: 0.1;
 }
+.schema-global-label {
+  stroke: rgb(224, 108, 117);
+  fill: rgb(84, 88, 98);
+  stroke-width: 0.18;
+}
 .fill-background {
   fill: rgb(84, 88, 98);
 }

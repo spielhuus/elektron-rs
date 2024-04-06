@@ -92,6 +92,7 @@ impl Node {
 ///
 /// Create a netlist as a graph.
 ///
+#[derive(Clone)]
 pub struct Netlist<'a> {
     schema: &'a SexpTree,
     // elements: Vec<&'a SchemaElement>,

@@ -1,6 +1,8 @@
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum Error {
     #[error("{0}")]
+    Plotter(String),
+    #[error("{0}")]
     SexpError(String),
     #[error("File not found {0}")]
     FileNotFound(String),

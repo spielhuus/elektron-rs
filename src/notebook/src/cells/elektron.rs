@@ -8,11 +8,7 @@ use crate::{notebook::ArgType, utils::check_directory};
 use reports::{bom::BomItem, drc, erc};
 
 use plotter::{
-    gerber,
-    pcb::{plot_pcb, LAYERS},
-    svg::SvgPlotter,
-    themer::Themer,
-    PlotterImpl,
+    gerber, pcb::{plot_pcb, LAYERS}, schema::SchemaPlot, svg::SvgPlotter
 };
 use sexp::{SexpParser, SexpTree};
 
@@ -248,26 +244,19 @@ impl CellWrite<ElektronCell> for CellWriter {
                             .to_string()
                     );
 
-                    let doc = SexpParser::load(input_file.as_str()).unwrap();
-                    let tree = SexpTree::from(doc.iter()).unwrap();
-
-                    let svg_plotter = SvgPlotter::new(
-                        input_file.as_str(),
-                        Some(Themer::new(param_or!(args, "theme", "").into())),
-                    );
-
                     check_directory(&output_file)?;
-                    let mut buffer = BufWriter::new(File::create(&output_file)?);
-                    svg_plotter
-                        .plot(
-                            &tree,
-                            &mut buffer,
-                            super::flag!(args, "border", false),
-                            str::parse::<f64>(param_or!(args, "scale", "1.0")).unwrap(),
-                            None, //TODO select pages
-                            false,
-                        )
-                        .unwrap();
+
+                    let mut plotter = SchemaPlot::new()
+                        .border(super::flag!(args, "border", false))
+                        .theme(param_or!(args, "theme", "").into())
+                        .scale(str::parse::<f64>(param_or!(args, "scale", "1.0")).unwrap());
+
+                    plotter.open(&input_file);
+                    for page in plotter.iter() {
+                        let mut file = BufWriter::new(File::create(output_file.clone())?);
+                        let mut svg_plotter = SvgPlotter::new(&mut file);
+                        plotter.write(page.0, &mut svg_plotter).unwrap();
+                    }
 
                     writeln!(out, "  {}: {}", input, output_file).unwrap();
                 }

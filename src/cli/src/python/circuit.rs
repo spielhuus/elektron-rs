@@ -111,7 +111,7 @@ impl Simulation {
                     let line = line.replace('\"', "\\\"");
                     res_string.push(line.replace('\'', "\\\'"));
                 }
-                py.eval(
+                py.eval_bound(
                     format!("print('{}')", res_string.join("\\n")).as_str(),
                     None,
                     None,
@@ -144,7 +144,7 @@ impl Simulation {
                     let line = line.replace('\"', "\\\"");
                     res_string.push(line.replace('\'', "\\\'"));
                 }
-                py.eval(
+                py.eval_bound(
                     format!("print('{}')", res_string.join("\\n")).as_str(),
                     None,
                     None,
@@ -180,7 +180,7 @@ impl Simulation {
                     let line = line.replace('\"', "\\\"");
                     res_string.push(line.replace('\'', "\\\'"));
                 }
-                py.eval(
+                py.eval_bound(
                     format!("print('{}')", res_string.join("\\n")).as_str(),
                     None,
                     None,

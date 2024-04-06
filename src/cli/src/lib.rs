@@ -44,10 +44,7 @@ mod python;
 use crate::error::Error;
 
 use plotter::{
-    cairo_plotter::{CairoPlotter, ImageType},
-    svg::SvgPlotter,
-    themer::Themer,
-    PlotterImpl, Theme,
+    schema::SchemaPlot, svg::SvgPlotter, Theme
 };
 use sexp::{el, SexpParser, SexpProperty, SexpTree, SexpValueQuery, State};
 
@@ -216,17 +213,29 @@ pub fn plot(input: &str, output: Option<&str>) -> Result<(), Error> {
     if input.ends_with(constant::EXT_KICAD_SCH) {
         info!("Write schema: input:{}, output:{:?}", input, output);
         //load the sexp file.
-        let tree = load_sexp(input)?;
         if let Some(output) = output {
             if let Some(ext_pos) = output.find('.') {
                 let ext = output.split_at(ext_pos).1;
                 if ext == constant::EXT_SVG {
-                    let svg_plotter = SvgPlotter::new(input, Some(Themer::new(Theme::Kicad2020))); //TODO select theme
-                    let mut buffer = File::create(output).unwrap(); //TODO handle exception
-                    svg_plotter
+
+                    let mut plotter = SchemaPlot::new()
+                        .border(true).theme(Theme::Kicad2020).scale(1.0);
+
+                    plotter.open(input);
+                    for page in plotter.iter() {
+                        let mut file = File::create(output).unwrap();
+                        let mut svg_plotter = SvgPlotter::new(&mut file);
+                        plotter.write(page.0, &mut svg_plotter).unwrap();
+                    }
+
+
+
+                    // let mut buffer = File::create(output).unwrap(); //TODO handle exception
+                    //TODO let svg_plotter = SvgPlotter::new(input, Some(Themer::new(Theme::Kicad2020)), &mut buffer); //TODO select theme
+                    /*TODO svg_plotter
                         .plot(&tree, &mut buffer, true, 1.0, None, false)
-                        .unwrap();
-                } else if ext == constant::EXT_PNG {
+                        .unwrap(); */
+                /* } else if ext == constant::EXT_PNG {
                     let plotter = CairoPlotter::new(
                         input,
                         ImageType::Png,
@@ -245,7 +254,7 @@ pub fn plot(input: &str, output: Option<&str>) -> Result<(), Error> {
                     let mut buffer = File::create(output).unwrap();
                     plotter
                         .plot(&tree, &mut buffer, true, 1.0, None, false)
-                        .unwrap();
+                        .unwrap(); */
                 } else {
                     return Err(Error::FileIo(format!(
                         "{} Image type not supported for extension: '{}'",

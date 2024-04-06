@@ -21,13 +21,14 @@ indexmap.workspace = true
 itertools.workspace = true
 pyo3.workspace = true
 rand.workspace = true
+rust-fontconfig.workspace = true
+fontdue.workspace = true
+simplecss.workspace = true
 
-font-kit.workspace = true
-pathfinder_geometry.workspace = true
+#pathfinder_geometry.workspace = true
 
 pangocairo.workspace = true
 cairo-rs.workspace = true
 png.workspace = true
 svg.workspace = true
 pdf.workspace = true
-simplecss.workspace = true

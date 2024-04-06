@@ -11,7 +11,7 @@ pub mod model;
 use crate::error::Error;
 
 use draw::{At, Attribute, Direction, Dot, DotPosition, Draw, Drawer, Label, Nc, Symbol, To};
-use plotter::{svg::SvgPlotter, themer::Themer, PlotterImpl, Theme};
+use plotter::{schema::SchemaPlot, svg::SvgPlotter, Theme};
 use sexp::{el, utils, Sexp, SexpValuesQuery};
 
 macro_rules! at {
@@ -452,16 +452,22 @@ impl PyDraw {
         }
 
         if let Some(filename) = filename {
-            let svg_plotter = SvgPlotter::new(id, Some(Themer::new(theme)));
             let mut buffer = File::create(filename).unwrap();
-            svg_plotter.plot(
-                &self.draw.schema,
-                &mut buffer,
-                border,
-                scale,
-                pages,
-                netlist,
-            )?;
+
+            let mut plotter = SchemaPlot::new()
+                .border(border)
+                .theme(theme)
+                .scale(scale)
+                .netlist(netlist);
+
+            plotter.open_buffer(self.draw.schema.clone());
+            for page in plotter.iter() {
+
+                //TODO check page with pages.
+
+                let mut svg_plotter = SvgPlotter::new(&mut buffer);
+                plotter.write(page.0, &mut svg_plotter).unwrap();
+            }
             return Ok(None);
         } else {
             let nb = if let Ok(nb) = std::env::var("ELEKTRON_NOTEBOOK") {
@@ -471,16 +477,21 @@ impl PyDraw {
             };
 
             if nb {
-                let svg_plotter = SvgPlotter::new(id, Some(Themer::new(theme)));
                 let mut buffer = Vec::new();
-                svg_plotter.plot(
-                    &self.draw.schema,
-                    &mut buffer,
-                    border,
-                    scale,
-                    pages,
-                    netlist,
-                )?;
+                let mut plotter = SchemaPlot::new()
+                    .border(border)
+                    .theme(theme)
+                    .scale(scale)
+                    .netlist(netlist);
+
+                plotter.open_buffer(self.draw.schema.clone());
+                for page in plotter.iter() {
+
+                    //TODO check page with pages.
+
+                    let mut svg_plotter = SvgPlotter::new(&mut buffer);
+                    plotter.write(page.0, &mut svg_plotter).unwrap();
+                }
 
                 return Ok(Some(vec![buffer]));
 

@@ -1,15 +1,11 @@
 //! Draw the model with svglib
+use crate::Color;
 use crate::{
-    error::Error, no_fill, themer::Themer, Arc, Circle, Draw, Drawer, FillType, Line, Outline,
-    PlotItem, PlotterImpl, Polyline, Rectangle, Style, Text, Theme,
+    error::Error, Arc, Circle, Draw, Drawer, Line, PlotItem, PlotterImpl, Polyline, Rectangle, Text,
 };
 
-use sexp::{el, PaperSize, Sexp, SexpProperty, SexpTree, SexpValueQuery};
-use simulation::Netlist;
-
 use itertools::Itertools;
-use ndarray::arr2;
-use std::collections::HashMap;
+use ndarray::Array2;
 use std::io::Write;
 
 use svg::node::element::path::Data;
@@ -17,132 +13,37 @@ use svg::node::element::Path;
 use svg::node::Node;
 use svg::{node, node::element, Document};
 
-use log::{debug, log_enabled, Level};
-
 /// Plotter implemntation for SVG files.
 pub struct SvgPlotter<'a> {
     name: &'a str,
-    themer: Option<Themer<'a>>,
+    out: &'a mut dyn Write,
+    scale: f64,
 }
 
 impl<'a> SvgPlotter<'a> {
-    pub fn new(name: &'a str, theme: Option<Themer<'a>>) -> Self {
+    pub fn new(out: &'a mut dyn Write) -> Self {
         SvgPlotter {
-            name,
-            themer: theme,
+            name: "",
+            out,
+            scale: 1.0,
         }
     }
 }
 
-impl Outline for SvgPlotter<'_> {}
+impl<'a> PlotterImpl<'a> for SvgPlotter<'a> {
+    fn plot(&mut self, plot_items: &[PlotItem], size: Array2<f64>) -> Result<(), Error> {
+        let mut document = Document::new()
+            .set(
+                "viewBox",
+                (size[[0, 0]], size[[0, 1]], size[[1, 0]], size[[1, 1]]),
+            )
+            .set("width", format!("{}mm", (size[[1, 0]]) * self.scale))
+            .set("height", format!("{}mm", (size[[1, 1]]) * self.scale));
 
-impl<'a> PlotterImpl<'a, SexpTree> for SvgPlotter<'a> {
-    fn plot<W: Write>(
-        &self,
-        schema: &SexpTree,
-        out: &mut W,
-        border: bool,
-        scale: f64,
-        pages: Option<Vec<usize>>,
-        netlist: bool,
-    ) -> Result<(), Error> {
-        //load the netlist
-        let netlist = if netlist {
-            Some(Netlist::from(schema).unwrap())
-        } else {
-            None
-        };
-
-        //collect all the sheets
-        let mut schema_pages: HashMap<usize, String> = HashMap::new();
-        let sheet_instance = schema.root().unwrap().query(el::SHEET_INSTANCES).next();
-        if let Some(sheet_instance) = sheet_instance {
-            for page in sheet_instance.query("path") {
-                let path: String = page.get(0).unwrap();
-                let number: usize = page.value("page").unwrap();
-                schema_pages.insert(number, path);
-            }
-        } else {
-            schema_pages.insert(1, String::from("/"));
-        }
-        for page in schema.root().unwrap().query("sheet") {
-            let sheetfile: Sexp = page.property("Sheetfile").unwrap();
-            let path: String = sheetfile.get(1).unwrap();
-            let instances = page.query("instances").next().unwrap();
-            let project = instances.query("project").next().unwrap();
-            let sheetpath = project.query("path").next().unwrap();
-            let number: usize = sheetpath.value("page").unwrap();
-            schema_pages.insert(number, path);
-        }
-
-        //and finally plot the pages.
-        for page in schema_pages.iter().sorted() {
-            if log_enabled!(Level::Info) {
-                debug!("plot page {} '{}'", page.0, page.1);
-            }
-            if pages.as_ref().is_none() || pages.as_ref().unwrap().contains(page.0) {
-                let document = if border {
-                    let paper_size: (f64, f64) =
-                        <Sexp as SexpValueQuery<PaperSize>>::value(schema.root().unwrap(), "paper")
-                            .unwrap()
-                            .into();
-
-                    let plot_items = crate::schema::plot(schema, &netlist, Some(paper_size));
-
-                    let mut document = Document::new()
-                        .set("viewBox", (0, 0, paper_size.0, paper_size.1))
-                        .set("width", format!("{}mm", paper_size.0))
-                        .set("height", format!("{}mm", paper_size.1));
-                    let mut g = element::Group::new();
-                    g = g.set("id", self.name);
-                    if scale != 1.0 {
-                        g = g.set("scale", scale);
-                    }
-                    self.draw(&plot_items, &mut g);
-                    document.append(g);
-                    if let Some(themer) = &self.themer {
-                        document.append(element::Style::new(
-                            themer.css(), /* TODO             format!(
-                                          "<![CDATA[\n{}\n]]>",
-                                          themer.css() */
-                        ));
-                    }
-                    document
-                } else {
-                    let plot_items = crate::schema::plot(schema, &netlist, None);
-
-                    let size = self.bounds(
-                        &plot_items,
-                        self.themer
-                            .as_ref()
-                            .unwrap_or(&Themer::new(Theme::Kicad2020)),
-                    ) + arr2(&[[-2.54, -2.54], [2.54, 2.54]]);
-                    let mut document = Document::new()
-                        .set(
-                            "viewBox",
-                            (
-                                size[[0, 0]],
-                                size[[0, 1]],
-                                size[[1, 0]] - size[[0, 0]],
-                                size[[1, 1]] - size[[0, 1]],
-                            ),
-                        )
-                        .set("width", (size[[1, 0]] - size[[0, 0]]) * scale)
-                        .set("height", (size[[1, 1]] - size[[0, 1]]) * scale);
-                    let mut g = element::Group::new().set("id", self.name);
-                    self.draw(&plot_items, &mut g);
-                    if let Some(themer) = &self.themer {
-                        document.append(element::Style::new(themer.css()));
-                        /*  TODO  "<![CDATA[\n{}\n]]>",
-                            themer.css()
-                        ))); */
-                    }
-                    document.append(g);
-                    document
-                };
-                out.write_all(document.to_string().as_bytes())?;
-            }
-        }
+        let mut g = element::Group::new().set("id", self.name);
+        self.draw(plot_items, &mut g);
+        document.append(g);
+        self.out.write_all(document.to_string().as_bytes())?;
         Ok(())
     }
 }
@@ -217,7 +118,12 @@ impl<'a> Drawer<Text, element::Group> for SvgPlotter<'a> {
                 ),
             )
             .set("text-anchor", align)
-            .set("class", text.class.iter().map(|i| i.to_string()).join(" "))
+            .set("font-family", text.effects.font_face.to_string())
+            .set(
+                "font-size",
+                format!("{}pt", text.effects.font_size.first().unwrap()),
+            )
+            .set("fill-color", text.effects.font_color.to_string())
             .add(node::Text::new(text.text.clone()));
 
         if text.effects.justify.contains(&"top".to_string()) {
@@ -234,28 +140,14 @@ impl<'a> Drawer<Line, element::Group> for SvgPlotter<'a> {
         let data = Data::new()
             .move_to((line.pts[[0, 0]], line.pts[[0, 1]]))
             .line_to((line.pts[[1, 0]], line.pts[[1, 1]]));
-        // .close();
-        let mut path = Path::new()
-            //.set("fill", "none")
-            .set(
-                "class",
-                line.class
-                    .iter()
-                    .map(|i| i.to_string())
-                    .collect::<Vec<String>>()
-                    .join(" "),
-            )
+        let path = Path::new()
+            .set("stroke", line.stroke.linecolor.to_string())
+            .set("stroke-width", line.stroke.linewidth)
             .set("d", data);
-        let mut style = Vec::new();
-        if line.stroke.linewidth != 0.0 {
-            style.push(format!("stroke-width:{};", line.stroke.linewidth));
-        }
-        if let Some(linecap) = &line.linecap {
+
+        /*TODO if let Some(linecap) = &line.linecap {
             style.push(format!("stroke-linecap:{};", linecap));
-        }
-        if !style.is_empty() {
-            path = path.set("style", style.join(" "));
-        }
+        } */
         document.append(path);
     }
 }
@@ -274,11 +166,14 @@ impl<'a> Drawer<Polyline, element::Group> for SvgPlotter<'a> {
         }
         // data = data.close();
         let mut path = Path::new()
-            .set("class", line.class.iter().map(|i| i.to_string()).join(" "))
+            .set("stroke", line.stroke.linecolor.to_string())
+            .set("stroke-width", line.stroke.linewidth)
             .set("d", data);
 
-        if no_fill(&line.class) {
+        if matches!(line.stroke.fillcolor, Color::None) {
             path = path.set("fill", "none");
+        } else {
+            path = path.set("fill", line.stroke.fillcolor.to_string());
         }
         document.append(path);
     }
@@ -295,10 +190,8 @@ impl<'a> Drawer<Rectangle, element::Group> for SvgPlotter<'a> {
             .close();
         let path = Path::new()
             .set("fill", "none")
-            .set(
-                "class",
-                rectangle.class.iter().map(|i| i.to_string()).join(" "),
-            )
+            .set("stroke", rectangle.stroke.linecolor.to_string())
+            .set("stroke-width", rectangle.stroke.linewidth)
             .set("d", data);
         document.append(path);
     }
@@ -310,18 +203,13 @@ impl<'a> Drawer<Circle, element::Group> for SvgPlotter<'a> {
             .set("cx", circle.pos[0])
             .set("cy", circle.pos[1])
             .set("r", circle.radius)
-            .set(
-                "class",
-                circle.class.iter().map(|i| i.to_string()).join(" "),
-            );
-        if circle.stroke.linewidth != 0.0 {
-            c = c.set(
-                "style",
-                format!("stroke-width: {};", circle.stroke.linewidth),
-            );
-        }
-        if no_fill(&circle.class) {
+            .set("stroke", circle.stroke.linecolor.to_string())
+            .set("stroke-width", circle.stroke.linewidth);
+
+        if matches!(circle.stroke.fillcolor, Color::None) {
             c = c.set("fill", "none");
+        } else {
+            c = c.set("fill", circle.stroke.fillcolor.to_string());
         }
         document.append(c);
     }
@@ -352,15 +240,7 @@ impl<'a> Drawer<Arc, element::Group> for SvgPlotter<'a> {
             0.0
         };
 
-        let mut fill = None;
-        for cls in &arc.class {
-            if let Style::Fill(f) = cls {
-                if *f != FillType::NoFill {
-                    fill = Some(cls);
-                }
-            }
-        }
-        if let Some(fill) = fill {
+        if matches!(arc.stroke.fillcolor, Color::None) {
             let c = element::Path::new()
                 .set(
                     "d",
@@ -378,7 +258,7 @@ impl<'a> Drawer<Arc, element::Group> for SvgPlotter<'a> {
                         arc.center[1]
                     ),
                 )
-                .set("class", fill.to_string());
+                .set("fill", arc.stroke.fillcolor.to_string());
             document.append(c);
         }
         let mut c = element::Path::new()
@@ -397,7 +277,8 @@ impl<'a> Drawer<Arc, element::Group> for SvgPlotter<'a> {
                 ),
             )
             .set("fill", "none")
-            .set("class", arc.class.iter().map(|i| i.to_string()).join(" "));
+            .set("stroke", arc.stroke.linecolor.to_string())
+            .set("stroke-width", arc.stroke.linewidth);
 
         if arc.stroke.linewidth != 0.0 {
             c = c.set("stroke-width", arc.stroke.linewidth);
@@ -405,6 +286,3 @@ impl<'a> Drawer<Arc, element::Group> for SvgPlotter<'a> {
         document.append(c);
     }
 }
-
-#[cfg(test)]
-mod tests {}
