@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use log::{debug, log_enabled, Level};
+use log::{error, log_enabled, Level};
 use ndarray::{arr1, arr2, Array1, Array2, ArrayView};
 
 pub use crate::{
@@ -24,29 +24,6 @@ const PIN_NUMER_OFFSET: f64 = 0.6;
 // ---                             collect the plot model from the sexp tree                               ---
 // -----------------------------------------------------------------------------------------------------------
 
-/// get the pin position
-/// returns an array containing the number of pins:
-///   3
-/// 0   2
-///   1
-fn pin_position(symbol: &Sexp, pin: &Sexp) -> Vec<usize> {
-    let mut position: Vec<usize> = vec![0; 4];
-    let symbol_shift: usize = (utils::angle(symbol).unwrap() / 90.0).round() as usize;
-
-    let lib_pos: usize = (utils::angle(pin).unwrap() / 90.0).round() as usize;
-    position[lib_pos] += 1;
-
-    position.rotate_right(symbol_shift);
-    if let Some(mirror) = <Sexp as SexpValueQuery<String>>::value(symbol, el::MIRROR) {
-        if mirror == "x" {
-            position = vec![position[0], position[3], position[2], position[1]];
-        } else if mirror == "y" {
-            position = vec![position[2], position[1], position[0], position[3]];
-        }
-    }
-    position
-}
-
 pub struct SchemaPlot<'a> {
     schema_pages: HashMap<usize, String>,
     pages: Option<&'a [usize]>,
@@ -67,9 +44,6 @@ impl Default for SchemaPlot<'_> {
 }
 
 /// collect the plot model from the sexp tree
-///
-///
-
 impl<'a> SchemaPlot<'a> {
     pub fn pages(mut self, pages: &'a [usize]) -> Self {
         self.pages = Some(pages);
@@ -214,34 +188,37 @@ impl<'a> SchemaPlot<'a> {
 
         let mut plot_items: Vec<PlotItem> = Vec::new();
         for item in document.root().unwrap().nodes() {
-            if item.name == el::GLOBAL_LABEL {
-                self.plot(LabelElement{ item, global: true }, &mut plot_items);
-            } else if item.name == el::JUNCTION {
-                self.plot(JunctionElement{ item }, &mut plot_items);
-            } else if item.name == el::LABEL {
-                self.plot(LabelElement{ item, global: false }, &mut plot_items);
-            } else if item.name == el::NO_CONNECT {
-                self.plot(NoConnectElement{ item }, &mut plot_items);
-            } else if item.name == el::SYMBOL {
-                self.plot(SymbolElement { item, document, netlist: &netlist }, &mut plot_items);
-            } else if item.name == el::WIRE {
-                self.plot(WireElement{ item }, &mut plot_items);
-            } else if item.name == el::TITLE_BLOCK && self.border {
-                if let Some(paper_size) = paper_size {
-                    plot_items.append(&mut border(item, paper_size, &self.theme).unwrap());
-                }
-            } else if log_enabled!(Level::Debug) {
-                let items = [
-                    "version",
-                    "generator",
-                    "uuid",
-                    "paper",
-                    "lib_symbols",
-                    "sheet_instances",
-                ];
-                if !items.contains(&item.name.as_str()) {
-                    debug!("unparsed node: {}", item.name);
-                }
+            match item.name.as_str() {
+                el::LABEL => self.plot(LabelElement{ item, global: false }, &mut plot_items),
+                el::GLOBAL_LABEL => self.plot(LabelElement{ item, global: true }, &mut plot_items),
+                el::JUNCTION => self.plot(JunctionElement{ item }, &mut plot_items),
+                el::NO_CONNECT => self.plot(NoConnectElement{ item }, &mut plot_items),
+                el::SYMBOL => self.plot(SymbolElement { item, document, netlist: &netlist }, &mut plot_items),
+                el::WIRE => self.plot(WireElement{ item }, &mut plot_items),
+                el::TEXT => self.plot(TextElement{ item }, &mut plot_items),
+                el::TITLE_BLOCK => {
+                    if self.border {
+                        if let Some(paper_size) = paper_size {
+                            plot_items.append(&mut border(item, paper_size, &self.theme).unwrap());
+                        }
+                    }
+                },
+                _ => { 
+                    if log_enabled!(Level::Error) {
+                        let items = [
+                            "generator_version",
+                            "version",
+                            "generator",
+                            "uuid",
+                            "paper",
+                            "lib_symbols",
+                            "sheet_instances",
+                        ];
+                        if !items.contains(&item.name.as_str()) {
+                            error!("unparsed node: {}", item.name);
+                        }
+                    }
+                },
             }
         }
         plot_items
@@ -297,17 +274,17 @@ impl<'a> PlotElement<LabelElement<'a>> for SchemaPlot<'a> {
             self.theme.get_effects(item.item.into(), &[Style::Label]),
             false,
         );
+        let size = self.text_size(&gtext);
+        plot_items.push(PlotItem::Text(12, gtext));
 
         if item.global {
-            let size = self.text_size(&gtext);
             let mut outline = LabelElement::make_label(size);
             if angle != 0.0 {
-                let theta = -angle.to_radians();
+                let theta = angle.to_radians();
                 let rot = arr2(&[[theta.cos(), -theta.sin()], [theta.sin(), theta.cos()]]);
                 outline = outline.dot(&rot);
             }
             outline = outline + pos.clone();
-            plot_items.push(PlotItem::Text(12, gtext));
             plot_items.push(PlotItem::Polyline(
                 10,
                 Polyline::new(
@@ -347,6 +324,36 @@ impl<'a> PlotElement<LabelElement<'a>> for SchemaPlot<'a> {
                 false,
             ),
         )); */
+    } 
+}
+
+struct TextElement<'a> {
+    item: &'a Sexp,
+}
+
+impl<'a> PlotElement<TextElement<'a>> for SchemaPlot<'a> {
+    fn plot(&self, item: TextElement, plot_items: &mut Vec<PlotItem>) {
+
+        let angle: f64 = utils::angle(item.item).unwrap();
+        let pos: Array1<f64> = utils::at(item.item).unwrap();
+        let text_pos: Array1<f64> = if angle == 0.0 {
+            arr1(&[pos[0] + 1.0, pos[1]])
+        } else if angle == 90.0 {
+            arr1(&[pos[0], pos[1] - 1.0])
+        } else if angle == 180.0 {
+            arr1(&[pos[0] - 1.0, pos[1]])
+        } else {
+            arr1(&[pos[0], pos[1] + 1.0])
+        };
+        let text: String = item.item.get(0).unwrap();
+        let gtext = Text::new(
+            text_pos.clone(),
+            0.0,
+            text,
+            self.theme.get_effects(item.item.into(), &[Style::Text]),
+            false,
+        );
+        plot_items.push(PlotItem::Text(12, gtext));
     } 
 }
 
@@ -667,6 +674,30 @@ struct PinElement<'a> {
     pin_names_offset: f64,
 }
 
+impl PinElement<'_> {
+    /// get the pin position
+    /// returns an array containing the number of pins:
+    ///   3
+    /// 0   2
+    ///   1
+    pub fn pin_position(symbol: &Sexp, pin: &Sexp) -> Vec<usize> {
+        let mut position: Vec<usize> = vec![0; 4];
+        let symbol_shift: usize = (utils::angle(symbol).unwrap() / 90.0).round() as usize;
+
+        let lib_pos: usize = (utils::angle(pin).unwrap() / 90.0).round() as usize;
+        position[lib_pos] += 1;
+
+        position.rotate_right(symbol_shift);
+        if let Some(mirror) = <Sexp as SexpValueQuery<String>>::value(symbol, el::MIRROR) {
+            if mirror == "x" {
+                position = vec![position[0], position[3], position[2], position[1]];
+            } else if mirror == "y" {
+                position = vec![position[2], position[1], position[0], position[3]];
+            }
+        }
+        position
+    }
+}
 
 impl<'a> PlotElement<PinElement<'a>> for SchemaPlot<'a> {
     fn plot(&self, item: PinElement, plot_items: &mut Vec<PlotItem>) {
@@ -688,7 +719,7 @@ impl<'a> PlotElement<PinElement<'a>> for SchemaPlot<'a> {
         let pin_graphical_style: String = item.item.get(1).unwrap();
         let pin_graphic_style: PinGraphicalStyle =
             PinGraphicalStyle::from(pin_graphical_style);
-        let stroke = Stroke::new(); //TODO stroke(pin);
+        let stroke = Stroke::from(item.item);
         match pin_graphic_style {
             PinGraphicalStyle::Line => {
                 plot_items.push(PlotItem::Line(
@@ -842,7 +873,7 @@ impl<'a> PlotElement<PinElement<'a>> for SchemaPlot<'a> {
         // draw the netlist name
         if item.power {
             if let Some(netlist) = item.netlist {
-                let orientation = pin_position(item.symbol, item.item);
+                let orientation = PinElement::pin_position(item.symbol, item.item);
                 let pin_length: f64 = item.item.value("length").unwrap();
                 let pos = if orientation == vec![1, 0, 0, 0] {
                     Shape::transform(item.symbol, &utils::at(item.item).unwrap())

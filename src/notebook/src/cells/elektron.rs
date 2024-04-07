@@ -251,7 +251,7 @@ impl CellWrite<ElektronCell> for CellWriter {
                         .theme(param_or!(args, "theme", "").into())
                         .scale(str::parse::<f64>(param_or!(args, "scale", "1.0")).unwrap());
 
-                    plotter.open(&input_file);
+                    plotter.open(&input_file)?;
                     for page in plotter.iter() {
                         let mut file = BufWriter::new(File::create(output_file.clone())?);
                         let mut svg_plotter = SvgPlotter::new(&mut file);

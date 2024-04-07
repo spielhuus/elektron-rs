@@ -153,7 +153,7 @@ pub struct PyDraw {
 impl PyDraw {
     #[new]
     #[pyo3(signature = (library_path, **kwargs))]
-    pub fn new(library_path: Vec<String>, kwargs: Option<&PyDict>) -> Self {
+    pub fn new(library_path: Vec<String>, kwargs: Option<&Bound<PyDict>>) -> Self {
         let dict = if let Some(kwargs) = kwargs {
             let mut dict: HashMap<String, String> = HashMap::new();
             for (k, v) in kwargs.iter() {
@@ -175,8 +175,8 @@ impl PyDraw {
     pub fn pos<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
-        reference: &'_ PyAny,
-        pin: Option<&'_ PyAny>,
+        reference: &Bound<PyAny>,
+        pin: Option<&Bound<PyAny>>,
     ) -> PyRefMut<'py, Self> {
         let dot: Result<model::Dot, PyErr> = reference.extract();
         if let Ok(dot) = dot {
@@ -199,7 +199,7 @@ impl PyDraw {
         panic!("unknown type for at: {:?}", reference);
     }
 
-    fn add(&mut self, item: &'_ PyAny) -> PyResult<()> {
+    fn add(&mut self, item: &Bound<PyAny>) -> PyResult<()> {
         let feedback: Result<model::Feedback, PyErr> = item.extract();
         if let Ok(feedback) = feedback {
             if let Some((reference, pin)) = feedback.atref {
@@ -397,8 +397,8 @@ impl PyDraw {
     }
 
     #[pyo3(signature = (**kwargs))]
-    pub fn plot(&mut self, kwargs: Option<&PyDict>) -> Result<Option<Vec<Vec<u8>>>, Error> {
-        let mut filename: Option<&str> = None;
+    pub fn plot(&mut self, kwargs: Option<Bound<PyDict>>) -> Result<Option<Vec<Vec<u8>>>, Error> {
+        let mut filename: Option<String> = None;
         let mut id = "not_set";
         let mut border = false;
         let mut scale = 1.0;
@@ -407,10 +407,10 @@ impl PyDraw {
         let mut theme = Theme::default();
 
         if let Some(kwargs) = kwargs {
-            if let Ok(Some(item)) = kwargs.get_item("filename") {
-                let item: Result<&str, PyErr> = item.extract();
+            if let Ok(Some(raw_item)) = kwargs.get_item("filename") {
+                let item: Result<&str, PyErr> = raw_item.extract();
                 if let Ok(item) = item {
-                    filename = Some(item);
+                    filename = Some(item.to_string());
                 }
             }
             if let Ok(Some(item)) = kwargs.get_item("id") {

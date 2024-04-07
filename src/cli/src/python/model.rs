@@ -98,8 +98,8 @@ impl Line {
     pub fn at<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
-        reference: &'_ PyAny,
-        pin: Option<&'_ PyAny>,
+        reference: &'_ Bound<PyAny>,
+        pin: Option<&'_ Bound<PyAny>>,
     ) -> PyRefMut<'py, Self> {
         let dot: Result<Dot, PyErr> = reference.extract();
         if let Ok(dot) = dot {
@@ -134,8 +134,8 @@ impl Line {
     pub fn tox<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
-        element: &'_ PyAny,
-        pin: Option<&'_ PyAny>,
+        element: &'_ Bound<PyAny>,
+        pin: Option<&'_ Bound<PyAny>>,
     ) -> PyRefMut<'py, Self> {
         let dot: Result<Dot, PyErr> = element.extract();
         /* if let Ok(dot) = dot {
@@ -174,8 +174,8 @@ impl Line {
     pub fn toy<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
-        element: &'_ PyAny,
-        pin: Option<&'_ PyAny>,
+        element: &'_ Bound<PyAny>,
+        pin: Option<&'_ Bound<PyAny>>,
     ) -> PyRefMut<'py, Self> {
         if let Some(pin) = pin {
             let reference: Result<String, PyErr> = element.extract();
@@ -206,7 +206,7 @@ impl Line {
     pub fn dot<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
-        position: &'_ PyAny,
+        position: &'_ Bound<PyAny>,
     ) -> PyRefMut<'py, Self> {
         let dot: Result<Vec<String>, PyErr> = position.extract();
         if let Ok(dot) = dot {
@@ -264,8 +264,8 @@ impl Dot {
     pub fn at<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
-        reference: &'_ PyAny,
-        pin: Option<&'_ PyAny>,
+        reference: &'_ Bound<PyAny>,
+        pin: Option<&'_ Bound<PyAny>>,
     ) -> PyRefMut<'py, Self> {
         if let Some(pin) = pin {
             let reference: Result<String, PyErr> = reference.extract();
@@ -302,8 +302,8 @@ impl Nc {
     pub fn at<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
-        reference: &'_ PyAny,
-        pin: Option<&'_ PyAny>,
+        reference: &'_ Bound<PyAny>,
+        pin: Option<&'_ Bound<PyAny>>,
     ) -> PyRefMut<'py, Self> {
         /* let dot: Result<Dot, PyErr> = reference.extract();
         if let Ok(dot) = dot {
@@ -347,8 +347,8 @@ impl Label {
     pub fn at<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
-        reference: &'_ PyAny,
-        pin: Option<&'_ PyAny>,
+        reference: &'_ Bound<PyAny>,
+        pin: Option<&'_ Bound<PyAny>>,
     ) -> PyRefMut<'py, Self> {
         let dot: Result<Dot, PyErr> = reference.extract();
         if let Ok(dot) = dot {
@@ -413,7 +413,7 @@ impl Element {
         library: String,
         value: String,
         unit: u32,
-        kwargs: Option<&PyDict>,
+        kwargs: Option<&Bound<PyDict>>,
     ) -> Self {
         let args = if let Some(args) = kwargs {
             let mut myargs: HashMap<String, String> = HashMap::new();
@@ -450,7 +450,7 @@ impl Element {
     pub fn anchor<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
-        pin: &'_ PyAny,
+        pin: &'_ Bound<PyAny>,
     ) -> PyRefMut<'py, Self> {
         let str_pin: Result<String, PyErr> = pin.extract();
         if let Ok(pin) = str_pin {
@@ -477,8 +477,8 @@ impl Element {
     pub fn at<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
-        reference: &'_ PyAny,
-        pin: Option<&'_ PyAny>,
+        reference: &'_ Bound<PyAny>,
+        pin: Option<&'_ Bound<PyAny>>,
     ) -> PyRefMut<'py, Self> {
         let dot: Result<Dot, PyErr> = reference.extract();
         if let Ok(dot) = dot {
@@ -507,8 +507,8 @@ impl Element {
     pub fn tox<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
-        element: &'_ PyAny,
-        pin: Option<&'_ PyAny>,
+        element: &'_ Bound<PyAny>,
+        pin: Option<&'_ Bound<PyAny>>,
     ) -> PyRefMut<'py, Self> {
         let pos: Result<(f64, f64), PyErr> = element.extract();
         if let Ok(pos) = pos {
@@ -533,8 +533,8 @@ impl Element {
     pub fn toy<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
-        element: &'_ PyAny,
-        pin: Option<&'_ PyAny>,
+        element: &'_ Bound<PyAny>,
+        pin: Option<&'_ Bound<PyAny>>,
     ) -> PyRefMut<'py, Self> {
         let dot: Result<Dot, PyErr> = element.extract();
         /* if let Ok(dot) = dot {
@@ -568,7 +568,7 @@ impl Element {
     pub fn label<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
-        pos: &'_ PyAny,
+        pos: &'_ Bound<PyAny>,
     ) -> PyRefMut<'py, Self> {
         let name: Result<String, PyErr> = pos.extract();
         if let Ok(name) = name {
@@ -678,8 +678,8 @@ impl Feedback {
     pub fn start<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
-        reference: &'_ PyAny,
-        pin: Option<&'_ PyAny>,
+        reference: &'_ Bound<PyAny>,
+        pin: Option<&'_ Bound<PyAny>>,
     ) -> PyRefMut<'py, Self> {
         if let Some(pin) = pin {
             let reference: Result<String, PyErr> = reference.extract();
@@ -694,8 +694,8 @@ impl Feedback {
     pub fn end<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
-        reference: &'_ PyAny,
-        pin: Option<&'_ PyAny>,
+        reference: &'_ Bound<PyAny>,
+        pin: Option<&'_ Bound<PyAny>>,
     ) -> PyRefMut<'py, Self> {
         if let Some(pin) = pin {
             let reference: Result<String, PyErr> = reference.extract();
@@ -710,7 +710,7 @@ impl Feedback {
     pub fn height<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
-        h: &'_ PyAny,
+        h: &'_ Bound<PyAny>,
     ) -> PyRefMut<'py, Self> {
         let h: Result<f64, PyErr> = h.extract();
         if let Ok(h) = h {
@@ -728,7 +728,7 @@ impl Feedback {
     pub fn dot<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
-        position: &'_ PyAny,
+        position: &'_ Bound<PyAny>,
     ) -> PyRefMut<'py, Self> {
         let dot: Result<Vec<String>, PyErr> = position.extract();
         if let Ok(dot) = dot {

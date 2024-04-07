@@ -31,7 +31,7 @@ pub fn convert(
         let globals = PyDict::new(py);
         for cell in nb.iter() {
             //capture the python stdout and stderr
-            let sys = py.import("sys").unwrap();
+            let sys = py.import_bound("sys").unwrap();
             let stdout = LoggingStdout::new();
             let stderr = LoggingStderr::new();
             sys.setattr("stdout", &stdout.into_py(py)).unwrap();

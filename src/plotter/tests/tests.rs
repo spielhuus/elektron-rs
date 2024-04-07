@@ -2,8 +2,7 @@ mod test {
     mod plot_svg {
         use std::fs::File;
 
-        use plotter::{schema::SchemaPlot, svg::SvgPlotter, themer::Themer, PlotterImpl, Theme};
-        use sexp::{SexpParser, SexpTree};
+        use plotter::{schema::SchemaPlot, svg::SvgPlotter, Theme};
 
         #[test]
         fn plt_hall() {

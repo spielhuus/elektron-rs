@@ -4,8 +4,6 @@ use fontdue::{layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle}, Fon
 
 use ndarray::{arr1, arr2, Array1, Array2};
 
-use log::debug;
-
 //pub mod cairo_plotter;
 pub mod error;
 pub mod gerber;
@@ -13,7 +11,6 @@ pub mod pcb;
 pub mod schema;
 pub mod svg;
 pub mod themer;
-pub mod vrml;
 
 pub use error::Error;
 use rust_fontconfig::{FcFontCache, FcPattern};
@@ -183,20 +180,17 @@ impl From<&Sexp> for Stroke {
 
             let linewidth = s.query("width").next();
             if let Some(width) = linewidth {
-                stroke.linewidth = width.get(0).unwrap() //TODO
+                stroke.linewidth = width.get(0).unwrap()
             }
             let linetype = s.query("type").next();
             if let Some(linetype) = linetype {
-                stroke.linetype = linetype.get(0).unwrap() //TODO
+                stroke.linetype = linetype.get(0).unwrap()
             }
             if let Some(color) = s.query("color").next() {
                 let colors: Vec<u16> =  color.values();
                 stroke.linecolor = colors.into()
             }
         }
-
-        //TODO parse fill
-
         stroke
     }
 }
@@ -822,9 +816,6 @@ fn cached_font(text: &str, effects: &Effects) -> Array1<f64> {
     });
     layout.append(fonts, &TextStyle::new(text, (*effects.font_size.first().unwrap() * 1.33333333) as f32, 0));
     let width: usize = layout.glyphs().iter().map(|g| g.width).sum();
-    let height: usize = layout.glyphs().iter().map(|g| g.height).max().unwrap();
-
-    debug!("Text size for: {}, size: {} == {}x{}", text, effects.font_size.first().unwrap(), width, height);
 
     arr1(&[width as f64, *effects.font_size.first().unwrap() * 1.33333333])
 }
@@ -1169,8 +1160,7 @@ mod tests {
 
     #[test]
     fn test_text_size() {
-        //TODO must be reweritten
-        /* let themer = Themer::new(Theme::Kicad2020);
+        let themer = Themer::new(Theme::Kicad2020);
         let mut effects = Effects::new();
         effects.font_face = String::from("osifont");
         effects.font_size = vec![10.0, 10.0];
@@ -1185,8 +1175,8 @@ mod tests {
         impl Outline for TestOutline {}
 
         let outline = TestOutline;
-        let bounds = outline.text_size(&text, &Themer::new(Theme::default()));
-        assert_eq!(arr1(&[52.0, 10.0]), bounds); */
+        let bounds = outline.text_size(&text);
+        assert_eq!(arr1(&[10.0, 1.0666666640000002]), bounds);
     }
     #[test]
     fn test_bounds_circle() {

@@ -97,6 +97,7 @@ pub mod el {
     pub const SYMBOL: &str = "symbol";
     pub const SYMBOL_UNIT: &str = "unit";
     pub const STROKE: &str = "stroke";
+    pub const TEXT: &str = "text";
     pub const TITLE_BLOCK: &str = "title_block";
     pub const TITLE_BLOCK_COMMENT: &str = "comment";
     pub const TITLE_BLOCK_COMPANY: &str = "company";

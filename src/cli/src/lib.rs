@@ -221,20 +221,13 @@ pub fn plot(input: &str, output: Option<&str>) -> Result<(), Error> {
                     let mut plotter = SchemaPlot::new()
                         .border(true).theme(Theme::Kicad2020).scale(1.0);
 
-                    plotter.open(input);
+                    plotter.open(input)?;
                     for page in plotter.iter() {
                         let mut file = File::create(output).unwrap();
                         let mut svg_plotter = SvgPlotter::new(&mut file);
                         plotter.write(page.0, &mut svg_plotter).unwrap();
                     }
 
-
-
-                    // let mut buffer = File::create(output).unwrap(); //TODO handle exception
-                    //TODO let svg_plotter = SvgPlotter::new(input, Some(Themer::new(Theme::Kicad2020)), &mut buffer); //TODO select theme
-                    /*TODO svg_plotter
-                        .plot(&tree, &mut buffer, true, 1.0, None, false)
-                        .unwrap(); */
                 /* } else if ext == constant::EXT_PNG {
                     let plotter = CairoPlotter::new(
                         input,
@@ -291,20 +284,6 @@ pub fn plot(input: &str, output: Option<&str>) -> Result<(), Error> {
             input
         )));
     }
-    Ok(())
-}
-
-/// create the 3d model.
-///
-/// # Arguments
-///
-/// * `input`    - A Schema filename.
-/// * `output`   - The filename of the target image.
-#[pyfunction]
-pub fn make_vrml(input: &str, output: &str) -> Result<(), Error> {
-    env_logger::init();
-    info!("Write VRML: input:{}, output:{}", input, output);
-    plotter::vrml::vrml(input.to_string(), output.to_string())?;
     Ok(())
 }
 
@@ -450,9 +429,9 @@ pub fn make_erc(input: &str, output: Option<String>) -> Result<(), Error> {
             .unwrap();
         }
         check_directory(&output)?;
-        let mut out = File::create(output).unwrap();
-        data.write(&mut out).unwrap(); //TODO create error
-        out.flush().unwrap(); //TODO create Error
+        let mut out = File::create(output)?;
+        data.write(&mut out)?;
+        out.flush()?;
     } else {
         let mut table = Table::new();
         table
@@ -508,9 +487,10 @@ pub fn make_drc(input: &str, output: Option<String>) -> Result<(), Error> {
             .unwrap();
         }
         check_directory(&output)?;
-        let mut out = File::create(output).unwrap();
-        data.write(&mut out).unwrap(); //TODO create error
-        out.flush().unwrap(); //TODO create Error
+        let mut out = File::create(output)?;
+        data.write(&mut out)?;
+        out.flush()?;
+
     } else {
         let mut table = Table::new();
         table
@@ -665,14 +645,13 @@ pub fn list(input: &str) -> Result<(), Error> {
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn elektron(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn elektron(_py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(make_bom))?;
     m.add_wrapped(wrap_pyfunction!(plot))?;
     m.add_wrapped(wrap_pyfunction!(make_spice))?;
     m.add_wrapped(wrap_pyfunction!(convert))?;
     m.add_wrapped(wrap_pyfunction!(make_erc))?;
     m.add_wrapped(wrap_pyfunction!(make_drc))?;
-    m.add_wrapped(wrap_pyfunction!(make_vrml))?;
     m.add_wrapped(wrap_pyfunction!(search))?;
     m.add_wrapped(wrap_pyfunction!(list))?;
     m.add_class::<crate::python::PyDraw>()?;

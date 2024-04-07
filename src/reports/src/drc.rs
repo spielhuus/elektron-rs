@@ -76,11 +76,11 @@ pub fn drc(document: String) -> Result<Vec<DrcItem>, Error> {
 
     //TODO footprint dir as variable
     Python::with_gil(|py| {
-        let globals = PyDict::new(py);
-        let locals = PyDict::new(py);
+        let globals = PyDict::new_bound(py);
+        let locals = PyDict::new_bound(py);
         locals.set_item("document", document.clone()).unwrap();
         locals.set_item("filename", output.to_string()).unwrap();
-        py.run(
+        py.run_bound(
             r#"
 import os
 os.environ['KICAD8_FOOTPRINT_DIR'] = '/usr/share/kicad/footprints'
@@ -88,8 +88,8 @@ os.environ['KICAD8_FOOTPRINT_DIR'] = '/usr/share/kicad/footprints'
 from elektron import Pcb
 board = Pcb(document)
 board.drc(filename)"#,
-            Some(globals),
-            Some(locals),
+            Some(&globals),
+            Some(&locals),
         )
         .map_err(|m| Error::IoError(m.to_string(), document))
     })?;
