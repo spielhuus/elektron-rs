@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use log::{error, log_enabled, Level};
+use log::{debug, error, log_enabled, Level};
 use ndarray::{arr1, arr2, Array1, Array2, ArrayView};
 
 pub use crate::{
@@ -145,7 +145,7 @@ impl<'a> SchemaPlot<'a> {
 
         //TODO handle portraint and landscape
         
-        let mut plot_items = self.parse_items(&tree, netlist, Some(paper_size));
+        let mut plot_items = self.parse_items(&tree, netlist);
         let size = if self.border {
             arr2(&[[0.0, 0.0], [paper_size.0, paper_size.1]])
         } else {
@@ -183,7 +183,6 @@ impl<'a> SchemaPlot<'a> {
         &self,
         document: &SexpTree,
         netlist: Option<Netlist>,
-        paper_size: Option<(f64, f64)>,
     ) -> Vec<PlotItem> {
 
         let mut plot_items: Vec<PlotItem> = Vec::new();
@@ -198,7 +197,7 @@ impl<'a> SchemaPlot<'a> {
                 el::TEXT => self.plot(TextElement{ item }, &mut plot_items),
                 el::TITLE_BLOCK => {
                     if self.border {
-                        if let Some(paper_size) = paper_size {
+                        if let Some(paper_size) = <Sexp as SexpValueQuery<PaperSize>>::value(document.root().unwrap(), "paper") {
                             plot_items.append(&mut border(item, paper_size, &self.theme).unwrap());
                         }
                     }
@@ -437,6 +436,10 @@ impl<'a> PlotElement<SymbolElement<'a>> for SchemaPlot<'a> {
         } else {
             true
         };
+
+        let lib_id: String = item.item.value("lib_id").unwrap();
+        debug!("lib_id: {}", lib_id);
+
         if on_schema {
             // let mut items: Vec<PlotItem> = Vec::new();
             for property in item.item.query(el::PROPERTY) {
@@ -533,12 +536,14 @@ impl<'a> PlotElement<SymbolElement<'a>> for SchemaPlot<'a> {
                             let pts: Array2<f64> = arr2(&[[start[0], start[1]], [end[0], end[1]]]);
                             let filltype: String =
                                 graph.query("fill").next().unwrap().value("type").unwrap();
+                            debug!("Rectangle filltype: {}", filltype);
                             let mut classes =
                                 vec![Style::Outline, Style::Fill(FillType::from(&filltype))];
                             let on_board: bool = item.item.value("on_board").unwrap();
                             if !on_board {
                                 classes.push(Style::NotOnBoard);
                             }
+                            debug!("Rectangle stroke: {:?}", self.theme.get_stroke(graph.into(), classes.as_slice()));
                             plot_items.push(PlotItem::Rectangle(
                                 1,
                                 Rectangle::new(

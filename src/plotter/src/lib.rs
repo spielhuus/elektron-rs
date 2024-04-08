@@ -2,6 +2,8 @@ use std::{collections::HashMap, fmt, fs::File, io::Read, sync::Mutex};
 
 use fontdue::{layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle}, Font};
 
+use log::debug; 
+
 use ndarray::{arr1, arr2, Array1, Array2};
 
 //pub mod cairo_plotter;
@@ -16,7 +18,7 @@ pub use error::Error;
 use rust_fontconfig::{FcFontCache, FcPattern};
 
 use self::themer::Themer;
-use sexp::{el, Sexp, SexpValueQuery, SexpValuesQuery};
+use sexp::{el, PaperSize, Sexp, SexpValueQuery, SexpValuesQuery};
 
 use lazy_static::lazy_static;
 
@@ -924,18 +926,20 @@ pub trait Outline {
     }
 }
 
-pub fn border(title_block: &Sexp, paper_size: (f64, f64), themer: &Themer) -> Option<Vec<PlotItem>> {
+pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Option<Vec<PlotItem>> {
     let mut plotter: Vec<PlotItem> = Vec::new();
+    let paper_dimension: (f64, f64) = paper_size.clone().into();
+ 
     //outline
-    let pts: Array2<f64> = arr2(&[[5.0, 5.0], [paper_size.0 - 5.0, paper_size.1 - 5.0]]);
+    let pts: Array2<f64> = arr2(&[[5.0, 5.0], [paper_dimension.0 - 5.0, paper_dimension.1 - 5.0]]);
     plotter.push(PlotItem::Rectangle(
         99,
         Rectangle::new(pts, themer.get_stroke(Stroke::new(), &[Style::Border])),
     ));
 
     //horizontal raster
-    for j in &[(0.0_f64, 5.0_f64), (paper_size.1 - 5.0, paper_size.1)] {
-        for i in 0..(paper_size.0 as i32 / BORDER_RASTER) {
+    for j in &[(0.0_f64, 5.0_f64), (paper_dimension.1 - 5.0, paper_dimension.1)] {
+        for i in 0..(paper_dimension.0 as i32 / BORDER_RASTER) {
             let pts: Array2<f64> = arr2(&[
                 [(i as f64 + 1.0) * BORDER_RASTER as f64, j.0],
                 [(i as f64 + 1.0) * BORDER_RASTER as f64, j.1],
@@ -945,7 +949,7 @@ pub fn border(title_block: &Sexp, paper_size: (f64, f64), themer: &Themer) -> Op
                 Rectangle::new(pts, themer.get_stroke(Stroke::new(), &[Style::Border])),
             ));
         }
-        for i in 0..(paper_size.0 as i32 / BORDER_RASTER + 1) {
+        for i in 0..(paper_dimension.0 as i32 / BORDER_RASTER + 1) {
             plotter.push(PlotItem::Text(
                 99,
                 Text::new(
@@ -967,8 +971,8 @@ pub fn border(title_block: &Sexp, paper_size: (f64, f64), themer: &Themer) -> Op
         'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
         's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
     ];
-    for j in &[(0.0_f64, 5.0_f64), (paper_size.0 - 5.0, paper_size.0)] {
-        for i in 0..(paper_size.1 as i32 / BORDER_RASTER) {
+    for j in &[(0.0_f64, 5.0_f64), (paper_dimension.0 - 5.0, paper_dimension.0)] {
+        for i in 0..(paper_dimension.1 as i32 / BORDER_RASTER) {
             let pts: Array2<f64> = arr2(&[
                 [j.0, (i as f64 + 1.0) * BORDER_RASTER as f64],
                 [j.1, (i as f64 + 1.0) * BORDER_RASTER as f64],
@@ -978,7 +982,7 @@ pub fn border(title_block: &Sexp, paper_size: (f64, f64), themer: &Themer) -> Op
                 Rectangle::new(pts, themer.get_stroke(Stroke::new(), &[Style::Border])),
             ));
         }
-        for i in 0..(paper_size.0 as i32 / BORDER_RASTER + 1) {
+        for i in 0..(paper_dimension.0 as i32 / BORDER_RASTER + 1) {
             plotter.push(PlotItem::Text(
                 99,
                 Text::new(
@@ -997,8 +1001,8 @@ pub fn border(title_block: &Sexp, paper_size: (f64, f64), themer: &Themer) -> Op
 
     // the head
     let pts: Array2<f64> = arr2(&[
-        [paper_size.0 - 120.0, paper_size.1 - 40.0],
-        [paper_size.0 - 5.0, paper_size.1 - 5.0],
+        [paper_dimension.0 - 120.0, paper_dimension.1 - 40.0],
+        [paper_dimension.0 - 5.0, paper_dimension.1 - 5.0],
     ]);
     plotter.push(PlotItem::Rectangle(
         99,
@@ -1008,8 +1012,8 @@ pub fn border(title_block: &Sexp, paper_size: (f64, f64), themer: &Themer) -> Op
         99,
         Line::new(
             arr2(&[
-                [paper_size.0 - 120.0, paper_size.1 - 10.0],
-                [paper_size.0 - 5.0, paper_size.1 - 10.0],
+                [paper_dimension.0 - 120.0, paper_dimension.1 - 10.0],
+                [paper_dimension.0 - 5.0, paper_dimension.1 - 10.0],
             ]),
             themer.get_stroke(Stroke::new(), &[Style::Border]),
             None,
@@ -1019,8 +1023,8 @@ pub fn border(title_block: &Sexp, paper_size: (f64, f64), themer: &Themer) -> Op
         99,
         Line::new(
             arr2(&[
-                [paper_size.0 - 120.0, paper_size.1 - 16.0],
-                [paper_size.0 - 5.0, paper_size.1 - 16.0],
+                [paper_dimension.0 - 120.0, paper_dimension.1 - 16.0],
+                [paper_dimension.0 - 5.0, paper_dimension.1 - 16.0],
             ]),
             themer.get_stroke(Stroke::new(), &[Style::Border]),
             None,
@@ -1028,7 +1032,7 @@ pub fn border(title_block: &Sexp, paper_size: (f64, f64), themer: &Themer) -> Op
     ));
 
     // if let Some(title_block) = item {
-    let left = paper_size.0 - 117.0;
+    let left = paper_dimension.0 - 117.0;
     let mut effects: Effects = Effects::new();
     effects.justify.push(String::from("left"));
     for comment in title_block.query(el::TITLE_BLOCK_COMMENT) {
@@ -1038,7 +1042,7 @@ pub fn border(title_block: &Sexp, paper_size: (f64, f64), themer: &Themer) -> Op
             plotter.push(PlotItem::Text(
                 99,
                 Text::new(
-                    arr1(&[left, paper_size.1 - 25.0]),
+                    arr1(&[left, paper_dimension.1 - 25.0]),
                     0.0,
                     comment.get(1).unwrap(),
                     themer.get_effects(effects.clone(), &[Style::TextHeader]),
@@ -1049,7 +1053,7 @@ pub fn border(title_block: &Sexp, paper_size: (f64, f64), themer: &Themer) -> Op
             plotter.push(PlotItem::Text(
                 99,
                 Text::new(
-                    arr1(&[left, paper_size.1 - 29.0]),
+                    arr1(&[left, paper_dimension.1 - 29.0]),
                     0.0,
                     comment.get(1).unwrap(),
                     themer.get_effects(effects.clone(), &[Style::TextHeader]),
@@ -1060,7 +1064,7 @@ pub fn border(title_block: &Sexp, paper_size: (f64, f64), themer: &Themer) -> Op
             plotter.push(PlotItem::Text(
                 99,
                 Text::new(
-                    arr1(&[left, paper_size.1 - 33.0]),
+                    arr1(&[left, paper_dimension.1 - 33.0]),
                     0.0,
                     comment.get(1).unwrap(),
                     themer.get_effects(effects.clone(), &[Style::TextHeader]),
@@ -1071,7 +1075,7 @@ pub fn border(title_block: &Sexp, paper_size: (f64, f64), themer: &Themer) -> Op
             plotter.push(PlotItem::Text(
                 99,
                 Text::new(
-                    arr1(&[left, paper_size.1 - 37.0]),
+                    arr1(&[left, paper_dimension.1 - 37.0]),
                     0.0,
                     comment.get(1).unwrap(),
                     themer.get_effects(effects.clone(), &[Style::TextHeader]),
@@ -1084,7 +1088,7 @@ pub fn border(title_block: &Sexp, paper_size: (f64, f64), themer: &Themer) -> Op
         plotter.push(PlotItem::Text(
             99,
             Text::new(
-                arr1(&[left, paper_size.1 - 21.0]),
+                arr1(&[left, paper_dimension.1 - 21.0]),
                 0.0,
                 company.get(0).unwrap(),
                 themer.get_effects(effects.clone(), &[Style::TextHeader]),
@@ -1096,7 +1100,7 @@ pub fn border(title_block: &Sexp, paper_size: (f64, f64), themer: &Themer) -> Op
         plotter.push(PlotItem::Text(
             99,
             Text::new(
-                arr1(&[left, paper_size.1 - 13.0]),
+                arr1(&[left, paper_dimension.1 - 13.0]),
                 0.0,
                 title.get(0).unwrap(),
                 themer.get_effects(effects.clone(), &[Style::TextHeader]),
@@ -1108,9 +1112,9 @@ pub fn border(title_block: &Sexp, paper_size: (f64, f64), themer: &Themer) -> Op
     plotter.push(PlotItem::Text(
         99,
         Text::new(
-            arr1(&[left, paper_size.1 - 8.0]),
+            arr1(&[left, paper_dimension.1 - 8.0]),
             0.0,
-            String::from("xxx"),
+            paper_size.to_string(),
             themer.get_effects(effects.clone(), &[Style::TextHeader]),
             false,
         ),
@@ -1120,7 +1124,7 @@ pub fn border(title_block: &Sexp, paper_size: (f64, f64), themer: &Themer) -> Op
         plotter.push(PlotItem::Text(
             99,
             Text::new(
-                arr1(&[paper_size.0 - 90.0, paper_size.1 - 8.0]),
+                arr1(&[paper_dimension.0 - 90.0, paper_dimension.1 - 8.0]),
                 0.0,
                 date.get(0).unwrap(),
                 themer.get_effects(effects.clone(), &[Style::TextHeader]),
@@ -1132,7 +1136,7 @@ pub fn border(title_block: &Sexp, paper_size: (f64, f64), themer: &Themer) -> Op
         plotter.push(PlotItem::Text(
             99,
             Text::new(
-                arr1(&[paper_size.0 - 20.0, paper_size.1 - 8.0]),
+                arr1(&[paper_dimension.0 - 20.0, paper_dimension.1 - 8.0]),
                 0.0,
                 format!(
                     "Rev: {}",

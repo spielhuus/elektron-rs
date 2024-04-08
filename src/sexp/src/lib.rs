@@ -102,6 +102,7 @@ pub mod el {
     pub const TITLE_BLOCK_COMMENT: &str = "comment";
     pub const TITLE_BLOCK_COMPANY: &str = "company";
     pub const TITLE_BLOCK_DATE: &str = "date";
+    pub const TITLE_BLOCK_PAPER: &str = "paper";
     pub const TITLE_BLOCK_REV: &str = "rev";
     pub const TITLE_BLOCK_TITLE: &str = "title";
     pub const WIRE: &str = "wire";

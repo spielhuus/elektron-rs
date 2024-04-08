@@ -188,8 +188,16 @@ impl<'a> Drawer<Rectangle, element::Group> for SvgPlotter<'a> {
             .line_to((rectangle.pts[[0, 0]], rectangle.pts[[1, 1]]))
             .line_to((rectangle.pts[[0, 0]], rectangle.pts[[0, 1]]))
             .close();
+
+        let fill = if matches!(rectangle.stroke.fillcolor, Color::None) {
+            "none".to_string()
+        } else {
+            rectangle.stroke.fillcolor.to_string()
+        };
+
         let path = Path::new()
-            .set("fill", "none")
+
+            .set("fill", fill)
             .set("stroke", rectangle.stroke.linecolor.to_string())
             .set("stroke-width", rectangle.stroke.linewidth)
             .set("d", data);

@@ -1,3 +1,4 @@
+//! Theming for KiCad schematics and PCBs
 use simplecss::{AttributeOperator, PseudoClass, StyleSheet};
 
 use crate::{error::Error, Color, Effects, Stroke, Style, Theme};
@@ -15,12 +16,14 @@ static WDARK: &str = include_str!("css/wdark.css");
 static WLIGHT: &str = include_str!("css/wlight.css");
 static KICAD2020: &str = include_str!("css/kicad_2020.css");
 
+/// The themer holding the stylesheet.
 pub struct Themer<'a> {
     theme: StyleSheet<'a>,
     css: &'a str,
 }
 
 impl<'a> Themer<'a> {
+    /// create a new Themer.
     pub fn new(theme: Theme) -> Self {
         match theme {
             Theme::BehaveDark => Self {
@@ -69,10 +72,13 @@ impl<'a> Themer<'a> {
             },
         }
     }
+
     pub fn css(&self) -> &'a str {
         self.css
     }
 
+    /// get the stroke from the theme
+    ///
     pub fn get_stroke(&self, mut stroke: Stroke, style: &[Style]) -> Stroke {
         if stroke.linetype.is_empty() || stroke.linetype == "default" {
             //TODO get linetype
@@ -116,11 +122,11 @@ impl<'a> Themer<'a> {
                 }
             }
         }
-        if stroke.linewidth == 0.0 {
+        //TODO if stroke.linewidth == 0.0 {
             if let Some(width) = self.select(style, "stroke-width") {
                 stroke.linewidth = width.parse::<f64>().unwrap_or(1.0);
             }
-        }
+        //}
         stroke
     }
 
@@ -196,66 +202,7 @@ impl<'a> Themer<'a> {
                 .collect::<Vec<String>>()
         );
         (1.0, 0.0, 0.0, 1.0)
-        /* TODO panic!(
-            "no color defined for: {:?}",
-            styles
-                .iter()
-                .map(|i| i.to_string())
-                .collect::<Vec<String>>()
-        ); */
     }
-    /* pub fn font_size(&self, defined: Option<f64>, styles: &Vec<Style>) -> f64 {
-        if let Some(defined) = defined {
-            if defined != 0.0 {
-                return defined;
-            }
-        }
-        for rule in &self.theme.rules {
-            for style in styles {
-                let style = style.to_string();
-                let root = Node(&style);
-                if rule.selector.matches(&root) {
-                    for decl in &rule.declarations {
-                        if decl.name == "font" {
-                            for token in decl.value.split(' ') {
-                                if token.ends_with("pt") {
-                                    return token
-                                        .strip_suffix("pt")
-                                        .unwrap()
-                                        .trim()
-                                        .parse::<f64>()
-                                        .unwrap();
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        panic!(
-            "no font size defined for: {:?}",
-            styles
-                .iter()
-                .map(|i| i.to_string())
-                .collect::<Vec<String>>()
-        );
-    } */
-    /* pub fn fill(&self, styles: &Vec<Style>) -> Option<(f64, f64, f64, f64)> {
-        for style in styles {
-            for rule in &self.theme.rules {
-                let style = style.to_string();
-                let root = Node(&style);
-                if rule.selector.matches(&root) {
-                    for decl in &rule.declarations {
-                        if decl.name == "fill" {
-                            return Some(self.parse_color(decl.value).unwrap());
-                        }
-                    }
-                }
-            }
-        }
-        None
-    } */
     fn parse_rgb(&self, color: &str) -> Result<Vec<u16>, Error> {
         let content = if color.starts_with("rgba") {
             color
