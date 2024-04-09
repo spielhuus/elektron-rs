@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use log::{debug, error, log_enabled, Level};
+use log::{debug, info, error, warn, log_enabled, Level};
 use ndarray::{arr1, arr2, Array1, Array2, ArrayView};
 
 pub use crate::{
@@ -438,7 +438,7 @@ impl<'a> PlotElement<SymbolElement<'a>> for SchemaPlot<'a> {
         };
 
         let lib_id: String = item.item.value("lib_id").unwrap();
-        debug!("lib_id: {}", lib_id);
+        //TODO info!("lib_id: {}", lib_id);
 
         if on_schema {
             // let mut items: Vec<PlotItem> = Vec::new();
@@ -504,127 +504,139 @@ impl<'a> PlotElement<SymbolElement<'a>> for SchemaPlot<'a> {
                 for _unit in lib.query(el::SYMBOL) {
                     let unit: usize = utils::unit_number(_unit.get(0).unwrap());
                     if unit == 0 || unit == item_unit {
-                        for graph in _unit.query(el::GRAPH_POLYLINE) {
-                            let mut classes = vec![Style::Outline, Style::Fill(graph.into())];
-                            let on_board: bool = item.item.value("on_board").unwrap();
-                            if !on_board {
-                                //Grey out item if it is not on pcb
-                                classes.push(Style::NotOnBoard);
-                            }
-                            let mut pts: Array2<f64> = Array2::zeros((0, 2));
-                            for pt in graph.query(el::PTS) {
-                                for xy in pt.query(el::XY) {
-                                    pts.push_row(ArrayView::from(&[
-                                        xy.get(0).unwrap(),
-                                        xy.get(1).unwrap(),
-                                    ]))
-                                    .unwrap();
-                                }
-                            }
-                            plot_items.push(PlotItem::Polyline(
-                                20,
-                                Polyline::new(
-                                    Shape::transform(item.item, &pts),
-                                    self.theme.get_stroke(Stroke::new(), classes.as_slice()),
-                                ),
-                            ));
-                        }
-                        for graph in _unit.query(el::GRAPH_RECTANGLE) {
-                            let start: Vec<f64> =
-                                graph.query(el::GRAPH_START).next().unwrap().values();
-                            let end: Vec<f64> = graph.query(el::GRAPH_END).next().unwrap().values();
-                            let pts: Array2<f64> = arr2(&[[start[0], start[1]], [end[0], end[1]]]);
-                            let filltype: String =
-                                graph.query("fill").next().unwrap().value("type").unwrap();
-                            debug!("Rectangle filltype: {}", filltype);
-                            let mut classes =
-                                vec![Style::Outline, Style::Fill(FillType::from(&filltype))];
-                            let on_board: bool = item.item.value("on_board").unwrap();
-                            if !on_board {
-                                classes.push(Style::NotOnBoard);
-                            }
-                            debug!("Rectangle stroke: {:?}", self.theme.get_stroke(graph.into(), classes.as_slice()));
-                            plot_items.push(PlotItem::Rectangle(
-                                1,
-                                Rectangle::new(
-                                    Shape::transform(item.item, &pts),
-                                    self.theme.get_stroke(graph.into(), classes.as_slice()),
-                                ),
-                            ));
-                        }
-                        for graph in _unit.query(el::GRAPH_CIRCLE) {
-                            let filltype: String =
-                                graph.query("fill").next().unwrap().value("type").unwrap();
-                            let mut classes =
-                                vec![Style::Outline, Style::Fill(FillType::from(&filltype))];
-                            let on_board: bool = item.item.value("on_board").unwrap();
-                            if !on_board {
-                                classes.push(Style::NotOnBoard);
-                            }
-                            let center: Array1<f64> = graph.value("center").unwrap();
-                            let radius: f64 = graph.value("radius").unwrap();
-                            plot_items.push(PlotItem::Circle(
-                                1,
-                                Circle::new(
-                                    Shape::transform(item.item, &center),
-                                    radius,
-                                    self.theme
-                                        .get_stroke(Stroke::from(graph), &[Style::Outline]),
-                                ),
-                            ));
-                        }
+                        for graph in _unit.iter() {
+                            match graph {
+                                sexp::SexpAtom::Node(graph) => {
+                                    if graph.name == el::GRAPH_POLYLINE {
+                                        let mut classes = vec![Style::Outline, Style::Fill(graph.into())];
+                                        let on_board: bool = item.item.value("on_board").unwrap();
+                                        if !on_board {
+                                            //Grey out item if it is not on pcb
+                                            classes.push(Style::NotOnBoard);
+                                        }
+                                        let mut pts: Array2<f64> = Array2::zeros((0, 2));
+                                        for pt in graph.query(el::PTS) {
+                                            for xy in pt.query(el::XY) {
+                                                pts.push_row(ArrayView::from(&[
+                                                    xy.get(0).unwrap(),
+                                                    xy.get(1).unwrap(),
+                                                ]))
+                                                .unwrap();
+                                            }
+                                        }
+                                        plot_items.push(PlotItem::Polyline(
+                                            20,
+                                            Polyline::new(
+                                                Shape::transform(item.item, &pts),
+                                                self.theme.get_stroke(Stroke::new(), classes.as_slice()),
+                                            ),
+                                        ));
+                                    } else if graph.name == el::GRAPH_RECTANGLE {
+                                        let start: Vec<f64> =
+                                            graph.query(el::GRAPH_START).next().unwrap().values();
+                                        let end: Vec<f64> = graph.query(el::GRAPH_END).next().unwrap().values();
+                                        let pts: Array2<f64> = arr2(&[[start[0], start[1]], [end[0], end[1]]]);
+                                        let filltype: String =
+                                            graph.query("fill").next().unwrap().value("type").unwrap();
+                                        let mut classes =
+                                            vec![Style::Outline, Style::Fill(FillType::from(&filltype))];
+                                        let on_board: bool = item.item.value("on_board").unwrap();
+                                        if !on_board {
+                                            classes.push(Style::NotOnBoard);
+                                        }
+                                        plot_items.push(PlotItem::Rectangle(
+                                            1,
+                                            Rectangle::new(
+                                                Shape::transform(item.item, &pts),
+                                                self.theme.get_stroke(graph.into(), classes.as_slice()),
+                                            ),
+                                        ));
 
-                        for graph in _unit.query(el::GRAPH_ARC) {
-                            let mut arc_start: Array1<f64> = graph.value(el::GRAPH_START).unwrap();
-                            //TODO let arc_mid: Array1<f64> = graph.value("mid").unwrap();
-                            let mut arc_end: Array1<f64> = graph.value(el::GRAPH_END).unwrap();
-                            let mirror: Option<String> = graph.value(el::MIRROR);
-                            let mut start_angle =
-                                normalize_angle(graph.start_angle() + utils::angle(item.item).unwrap());
-                            let mut end_angle =
-                                normalize_angle(graph.end_angle() + utils::angle(item.item).unwrap());
-                            if let Some(mirror) = mirror {
-                                //TODO: is
-                                //this
-                                //needed?
-                                if mirror == "x" {
-                                    start_angle = 180.0 - end_angle;
-                                    end_angle = 180.0 - start_angle;
-                                } else {
-                                    start_angle = -start_angle;
-                                    end_angle = -end_angle;
-                                }
-                                std::mem::swap(&mut arc_start, &mut arc_end);
-                            }
+                                    } else if graph.name == el::GRAPH_CIRCLE {
+                                        let filltype: String =
+                                            graph.query("fill").next().unwrap().value("type").unwrap();
+                                        let mut classes =
+                                            vec![Style::Outline, Style::Fill(FillType::from(&filltype))];
+                                        let on_board: bool = item.item.value("on_board").unwrap();
+                                        if !on_board {
+                                            classes.push(Style::NotOnBoard);
+                                        }
+                                        let center: Array1<f64> = graph.value("center").unwrap();
+                                        let radius: f64 = graph.value("radius").unwrap();
+                                        plot_items.push(PlotItem::Circle(
+                                            1,
+                                            Circle::new(
+                                                Shape::transform(item.item, &center),
+                                                radius,
+                                                self.theme
+                                                    .get_stroke(Stroke::from(graph), &[Style::Outline]),
+                                            ),
+                                        ));
 
-                            let classes = vec![Style::Outline, Style::Fill(item.item.into())];
-                            /* TODO if item.on_board == false {
-                                classes.push(Style::NotOnBoard);
-                            } */
-                            plot_items.push(PlotItem::Arc(
-                                100,
-                                Arc::new(
-                                    Shape::transform(item.item, &graph.center()),
-                                    Shape::transform(item.item, &arc_start),
-                                    Shape::transform(item.item, &arc_end),
-                                    graph.radius(),
-                                    start_angle,
-                                    end_angle,
-                                    self.theme.get_stroke(graph.into(), classes.as_slice()),
-                                ),
-                            ));
-                        }
-                        /*        Graph::Text(text) => {
-                                    items.push(text!(
-                                        Shape::transform(item, &text.at),
-                                        text.angle,
-                                        text.text.clone(),
-                                        text.effects,
-                                        vec![Style::Text]
-                                    ));
-                                }
+                                    } else if graph.name == el::GRAPH_ARC {
+                                        let mut arc_start: Array1<f64> = graph.value(el::GRAPH_START).unwrap();
+                                        //TODO let arc_mid: Array1<f64> = graph.value("mid").unwrap();
+                                        let mut arc_end: Array1<f64> = graph.value(el::GRAPH_END).unwrap();
+                                        let mirror: Option<String> = graph.value(el::MIRROR);
+                                        let mut start_angle =
+                                            normalize_angle(graph.start_angle() + utils::angle(item.item).unwrap());
+                                        let mut end_angle =
+                                            normalize_angle(graph.end_angle() + utils::angle(item.item).unwrap());
+                                        if let Some(mirror) = mirror {
+                                            //TODO: is
+                                            //this
+                                            //needed?
+                                            if mirror == "x" {
+                                                start_angle = 180.0 - end_angle;
+                                                end_angle = 180.0 - start_angle;
+                                            } else {
+                                                start_angle = -start_angle;
+                                                end_angle = -end_angle;
+                                            }
+                                            std::mem::swap(&mut arc_start, &mut arc_end);
+                                        }
+
+                                        let classes = vec![Style::Outline, Style::Fill(item.item.into())];
+                                        /* TODO if item.on_board == false {
+                                            classes.push(Style::NotOnBoard);
+                                        } */
+                                        plot_items.push(PlotItem::Arc(
+                                            100,
+                                            Arc::new(
+                                                Shape::transform(item.item, &graph.center()),
+                                                Shape::transform(item.item, &arc_start),
+                                                Shape::transform(item.item, &arc_end),
+                                                graph.radius(),
+                                                start_angle,
+                                                end_angle,
+                                                self.theme.get_stroke(graph.into(), classes.as_slice()),
+                                            ),
+                                        ));
+                                    } else if graph.name == el::GRAPH_TEXT {
+
+                                        let at: Array1<f64> = utils::at(graph).unwrap();
+                                        let angle = utils::angle(graph).unwrap();
+                                        let effects = Effects::from(graph);
+                                        let text: Vec<String> = graph.values();
+                                        plot_items.push(PlotItem::Text(
+                                            20,
+                                            Text::new(
+                                                Shape::transform(item.item, &at),
+                                                angle,
+                                                text.first().unwrap().to_string(),
+                                                self.theme.get_effects(effects, &[Style::Property]),
+                                                false,
+                                            ),
+                                        ));
+
+                                    } else if graph.name != el::PIN {
+                                        warn!("Unknown Graph: {:?}", graph);
+                                    }
+                                },
+                                sexp::SexpAtom::Value(_) => {},
+                                sexp::SexpAtom::Text(_) => {},
                             }
-                        } */
+                        }
 
                         for pin in _unit.query(el::PIN) {
 

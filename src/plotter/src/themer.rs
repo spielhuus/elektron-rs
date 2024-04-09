@@ -176,10 +176,6 @@ impl<'a> Themer<'a> {
         None
     }
 
-
-
-
-
     pub fn stroke(&self, styles: &Vec<Style>) -> (f64, f64, f64, f64) {
         for style in styles {
             for rule in &self.theme.rules {
@@ -203,6 +199,7 @@ impl<'a> Themer<'a> {
         );
         (1.0, 0.0, 0.0, 1.0)
     }
+
     fn parse_rgb(&self, color: &str) -> Result<Vec<u16>, Error> {
         let content = if color.starts_with("rgba") {
             color
@@ -338,7 +335,7 @@ mod tests {
     fn stroke_polygon() {
         let themer = Themer::new(Theme::Kicad2020);
         let stroke = themer.get_stroke(Stroke::new(), &[Style::Outline,  Style::Fill(FillType::Background)]);
-        assert_eq!(0.35, stroke.linewidth);
+        assert_eq!(0.3, stroke.linewidth);
         assert_eq!(String::from("default"), stroke.linetype);
         assert_eq!(Color::Rgb(132, 0, 0), stroke.linecolor);
         assert_eq!(Color::Rgb(255, 255, 194), stroke.fillcolor);

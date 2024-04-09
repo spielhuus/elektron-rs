@@ -76,6 +76,7 @@ pub mod el {
     pub const GRAPH_RECTANGLE: &str = "rectangle";
     pub const GRAPH_START: &str = "start";
     pub const GRAPH_END: &str = "end";
+    pub const GRAPH_TEXT: &str = "text";
     pub const JUNCTION: &str = "junction";
     pub const JUSTIFY: &str = "justify";
     pub const JUSTIFY_LEFT: &str = "left";

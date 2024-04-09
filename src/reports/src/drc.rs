@@ -21,7 +21,7 @@ use std::{
 
 use crate::Error;
 
-use log::{debug, warn};
+use log::debug;
 
 lazy_static! {
     pub static ref DRC_TITLE_TOKEN: regex::Regex = Regex::new(r"^\[(.*)\]: (.*)$").unwrap();
@@ -127,8 +127,9 @@ board.drc(filename)"#,
                         cap.get(3).map_or("NONE", |m| m.as_str()).to_string(),
                     )
                 }
-            } else if !line.starts_with("**") && !line.trim().is_empty() {
-                warn!("LINE: {}", line);
+            //this is for testing if everything is parsed
+            //} else if !line.starts_with("**") && !line.trim().is_empty() {
+            //    warn!("LINE: {}", line);
             }
         } else {
             return Err(Error::IoError(

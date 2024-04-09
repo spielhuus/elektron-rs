@@ -5,7 +5,7 @@
 }}
 .schema-outline {{
   stroke: {schematic[component_outline]};
-  stroke-width: 0.35;
+  stroke-width: 0.3;
 }}
 .schema-junction {{
   stroke: {schematic[component_outline]};
