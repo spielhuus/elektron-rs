@@ -18,9 +18,9 @@ extern crate simulation;
 extern crate tempfile;
 extern crate thiserror;
 
-use log::info;
+use log::{debug, info};
 
-use pyo3::prelude::*;
+use pyo3::{exceptions::{PyFileNotFoundError, PyIOError}, prelude::*};
 
 use std::{
     fs::File,
@@ -208,7 +208,7 @@ pub fn make_bom(
 /// * `input`    - A Schema filename.
 /// * `output`   - The filename of the target image.
 #[pyfunction]
-pub fn plot(input: &str, output: Option<&str>) -> Result<(), Error> {
+pub fn plot(input: &str, output: Option<&str>) -> Result<(), PyErr> {
     env_logger::init();
     if input.ends_with(constant::EXT_KICAD_SCH) {
         info!("Write schema: input:{}, output:{:?}", input, output);
@@ -219,16 +219,23 @@ pub fn plot(input: &str, output: Option<&str>) -> Result<(), Error> {
                 if ext == constant::EXT_SVG {
 
                     let mut plotter = SchemaPlot::new()
-                        .border(true).theme(Theme::Kicad2020).scale(1.0);
+                        .border(true).theme(Theme::Kicad2020).scale(1.0) //TODO set paramenters
+                        .name(input);
 
                     plotter.open(input)?;
                     for page in plotter.iter() {
-                        let mut file = File::create(output).unwrap();
+                        let mut file = if *page.0 == 1 {
+                            debug!("write first page to {}", output);
+                            File::create(output)?
+                        } else {
+                            debug!("write page {} to {}", page.1, format!("{}.svg", page.1));
+                            File::create(format!("{}.svg", page.1))?
+                        };
                         let mut svg_plotter = SvgPlotter::new(&mut file);
-                        plotter.write(page.0, &mut svg_plotter).unwrap();
+                        plotter.write(page.0, &mut svg_plotter)?;
                     }
 
-                /* } else if ext == constant::EXT_PNG {
+                /*TODO  } else if ext == constant::EXT_PNG {
                     let plotter = CairoPlotter::new(
                         input,
                         ImageType::Png,
@@ -249,14 +256,14 @@ pub fn plot(input: &str, output: Option<&str>) -> Result<(), Error> {
                         .plot(&tree, &mut buffer, true, 1.0, None, false)
                         .unwrap(); */
                 } else {
-                    return Err(Error::FileIo(format!(
+                    return Err(PyIOError::new_err(format!(
                         "{} Image type not supported for extension: '{}'",
                         "Error:".red(),
                         ext.bold()
                     )));
                 }
             } else {
-                return Err(Error::FileIo(format!(
+                return Err(PyFileNotFoundError::new_err(format!(
                     "{} Input file does not exist: {}",
                     "Error:".red(),
                     input.bold()
@@ -278,7 +285,7 @@ pub fn plot(input: &str, output: Option<&str>) -> Result<(), Error> {
             println!("no output file");
         }
     } else {
-        return Err(Error::FileIo(format!(
+        return Err(PyFileNotFoundError::new_err(format!(
             "{} Input file does not exist: {}",
             "Error:".red(),
             input
@@ -463,6 +470,8 @@ pub fn make_erc(input: &str, output: Option<String>) -> Result<(), Error> {
 ///                in the partlist, when provided.
 #[pyfunction]
 pub fn make_drc(input: &str, output: Option<String>) -> Result<(), Error> {
+    env_logger::init();
+    info!("Write DRC: input:{}, output:{:?}", input, output);
     let results = match drc::drc(input.to_string()) {
         Ok(result) => result,
         Err(error) => {
@@ -476,13 +485,20 @@ pub fn make_drc(input: &str, output: Option<String>) -> Result<(), Error> {
     };
     if let Some(output) = output {
         let mut data = json::JsonValue::new_array();
-        for item in &results {
+        for item in &results.errors {
+            let mut pos = json::array![];
+            for item in &item.items {
+                pos.push(json::object! {
+                    description: item.description.clone(),
+                    pos: format!("{}x{}", item.pos.0, item.pos.1),
+                    uuid: item.uuid.clone(),
+                }).unwrap();
+            }
             data.push(json::object! {
-                id: item.id.clone(),
+                type: item.drc_type.clone(),
                 severity: item.severity.clone(),
-                title: item.title.clone(),
                 description: item.description.clone(),
-                position: format!("xy: {}:{} ({})", item.position.0, item.position.1, item.position.2),
+                items: pos,
             })
             .unwrap();
         }
@@ -492,23 +508,21 @@ pub fn make_drc(input: &str, output: Option<String>) -> Result<(), Error> {
         out.flush()?;
 
     } else {
+
+        println!("DRC: {:?}", results);
         let mut table = Table::new();
         table
             .load_preset(UTF8_FULL)
             .apply_modifier(UTF8_ROUND_CORNERS)
             .set_content_arrangement(ContentArrangement::Dynamic)
-            .set_header(vec!["ID", "Severity", "Title", "Description", "Position"]);
+            .set_header(vec!["Type", "Severity", "Description", "Position"]);
 
-        results.iter().for_each(|item| {
+        results.errors.iter().for_each(|item| {
             table.add_row(vec![
-                Cell::new(item.id.clone()),
+                Cell::new(item.error_type.to_string()),
                 Cell::new(item.severity.clone()),
-                Cell::new(item.title.clone()),
                 Cell::new(item.description.to_string()),
-                Cell::new(format!(
-                    "xy: {}:{} ({})",
-                    item.position.0, item.position.1, item.position.2
-                )),
+                Cell::new(item.items.iter().map(|item| item.to_string()).collect::<Vec<String>>().join("\n")),
             ]);
         });
 

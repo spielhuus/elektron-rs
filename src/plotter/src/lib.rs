@@ -2,8 +2,6 @@ use std::{collections::HashMap, fmt, fs::File, io::Read, sync::Mutex};
 
 use fontdue::{layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle}, Font};
 
-use log::debug; 
-
 use ndarray::{arr1, arr2, Array1, Array2};
 
 //pub mod cairo_plotter;
@@ -23,6 +21,7 @@ use sexp::{el, PaperSize, Sexp, SexpValueQuery, SexpValuesQuery};
 use lazy_static::lazy_static;
 
 const BORDER_RASTER: i32 = 60;
+const BORDER_HEADER_3: f64 = 7.5;
 
 // -----------------------------------------------------------------------------------------------------------
 // ---                                             sexp utils                                              ---
@@ -133,6 +132,29 @@ impl From<Vec<u16>> for Color {
         }
     }
 }
+
+impl From<&str> for Color {
+    fn from(color: &str) -> Color {
+        let content = if color.starts_with("rgba") {
+            color
+                .strip_prefix("rgba(")
+                .unwrap()
+                .strip_suffix(')')
+                .unwrap()
+        } else {
+            color
+                .strip_prefix("rgb(")
+                .unwrap()
+                .strip_suffix(')')
+                .unwrap()
+        };
+        content
+            .split(',')
+            .map(|c| c.trim().parse::<u16>().unwrap())
+            .collect::<Vec<u16>>().into()
+    }
+}
+
 
 ///implement the rust format trait for Color
 impl fmt::Display for Color {
@@ -257,6 +279,7 @@ pub trait PlotterImpl<'a> {
         &mut self,
         plot_items: &[PlotItem],
         size: Array2<f64>,
+        name: Option<String>,
     ) -> Result<(), Error>;
 }
 
@@ -971,6 +994,7 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
         'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
         's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
     ];
+
     for j in &[(0.0_f64, 5.0_f64), (paper_dimension.0 - 5.0, paper_dimension.0)] {
         for i in 0..(paper_dimension.1 as i32 / BORDER_RASTER) {
             let pts: Array2<f64> = arr2(&[
@@ -1112,7 +1136,7 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
     plotter.push(PlotItem::Text(
         99,
         Text::new(
-            arr1(&[left, paper_dimension.1 - 8.0]),
+            arr1(&[left, paper_dimension.1 - BORDER_HEADER_3]),
             0.0,
             paper_size.to_string(),
             themer.get_effects(effects.clone(), &[Style::TextHeader]),
@@ -1124,7 +1148,7 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
         plotter.push(PlotItem::Text(
             99,
             Text::new(
-                arr1(&[paper_dimension.0 - 90.0, paper_dimension.1 - 8.0]),
+                arr1(&[paper_dimension.0 - 90.0, paper_dimension.1 - BORDER_HEADER_3]),
                 0.0,
                 date.get(0).unwrap(),
                 themer.get_effects(effects.clone(), &[Style::TextHeader]),
@@ -1136,7 +1160,7 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
         plotter.push(PlotItem::Text(
             99,
             Text::new(
-                arr1(&[paper_dimension.0 - 20.0, paper_dimension.1 - 8.0]),
+                arr1(&[paper_dimension.0 - 20.0, paper_dimension.1 - BORDER_HEADER_3]),
                 0.0,
                 format!(
                     "Rev: {}",

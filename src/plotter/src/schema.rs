@@ -1,13 +1,15 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
-use log::{debug, info, error, warn, log_enabled, Level};
+use log::{trace, debug, error, warn, log_enabled, Level};
 use ndarray::{arr1, arr2, Array1, Array2, ArrayView};
+
+use lazy_static::lazy_static;
 
 pub use crate::{
     border, error::Error, themer::Themer, Arc, Circle, Effects, FillType, Line, PlotItem, Polyline,
     Rectangle, Stroke, Style, Text,
 };
-use crate::{Outline, PlotterImpl, Theme};
+use crate::{Color, Outline, PlotterImpl, Theme};
 
 use simulation::{Netlist, Point};
 
@@ -20,6 +22,10 @@ use sexp::{
 
 const PIN_NUMER_OFFSET: f64 = 0.6;
 
+
+
+
+
 // -----------------------------------------------------------------------------------------------------------
 // ---                             collect the plot model from the sexp tree                               ---
 // -----------------------------------------------------------------------------------------------------------
@@ -31,6 +37,8 @@ pub struct SchemaPlot<'a> {
     border: bool,
     netlist: bool,
     scale: f64,
+    name: Option<String>,
+    path: String,
     tree: Option<SexpTree>,
 }
 
@@ -45,31 +53,37 @@ impl Default for SchemaPlot<'_> {
 
 /// collect the plot model from the sexp tree
 impl<'a> SchemaPlot<'a> {
+    /// select the pages to plot.
     pub fn pages(mut self, pages: &'a [usize]) -> Self {
         self.pages = Some(pages);
         self
     }
-
+    /// Select the color theme.
     pub fn theme(mut self, theme: Theme) -> Self {
         self.theme = Themer::new(theme);
         self
     }
-
+    /// Draw a border around the plot, otherwise crop the plot.
     pub fn border(mut self, border: bool) -> Self {
         self.border = border;
         self
     }
-
+    /// Show the netlist names.
     pub fn netlist(mut self, netlist: bool) -> Self {
         self.netlist = netlist;
         self
     }
-
+    /// Scale the plot
     pub fn scale(mut self, scale: f64) -> Self {
         self.scale = scale;
         self
     }
-
+    /// The name of the plot.
+    pub fn name(mut self, name: &str) -> Self {
+        self.name = Some(name.to_string());
+        self
+    }
+    /// create a new SchemaPlot with defalt values.
     pub fn new() -> Self {
         Self {
             schema_pages: HashMap::new(),
@@ -78,6 +92,8 @@ impl<'a> SchemaPlot<'a> {
             border: true,
             netlist: false,
             scale: 1.0,
+            name: None,
+            path: String::new(),
             tree: None,
         }
     }
@@ -94,6 +110,7 @@ impl<'a> SchemaPlot<'a> {
         } else {
             self.schema_pages.insert(1, String::from("/"));
         }
+
         for page in tree.root().unwrap().query("sheet") {
             let sheetfile: Sexp = page.property("Sheetfile").unwrap();
             let path: String = sheetfile.get(1).unwrap();
@@ -103,10 +120,14 @@ impl<'a> SchemaPlot<'a> {
             let number: usize = sheetpath.value("page").unwrap();
             self.schema_pages.insert(number, path);
         }
+        trace!("schema_pages: {:#?}", self.schema_pages);
         self.tree = Some(tree);
     }
 
     pub fn open(&mut self, path: &str) -> Result<(), Error> {
+        if let Some(dir) = Path::new(&path).parent() {
+            self.path = dir.to_str().unwrap().to_string();       
+        }
         let Ok(document) = SexpParser::load(path) else {
             return Err(Error::Plotter(format!("could not load schema: {}", path)));
         };
@@ -120,6 +141,7 @@ impl<'a> SchemaPlot<'a> {
     }
 
     pub fn write(&self, page: &usize, plotter: &mut dyn PlotterImpl) -> Result<(), Error> {
+        trace!("write page: {}", page);
         let tree = if page == &1 {
             if let Some(tree) = &self.tree {
                 tree.clone()
@@ -127,8 +149,9 @@ impl<'a> SchemaPlot<'a> {
                 return Err(Error::Plotter("no root schema loaded".into()));
             }
         } else {
-            let document = SexpParser::load("").unwrap();
-            SexpTree::from(document.iter()).unwrap()
+            let path = Path::new(&self.path).join(self.schema_pages.get(page).unwrap());
+            let document = SexpParser::load(path.to_str().unwrap())?;
+            SexpTree::from(document.iter())?
         };
 
         //load the netlist
@@ -174,7 +197,7 @@ impl<'a> SchemaPlot<'a> {
             ])
         };
 
-        plotter.plot(plot_items.as_slice(), size)?;
+        plotter.plot(plot_items.as_slice(), size, self.name.clone())?;
 
         Ok(())
     }
@@ -185,23 +208,39 @@ impl<'a> SchemaPlot<'a> {
         netlist: Option<Netlist>,
     ) -> Vec<PlotItem> {
 
+        //plot the border 
         let mut plot_items: Vec<PlotItem> = Vec::new();
+        let title_block = if let Some(title_block) = document.root().unwrap().query("title_block").next() {
+            Some(title_block)
+        } else if let Some(tree) = &self.tree {
+            tree.root().unwrap().query("title_block").next()
+        } else {
+            None
+        };
+        if self.border {
+            if let Some(title_block) = title_block {
+                if let Some(paper_size) = <Sexp as SexpValueQuery<PaperSize>>::value(document.root().unwrap(), "paper") {
+                    plot_items.append(&mut border(title_block, paper_size, &self.theme).unwrap());
+                }
+            }
+        }
+
         for item in document.root().unwrap().nodes() {
             match item.name.as_str() {
+                el::BUS => self.plot(BusElement{ item }, &mut plot_items),
+                el::BUS_ENTRY => self.plot(BusEntryElement{ item }, &mut plot_items),
+                el::CIRCLE => self.plot(CircleElement{ item }, &mut plot_items),
                 el::LABEL => self.plot(LabelElement{ item, global: false }, &mut plot_items),
                 el::GLOBAL_LABEL => self.plot(LabelElement{ item, global: true }, &mut plot_items),
                 el::JUNCTION => self.plot(JunctionElement{ item }, &mut plot_items),
                 el::NO_CONNECT => self.plot(NoConnectElement{ item }, &mut plot_items),
+                el::POLYLINE => self.plot(PolylineElement { item }, &mut plot_items),
+                el::RECTANGLE => self.plot(RectangleElement { item }, &mut plot_items),
+                el::SHEET => self.plot(SheetElement { item }, &mut plot_items),
+                el::SHEET_PIN => self.plot(SheetPinElement { item }, &mut plot_items),
                 el::SYMBOL => self.plot(SymbolElement { item, document, netlist: &netlist }, &mut plot_items),
                 el::WIRE => self.plot(WireElement{ item }, &mut plot_items),
                 el::TEXT => self.plot(TextElement{ item }, &mut plot_items),
-                el::TITLE_BLOCK => {
-                    if self.border {
-                        if let Some(paper_size) = <Sexp as SexpValueQuery<PaperSize>>::value(document.root().unwrap(), "paper") {
-                            plot_items.append(&mut border(item, paper_size, &self.theme).unwrap());
-                        }
-                    }
-                },
                 _ => { 
                     if log_enabled!(Level::Error) {
                         let items = [
@@ -212,6 +251,7 @@ impl<'a> SchemaPlot<'a> {
                             "paper",
                             "lib_symbols",
                             "sheet_instances",
+                            el::TITLE_BLOCK,
                         ];
                         if !items.contains(&item.name.as_str()) {
                             error!("unparsed node: {}", item.name);
@@ -422,6 +462,282 @@ impl<'a> PlotElement<NoConnectElement<'a>> for SchemaPlot<'a> {
     }
 }
 
+struct BusElement<'a> {
+    item: &'a Sexp,
+}
+
+impl<'a> PlotElement<BusElement<'a>> for SchemaPlot<'a> {
+    fn plot(&self, item: BusElement, plot_items: &mut Vec<PlotItem>) {
+
+        let mut pts: Array2<f64> = Array2::zeros((0, 2));
+        for pt in item.item.query(el::PTS) {
+            for xy in pt.query(el::XY) {
+                pts.push_row(ArrayView::from(&[
+                    xy.get(0).unwrap(),
+                    xy.get(1).unwrap(),
+                ]))
+                .unwrap();
+            }
+        }
+        plot_items.push(PlotItem::Polyline(
+            20,
+            Polyline::new(
+                pts,
+                self.theme.get_stroke(Stroke::new(), &[Style::Bus]),
+            ),
+        ));
+    }
+}
+
+struct BusEntryElement<'a> {
+    item: &'a Sexp,
+}
+
+impl<'a> PlotElement<BusEntryElement<'a>> for SchemaPlot<'a> {
+    fn plot(&self, item: BusEntryElement, plot_items: &mut Vec<PlotItem>) {
+        let stroke = Stroke::from(item.item);
+        let at = utils::at(item.item).unwrap();
+        let size: Array1<f64> = item.item.value("size").unwrap();
+        plot_items.push(PlotItem::Polyline(
+            20,
+            Polyline::new(
+                arr2(&[[at[0], at[1]], [at[0] + size[0], at[1] + size[1]]]),
+                self.theme.get_stroke(stroke, &[Style::BusEntry]),
+            ),
+        ));
+    }
+}
+
+struct PolylineElement<'a> {
+    item: &'a Sexp,
+}
+
+impl<'a> PlotElement<PolylineElement<'a>> for SchemaPlot<'a> {
+    fn plot(&self, item: PolylineElement, plot_items: &mut Vec<PlotItem>) {
+
+        let stroke = Stroke::from(item.item);
+        let mut pts: Array2<f64> = Array2::zeros((0, 2));
+        for pt in item.item.query(el::PTS) {
+            for xy in pt.query(el::XY) {
+                pts.push_row(ArrayView::from(&[
+                    xy.get(0).unwrap(),
+                    xy.get(1).unwrap(),
+                ]))
+                .unwrap();
+            }
+        }
+        plot_items.push(PlotItem::Polyline(
+            20,
+            Polyline::new(
+                pts,
+                self.theme.get_stroke(stroke, &[Style::Bus]),
+            ),
+        ));
+    }
+}
+
+struct RectangleElement<'a> {
+    item: &'a Sexp,
+}
+
+impl<'a> PlotElement<RectangleElement<'a>> for SchemaPlot<'a> {
+    fn plot(&self, item: RectangleElement, plot_items: &mut Vec<PlotItem>) {
+
+        let start: Vec<f64> =
+            item.item.query(el::GRAPH_START).next().unwrap().values();
+        let end: Vec<f64> = item.item.query(el::GRAPH_END).next().unwrap().values();
+        let pts: Array2<f64> = arr2(&[[start[0], start[1]], [end[0], end[1]]]);
+        let filltype: String = item.item.query("fill").next().unwrap().value("type").unwrap();
+        let mut stroke = self.theme.get_stroke(item.item.into(), &[Style::Polyline, Style::from(filltype)]);
+        if let Some(fill) = item.item.query("fill").next() {
+            if let Some(color) = fill.query("color").next() {
+                let fillcolor = <Sexp as SexpValuesQuery<Vec<u16>>>::values(color);
+                stroke.fillcolor = Color::from(fillcolor);
+            }
+        }
+        plot_items.push(PlotItem::Rectangle(
+            1,
+            Rectangle::new(
+                pts,
+                stroke,
+            ),
+        ));
+    }
+}
+
+struct SheetElement<'a> {
+    item: &'a Sexp,
+}
+
+impl<'a> PlotElement<SheetElement<'a>> for SchemaPlot<'a> {
+    fn plot(&self, item: SheetElement, plot_items: &mut Vec<PlotItem>) {
+
+        let at = utils::at(item.item).unwrap();
+        let size: Array1<f64> = item.item.value("size").unwrap();
+
+        let pts: Array2<f64> = arr2(&[[at[0], at[1]], [at[0] + size[0], at[1] + size[1]]]);
+        //TODO let filltype: String = item.item.query("fill").next().unwrap().value("type").unwrap();
+        let mut stroke = self.theme.get_stroke(item.item.into(), &[Style::Polyline]);
+        //if let Some(fill) = item.item.query("fill").next() {
+        //    if let Some(color) = fill.query("color").next() {
+        //        //TODO color has floating digit
+        //        let fillcolor = <Sexp as SexpValuesQuery<Vec<u16>>>::values(color);
+        //        stroke.fillcolor = Color::from(fillcolor);
+        //    }
+        //}
+        plot_items.push(PlotItem::Rectangle(
+            1,
+            Rectangle::new(
+                pts,
+                stroke,
+            ),
+        ));
+
+        let sheetname: Sexp = item.item.property("Sheetname").unwrap();
+        let angle: f64 = utils::angle(&sheetname).unwrap();
+        plot_items.push(PlotItem::Text(
+            1,
+            Text::new(
+                &at + arr1(&[0.0, -1.0]),
+                angle,
+                sheetname.get(1).unwrap(),
+                self.theme
+                    .get_effects(Effects::from(&sheetname), &[Style::TextSheet]),
+                false
+        )));
+
+        let sheetfile: Sexp = item.item.property("Sheetfile").unwrap();
+        let angle: f64 = utils::angle(&sheetfile).unwrap();
+        plot_items.push(PlotItem::Text(
+            1,
+            Text::new(
+                at + arr1(&[0.0, size[1] + 1.0]),
+                angle,
+                format!("File: {}", <Sexp as SexpValueQuery<String>>::get(&sheetfile, 1).unwrap()),
+                self.theme
+                    .get_effects(Effects::from(&sheetfile), &[Style::TextSheet]),
+                false
+        )));
+
+
+        //plot the pins
+        for pin in item.item.query("pin") {
+            let effects = Effects::from(pin);
+            let at = utils::at(pin).unwrap();
+            let angle: f64 = utils::angle(pin).unwrap();
+            let label: String = pin.get(0).unwrap();
+            let shape: String = pin.get(1).unwrap();
+
+            let theta = (-angle - 180.0).to_radians();
+            let rot = arr2(&[[theta.cos(), -theta.sin()], [theta.sin(), theta.cos()]]);
+            let verts: Array2<f64> = if shape == "input" {
+                SHEET_PIN_IN.dot(&rot)
+            } else if shape == "output" {
+                SHEET_PIN_OUT.dot(&rot)
+            } else if shape == "biderctional" {
+                SHEET_PIN_BIDI.dot(&rot)
+            } else if shape == "tri_state" {
+                SHEET_PIN_3STATE.dot(&rot)
+            } else { SHEET_PIN_UNSPC.dot(&rot) };
+
+            plot_items.push(PlotItem::Polyline(
+                20,
+                Polyline::new(
+                    verts + at.clone(),
+                    self.theme.get_stroke(Stroke::new(), &[Style::Bus]),
+                ),
+            ));
+
+            plot_items.push(PlotItem::Text(
+                10,
+                Text::new(
+                    at,
+                    angle,
+                    label.to_string(),
+                    self.theme.get_effects(effects.clone(), &[Style::Property]),
+                    false,
+                ),
+            ));
+        }
+    }
+}
+
+struct CircleElement<'a> {
+    item: &'a Sexp,
+}
+
+impl<'a> PlotElement<CircleElement<'a>> for SchemaPlot<'a> {
+    fn plot(&self, item: CircleElement, plot_items: &mut Vec<PlotItem>) {
+        let stroke = Stroke::from(item.item);
+        let center: Array1<f64> = item.item.value("center").unwrap();
+        let radius: f64 = item.item.value("radius").unwrap();
+        plot_items.push(PlotItem::Circle(
+            1,
+            Circle::new(
+                center,
+                radius,
+                self.theme
+                    .get_stroke(stroke, &[Style::Outline]),
+            ),
+        ));
+    }
+}
+
+lazy_static! {
+    static ref SHEET_PIN_IN: Array2<f64> = arr2(&[[0.0, 0.0], [-1.0, -1.0], [-2.0, -1.0], [-2.0, 1.0], [-1.0, 1.0], [0.0, 0.0]]);
+    static ref SHEET_PIN_OUT: Array2<f64> = arr2(&[[-2.0, 0.0], [-1.0, 1.0], [0.0, 1.0], [0.0, -1.0], [-1.0, -1.0], [-2.0, 0.0]]);
+    static ref SHEET_PIN_UNSPC: Array2<f64> = arr2(&[[0.0, 0.0], [-1.0, -1.0], [-2.0, 0.0], [-1.0, 1.0], [0.0, 0.0]]);
+    static ref SHEET_PIN_BIDI: Array2<f64> = arr2(&[[0.0, 0.0], [-1.0, -1.0], [-2.0, 0.0], [-1.0, 1.0], [0.0, 0.0]]);
+    static ref SHEET_PIN_3STATE: Array2<f64> = arr2(&[[0.0, 0.0], [-1.0, -1.0], [-2.0, 0.0], [-1.0, 1.0], [0.0, 0.0]]);
+}
+
+struct SheetPinElement<'a> {
+    item: &'a Sexp,
+}
+
+impl<'a> PlotElement<SheetPinElement<'a>> for SchemaPlot<'a> {
+    fn plot(&self, item: SheetPinElement, plot_items: &mut Vec<PlotItem>) {
+
+        let effects = Effects::from(item.item);
+        let at = utils::at(item.item).unwrap();
+        let angle: f64 = utils::angle(item.item).unwrap();
+        let shape: String = item.item.value("shape").unwrap();
+
+        let theta = (-angle - 180.0).to_radians();
+        let rot = arr2(&[[theta.cos(), -theta.sin()], [theta.sin(), theta.cos()]]);
+        let verts: Array2<f64> = if shape == "input" {
+            SHEET_PIN_IN.dot(&rot)
+        } else if shape == "output" {
+            SHEET_PIN_OUT.dot(&rot)
+        } else if shape == "biderctional" {
+            SHEET_PIN_BIDI.dot(&rot)
+        } else if shape == "tri_state" {
+            SHEET_PIN_3STATE.dot(&rot)
+        } else { SHEET_PIN_UNSPC.dot(&rot) };
+
+        plot_items.push(PlotItem::Polyline(
+            20,
+            Polyline::new(
+                verts + at.clone(),
+                self.theme.get_stroke(Stroke::new(), &[Style::Bus]),
+            ),
+        ));
+
+        let text: String = item.item.get(0).unwrap();
+        plot_items.push(PlotItem::Text(
+            10,
+            Text::new(
+                at,
+                angle,
+                text.to_string(),
+                self.theme.get_effects(effects.clone(), &[Style::Property]),
+                false,
+            ),
+        ));
+
+    }
+}
+
 struct SymbolElement<'a> {
     item: &'a Sexp,
     document: &'a SexpTree,
@@ -437,7 +753,7 @@ impl<'a> PlotElement<SymbolElement<'a>> for SchemaPlot<'a> {
             true
         };
 
-        let lib_id: String = item.item.value("lib_id").unwrap();
+        // let lib_id: String = item.item.value("lib_id").unwrap();
         //TODO info!("lib_id: {}", lib_id);
 
         if on_schema {

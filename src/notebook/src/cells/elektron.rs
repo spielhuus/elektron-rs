@@ -111,22 +111,20 @@ impl CellWrite<ElektronCell> for CellWriter {
                             Ok(res) => res,
                             Err(message) => todo!("{}", message),
                         };
-
-                        if !res.is_empty() {
-                            //output the erc as frontmatter
-                            writeln!(out, "  {}:", input).unwrap();
-                            for item in res {
-                                count += 1;
-                                writeln!(out, "    -").unwrap();
-                                writeln!(out, "       id: {}", item.id).unwrap();
-                                writeln!(out, "       severity: {}", item.severity).unwrap();
-                                writeln!(out, "       title: {}", item.title).unwrap();
-                                writeln!(out, "       description: {}", item.description).unwrap();
-                                writeln!(out, "       pos:").unwrap();
+                        //output the erc as frontmatter
+                        writeln!(out, "  {}:", input).unwrap();
+                        for item in res.errors {
+                            count += 1;
+                            writeln!(out, "    -").unwrap();
+                            writeln!(out, "       type: {}", item.error_type).unwrap();
+                            writeln!(out, "       severity: {}", item.severity).unwrap();
+                            writeln!(out, "       description: {}", item.description).unwrap();
+                            writeln!(out, "       items:").unwrap();
+                            for i in item.items {
                                 writeln!(out, "       -").unwrap();
-                                writeln!(out, "         x: {}", item.position.0).unwrap();
-                                writeln!(out, "         y: {}", item.position.1).unwrap();
-                                writeln!(out, "         reference: {}", item.position.2).unwrap();
+                                writeln!(out, "         description: {}", i.description).unwrap();
+                                writeln!(out, "         pos_x: {}", i.pos.0).unwrap();
+                                writeln!(out, "         pos_y: {}", i.pos.1).unwrap();
                             }
                         }
                     }
@@ -249,7 +247,8 @@ impl CellWrite<ElektronCell> for CellWriter {
                     let mut plotter = SchemaPlot::new()
                         .border(super::flag!(args, "border", false))
                         .theme(param_or!(args, "theme", "").into())
-                        .scale(str::parse::<f64>(param_or!(args, "scale", "1.0")).unwrap());
+                        .scale(str::parse::<f64>(param_or!(args, "scale", "1.0")).unwrap())
+                        .name(input);
 
                     plotter.open(&input_file)?;
                     for page in plotter.iter() {

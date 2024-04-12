@@ -67,6 +67,9 @@ pub const KICAD_SCHEMA_GENERATOR: &str = "elektron";
 ///Constants for the element names.
 pub mod el {
     pub const AT: &str = "at";
+    pub const BUS: &str = "bus";
+    pub const BUS_ENTRY: &str = "bus_entry";
+    pub const CIRCLE: &str = "circle";
     pub const EFFECTS: &str = "effects";
     pub const EFFECTS_JUSTIFY: &str = "justify";
     pub const GLOBAL_LABEL: &str = "global_label";
@@ -86,6 +89,8 @@ pub mod el {
     pub const LIB_SYMBOLS: &str = "lib_symbols";
     pub const MIRROR: &str = "mirror";
     pub const NO_CONNECT: &str = "no_connect";
+    pub const POLYLINE: &str = "polyline";
+    pub const RECTANGLE: &str = "rectangle";
     pub const PROPERTY: &str = "property";
     pub const PROPERTY_REFERENCE: &str = "Reference";
     pub const PROPERTY_VALUE: &str = "Value";
@@ -94,7 +99,9 @@ pub mod el {
     pub const PIN_NAMES: &str = "pin_names";
     pub const PIN_NAME: &str = "name";
     pub const PTS: &str = "pts";
+    pub const SHEET: &str = "sheet";
     pub const SHEET_INSTANCES: &str = "sheet_instances";
+    pub const SHEET_PIN: &str = "hierarchical_label";
     pub const SYMBOL: &str = "symbol";
     pub const SYMBOL_UNIT: &str = "unit";
     pub const STROKE: &str = "stroke";
@@ -124,7 +131,7 @@ pub enum Error {
     ///Can not manipulate file.
     #[error("{0}:{1}")]
     SexpError(String, String),
-    #[error("Can not laod content: {0} ({1})")]
+    #[error("Can not load content: '{0}' ({1})")]
     IoError(String, String),
     #[error("Library not found {0}.")]
     LibraryNotFound(String),

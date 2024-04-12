@@ -7,58 +7,82 @@
 //!
 //! let schema = Schema::load("files/summe/summe.kicad_sch").unwrap();
 //! let results = drc(&schema).unwrap();
-use lazy_static::lazy_static;
-use pyo3::{prelude::*, types::PyDict};
 use rand::Rng;
-use regex::Regex;
 use std::env::temp_dir;
 use std::io::prelude::*;
+use std::process::Command;
 use std::{
     fmt,
     fs::{self, File},
-    io::BufReader,
 };
 
 use crate::Error;
 
-use log::debug;
+#[derive(Clone, Debug)]
+pub enum ErrType {
+    Unconnected,
+    Violation,
+    Parity,
+}
 
-lazy_static! {
-    pub static ref DRC_TITLE_TOKEN: regex::Regex = Regex::new(r"^\[(.*)\]: (.*)$").unwrap();
-    pub static ref DRC_DESC_TOKEN: regex::Regex =
-        Regex::new(r"\s+Rule: (.*); Severity: (.*)").unwrap();
-    pub static ref DRC_OVERRIDE_TOKEN: regex::Regex =
-        Regex::new(r"\s+(.*); Severity: (.*)").unwrap();
-    pub static ref DRC_POS_TOKEN: regex::Regex =
-        Regex::new(r"\s+@\((.*) mm, (.*) mm\): (.*)").unwrap();
+impl fmt::Display for ErrType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ErrType::Unconnected => write!(f, "Unconnected"),
+            ErrType::Violation => write!(f, "Violation"),
+            ErrType::Parity => write!(f, "Parity"),
+        }
+    }
+}
+
+#[derive(Debug)]
+/// DRC error types.
+pub struct DrcResult {
+    pub coordinate_units: String,
+    pub date: String,
+    pub kicad_version: String,
+    pub source: String,
+    pub errors: Vec<DrcItem>,
+}
+
+impl DrcResult {
+    pub fn new() -> Self {
+        Self {
+            coordinate_units: String::new(),
+            date: String::new(),
+            kicad_version: String::new(),
+            source: String::new(),
+            errors: Vec::new(),
+        }
+    }
+}
+
+impl Default for DrcResult {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[derive(Debug)]
 /// DRC error types.
 pub struct DrcItem {
-    pub id: String,
-    pub title: String,
+    pub error_type: ErrType,
+    pub drc_type: String,
     pub description: String,
     pub severity: String,
-    pub position: Position,
-}
-#[derive(Debug)]
-pub struct Position(pub String, pub String, pub String);
-impl fmt::Display for Position {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({}, {}, {})", self.0, self.1, self.2)
-    }
+    pub items: Vec<DrcItems>,
 }
 
-impl DrcItem {
-    pub fn new(id: &str, description: &str) -> Self {
-        Self {
-            id: id.to_string(),
-            title: String::new(),
-            description: description.to_string(),
-            severity: String::new(),
-            position: Position(String::from("0.0"), String::from("0.0"), String::new()),
-        }
+#[derive(Debug)]
+pub struct DrcItems {
+    pub description: String,
+    pub pos: (f64, f64),
+    pub uuid: String,    
+}
+
+impl fmt::Display for DrcItems {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} ({}, {})", self.description, self.pos.0, self.pos.1)
     }
 }
 
@@ -66,85 +90,118 @@ impl DrcItem {
 ///
 /// # Arguments
 ///
-/// * `document` - A PCB struct.
-/// * `return`   - Vec<DrcItem> with the errors.
+/// * `document` - A PCB filename.
+/// * `return`   - DrcResult with the errors.
 ///
-pub fn drc(document: String) -> Result<Vec<DrcItem>, Error> {
+pub fn drc(document: String) -> Result<DrcResult, Error> {
     let mut rng = rand::thread_rng();
     let num: u32 = rng.gen();
-    let output = String::new() + temp_dir().to_str().unwrap() + "/" + &num.to_string() + ".txt";
+    let output = String::new() + temp_dir().to_str().unwrap() + "/" + &num.to_string() + ".json";
 
-    //TODO footprint dir as variable
-    Python::with_gil(|py| {
-        let globals = PyDict::new_bound(py);
-        let locals = PyDict::new_bound(py);
-        locals.set_item("document", document.clone()).unwrap();
-        locals.set_item("filename", output.to_string()).unwrap();
-        py.run_bound(
-            r#"
-import os
-os.environ['KICAD8_FOOTPRINT_DIR'] = '/usr/share/kicad/footprints'
+    let result = if cfg!(target_os = "windows") {
+        todo!("implement command for windows");
+    } else {
+        Command::new("kicad-cli")
+            .arg("pcb")
+            .arg("drc")
+            .arg("--severity-all")
+            .arg("--format")
+            .arg("json")
+            .arg("--output")
+            .arg(output.clone())
+            .arg(&document)
+            .output()
+            .expect("failed to execute process")
+    };
 
-from elektron import Pcb
-board = Pcb(document)
-board.drc(filename)"#,
-            Some(&globals),
-            Some(&locals),
-        )
-        .map_err(|m| Error::IoError(m.to_string(), document))
-    })?;
+    if result.status.code() != Some(0) {
+        return Err(Error::IoError(output.to_string(), format!("failed to generate drc report from {}", document)));
+    }
 
-    let file = match File::open(output.clone()) {
+    let mut file = match File::open(output.clone()) {
         Ok(file) => file,
         Err(err) => return Err(Error::NetlistFileError(output.to_string(), err.to_string())),
     };
-    let reader = BufReader::new(file);
+    let mut data = String::new();
+    file.read_to_string(&mut data).expect("Unable to read string");
 
-    let mut results = Vec::new();
-    for line in reader.lines() {
-        debug!("> {:?}", line);
-        if let Ok(line) = line {
-            if let Some(cap) = DRC_TITLE_TOKEN.captures(&line) {
-                results.push(DrcItem::new(
-                    cap.get(1).map_or("NONE", |m| m.as_str()),
-                    cap.get(2).map_or("NONE", |m| m.as_str()),
-                ));
-            } else if let Some(cap) = DRC_DESC_TOKEN.captures(&line) {
-                if let Some(last) = results.last_mut() {
-                    last.title = cap.get(1).map_or("NONE", |m| m.as_str()).to_string();
-                    last.severity = cap.get(2).map_or("NONE", |m| m.as_str()).to_string();
+    let js = json::parse(&data);
+    let mut drc_result = DrcResult::new();
+    if let Ok(js) = js {
+        match js {
+            json::JsonValue::Null => todo!(),
+            json::JsonValue::Short(_) => todo!(),
+            json::JsonValue::String(_) => todo!(),
+            json::JsonValue::Number(_) => todo!(),
+            json::JsonValue::Boolean(_) => todo!(),
+            json::JsonValue::Object(obj) => {
+                drc_result = DrcResult {
+                    coordinate_units: obj.get("coordinate_units").map_or(String::from("NONE"), |m| m.to_string()),
+                    date: obj.get("date").map_or(String::from("NONE"), |m| m.to_string()),
+                    kicad_version: obj.get("kicad_version").map_or(String::from("NONE"), |m| m.to_string()),
+                    source: obj.get("source").map_or(String::from("NONE"), |m| m.to_string()),
+                    errors: Vec::new(),
+                };
+                if let Some(unconnected_items) = obj.get("unconnected_items") {
+                    match unconnected_items {
+                        json::JsonValue::Array(arr) => {
+                            get_items(ErrType::Unconnected, arr, &mut drc_result.errors);
+                        },
+                        _ => todo!(),
+                    }
                 }
-            } else if let Some(cap) = DRC_OVERRIDE_TOKEN.captures(&line) {
-                if let Some(last) = results.last_mut() {
-                    last.title = cap.get(1).map_or("NONE", |m| m.as_str()).to_string();
-                    last.severity = cap.get(2).map_or("NONE", |m| m.as_str()).to_string();
+                if let Some(violations) = obj.get("violations") {
+                    match violations {
+                        json::JsonValue::Array(arr) => {
+                            get_items(ErrType::Violation, arr, &mut drc_result.errors);
+                        },
+                        _ => todo!(),
+                    }
                 }
-            } else if let Some(cap) = DRC_POS_TOKEN.captures(&line) {
-                if let Some(last) = results.last_mut() {
-                    last.position = Position(
-                        cap.get(1).map_or("NONE", |m| m.as_str()).to_string(),
-                        cap.get(2).map_or("NONE", |m| m.as_str()).to_string(),
-                        cap.get(3).map_or("NONE", |m| m.as_str()).to_string(),
-                    )
+                if let Some(parity) = obj.get("schematic_parity") {
+                    match parity {
+                        json::JsonValue::Array(arr) => {
+                            get_items(ErrType::Parity, arr, &mut drc_result.errors);
+                        },
+                        _ => todo!(),
+                    }
                 }
-            //this is for testing if everything is parsed
-            //} else if !line.starts_with("**") && !line.trim().is_empty() {
-            //    warn!("LINE: {}", line);
-            }
-        } else {
-            return Err(Error::IoError(
-                String::from("can not read temporary file"),
-                output,
-            ));
-        }
+            },
+            json::JsonValue::Array(_) => todo!(),
+        }     
     }
 
     fs::remove_file(output).unwrap();
-    //TODO: workaround because of kicad issue
-    results.retain(|i| {
-        !i.title
-            .starts_with("The current configuration does not include the library")
-    });
 
-    Ok(results)
+    Ok(drc_result)
+}
+
+fn get_items(error_type: ErrType,values: &Vec<json::JsonValue>, result: &mut Vec<DrcItem>) {
+    for obj in values {
+        match obj {
+            json::JsonValue::Object(obj) => {
+                let mut items: Vec<DrcItems> = Vec::new();
+                for item in obj.get("items").unwrap().members() {
+                    if let json::JsonValue::Object(item) = item {
+                        items.push(DrcItems {
+                            description: item.get("description").unwrap().to_string(),
+                            pos: if let json::JsonValue::Object(pos) = item.get("pos").unwrap() {
+                                (pos.get("x").unwrap().as_f64().unwrap(),
+                                 pos.get("y").unwrap().as_f64().unwrap())
+                            } else { (0.0, 0.0) },
+                            uuid: item.get("uuid").unwrap().to_string(),
+                        });
+                    }
+                }
+                result.push(DrcItem {
+                    error_type: error_type.clone(),
+                    drc_type: obj.get("type").map_or(String::from("NONE"), |m| m.to_string()),
+                    description: obj.get("description").map_or(String::from("NONE"), |m| m.to_string()),
+                    severity: obj.get("severity").map_or(String::from("NONE"), |m| m.to_string()),
+                    items,
+                });
+            },
+            _ => todo!(),
+        }
+    }
 }

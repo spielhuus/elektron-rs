@@ -1,3 +1,5 @@
+use pyo3::{exceptions::PyIOError, PyErr};
+
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum Error {
     #[error("{0}")]
@@ -16,6 +18,11 @@ pub enum Error {
     YamlError(String, String),
     #[error("NgSpice Error: \"{0}\"")]
     NgSpiceError(String),
+}
+impl std::convert::From<Error> for PyErr {
+    fn from(err: Error) -> Self {
+        PyIOError::new_err(err.to_string())
+    }
 }
 impl std::convert::From<sexp::Error> for Error {
     fn from(err: sexp::Error) -> Self {

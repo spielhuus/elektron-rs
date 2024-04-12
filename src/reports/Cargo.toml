@@ -22,3 +22,4 @@ rand.workspace = true
 yaml-rust.workspace = true
 xlsxwriter.workspace = true
 colored.workspace = true
+json.workspace = true

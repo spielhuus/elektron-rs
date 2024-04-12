@@ -15,7 +15,6 @@ use svg::{node, node::element, Document};
 
 /// Plotter implemntation for SVG files.
 pub struct SvgPlotter<'a> {
-    name: &'a str,
     out: &'a mut dyn Write,
     scale: f64,
 }
@@ -23,7 +22,6 @@ pub struct SvgPlotter<'a> {
 impl<'a> SvgPlotter<'a> {
     pub fn new(out: &'a mut dyn Write) -> Self {
         SvgPlotter {
-            name: "",
             out,
             scale: 1.0,
         }
@@ -31,7 +29,7 @@ impl<'a> SvgPlotter<'a> {
 }
 
 impl<'a> PlotterImpl<'a> for SvgPlotter<'a> {
-    fn plot(&mut self, plot_items: &[PlotItem], size: Array2<f64>) -> Result<(), Error> {
+    fn plot(&mut self, plot_items: &[PlotItem], size: Array2<f64>, name: Option<String>) -> Result<(), Error> {
         let mut document = Document::new()
             .set(
                 "viewBox",
@@ -40,7 +38,11 @@ impl<'a> PlotterImpl<'a> for SvgPlotter<'a> {
             .set("width", format!("{}mm", (size[[1, 0]]) * self.scale))
             .set("height", format!("{}mm", (size[[1, 1]]) * self.scale));
 
-        let mut g = element::Group::new().set("id", self.name);
+        let mut g = if let Some(name) = name {
+            element::Group::new().set("id", name.to_string())
+        } else {
+            element::Group::new()
+        };
         self.draw(plot_items, &mut g);
         document.append(g);
         self.out.write_all(document.to_string().as_bytes())?;
