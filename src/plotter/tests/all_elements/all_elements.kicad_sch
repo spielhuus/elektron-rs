@@ -1,0 +1,373 @@
+(kicad_sch
+	(version 20231120)
+	(generator "eeschema")
+	(generator_version "8.0")
+	(uuid "a626ebac-6c6b-464d-9b3f-89bf6b46198c")
+	(paper "A4")
+	(title_block
+		(title "Test Schema containing all elements")
+		(date "2024-04-10")
+	)
+	(lib_symbols)
+	(junction
+		(at 59.69 44.45)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "f9cefaac-d2cc-4da2-ac82-004b5b687403")
+	)
+	(no_connect
+		(at 105.41 44.45)
+		(uuid "3ad13654-818b-40eb-8222-5859d222d36a")
+	)
+	(bus_entry
+		(at 64.77 54.61)
+		(size 2.54 2.54)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "00a7edc9-9274-4c11-947c-5709fd2dfff8")
+	)
+	(bus_entry
+		(at 82.55 54.61)
+		(size 2.54 2.54)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ce52bd46-c224-4443-81a3-49c0f9dce649")
+	)
+	(bus
+		(pts
+			(xy 82.55 54.61) (xy 106.68 54.61)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "06b4ad96-49b0-4618-9f44-dd5e044b895e")
+	)
+	(wire
+		(pts
+			(xy 50.8 44.45) (xy 59.69 44.45)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0cdc5e1b-e1e0-4fc1-aeb2-69191211a5b7")
+	)
+	(bus
+		(pts
+			(xy 59.69 54.61) (xy 64.77 54.61)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3fb54315-1e32-4244-a0ec-c7125efd71be")
+	)
+	(bus
+		(pts
+			(xy 106.68 53.34) (xy 106.68 54.61)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4be2dd44-40d3-4fc5-8809-16b33faa4c5a")
+	)
+	(polyline
+		(pts
+			(xy 209.55 35.56) (xy 209.55 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+			(color 255 19 0 1)
+		)
+		(uuid "5bf3b5cb-36ae-4efd-b327-e481a3f98b88")
+	)
+	(polyline
+		(pts
+			(xy 205.74 73.66) (xy 205.74 39.37)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5ee5a0be-32ed-4d5c-ac29-9a387bc8e2f8")
+	)
+	(polyline
+		(pts
+			(xy 182.88 39.37) (xy 205.74 39.37)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "654e694e-3207-4e42-b508-6fd525cc10ea")
+	)
+	(wire
+		(pts
+			(xy 59.69 33.02) (xy 59.69 44.45)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "822e15b0-ad84-443f-b072-7a8950f6aed7")
+	)
+	(polyline
+		(pts
+			(xy 189.23 35.56) (xy 209.55 35.56)
+		)
+		(stroke
+			(width 0)
+			(type default)
+			(color 255 68 0 1)
+		)
+		(uuid "96c70216-d786-4406-be9a-8402413fbedd")
+	)
+	(bus
+		(pts
+			(xy 64.77 54.61) (xy 82.55 54.61)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b5c18964-6103-4629-a2dd-32b760157f90")
+	)
+	(wire
+		(pts
+			(xy 105.41 44.45) (xy 59.69 44.45)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ce296330-0fea-41fc-9ca6-a2cc04c2adaa")
+	)
+	(rectangle
+		(start 147.32 73.66)
+		(end 166.37 83.82)
+		(stroke
+			(width 0)
+			(type default)
+			(color 0 3 255 1)
+		)
+		(fill
+			(type color)
+			(color 28 255 38 1)
+		)
+		(uuid 2f048447-ced4-489f-8e15-f085ab189db6)
+	)
+	(arc
+		(start 177.8 99.06)
+		(mid 181.8917 89.1817)
+		(end 191.77 85.09)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(fill
+			(type none)
+		)
+		(uuid 69bdca47-086b-49b9-81e8-04aa8560c5d5)
+	)
+	(circle
+		(center 120.65 82.55)
+		(radius 19.05)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(fill
+			(type none)
+		)
+		(uuid a15b6aa7-9a3a-4f9c-8976-b43ea5b4d79b)
+	)
+	(rectangle
+		(start 138.43 60.96)
+		(end 157.48 71.12)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(fill
+			(type none)
+		)
+		(uuid e03ac4f5-3db5-4f50-8797-a47e68f7ff05)
+	)
+	(text_box "TEXT BOX"
+		(exclude_from_sim no)
+		(at 134.62 39.37 0)
+		(size 20.32 11.43)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(fill
+			(type none)
+		)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "4a4f771e-8595-4ff9-a138-201bd251324c")
+	)
+	(text "TEXT"
+		(exclude_from_sim no)
+		(at 108.204 71.628 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "c86aa6c4-0c1c-4773-ad76-ce80c8258b2c")
+	)
+	(label "LABEL_A"
+		(at 78.74 44.45 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "e99394fb-9059-4508-8284-adda7f7c5041")
+	)
+	(global_label "GLOBAL_LABEL"
+		(shape input)
+		(at 50.8 44.45 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "fc366970-0d83-4b6f-9b27-9fc3327b2591")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 34.2681 44.45 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+				(hide yes)
+			)
+		)
+	)
+	(hierarchical_label "HIERARCHICAL_LABEL"
+		(shape input)
+		(at 106.68 53.34 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "8cbc8272-e53b-401b-bd96-44a56e700309")
+	)
+	(netclass_flag ""
+		(length 2.54)
+		(shape round)
+		(at 59.69 33.02 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "f309592f-c7ff-4a3f-9b2f-ac4cc703f6fd")
+		(property "Netclass" "NET_CLASS"
+			(at 60.3885 30.48 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+					(italic yes)
+				)
+				(justify left)
+			)
+		)
+	)
+	(sheet
+		(at 59.69 72.39)
+		(size 35.56 11.43)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "cfa94a8c-d4fd-4e52-a221-2a8b7aaf60dd")
+		(property "Sheetname" "Sheet"
+			(at 59.69 71.6784 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "sheet.kicad_sch"
+			(at 59.69 84.4046 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(pin "PIN_1" input
+			(at 95.25 77.47 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+			(uuid "ebc9e90b-b545-40f2-9b36-d6a139ffeb3b")
+		)
+		(pin "PIN_2" input
+			(at 80.01 72.39 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+			(uuid "58516964-2b3f-4c26-b532-98dbaf7ddfbe")
+		)
+		(pin "PIN_3" input
+			(at 59.69 77.47 180)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+			(uuid "46032317-fcdc-4ef8-bb2a-dde6dbf84c16")
+		)
+		(instances
+			(project "all_elements"
+				(path "/a626ebac-6c6b-464d-9b3f-89bf6b46198c"
+					(page "2")
+				)
+			)
+		)
+	)
+	(sheet_instances
+		(path "/"
+			(page "1")
+		)
+	)
+)
