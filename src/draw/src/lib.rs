@@ -1095,7 +1095,7 @@ impl Drawer<Symbol> for Draw {
                         self.pos = At::Pos((next_pos[0], next_pos[1]));
                     }
                 } else {
-                    panic!("only allow with 2 pins");
+                    panic!("only allow with 2 pins"); //better error message
                 }
             } else if let Some(endpin) = utils::pin(&lib_symbol, &end_pin) {
                 let pts = Shape::transform(&symbol, &utils::at(endpin).unwrap());

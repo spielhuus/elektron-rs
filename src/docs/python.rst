@@ -1,5 +1,5 @@
-Python bindigs
-==============
+Python API
+==========
 
 .. automodule:: elektron
 
@@ -60,10 +60,12 @@ Draw a schematic
 
   The position can either be a Pin or a Dot.
 
-  ::
-    Line().tox(“REF”, “PIN_NUMBER”)
+  ::code-block::
 
-    dot = Dot() Line().tox(dot)
+    Line().tox(“REF”, “PIN_NUMBER”)
+    
+    dot = Dot() 
+    Line().tox(dot)
 
 
   .. function:: toy() 
@@ -72,15 +74,16 @@ Draw a schematic
 
   The position can either be a Pin or a Dot.
 
-  ::
-    Line().toy(“REF”, “PIN_NUMBER”)
+  ::code-block::
 
-    dot = Dot() Line().toy(dot)
+    Line().toy(“REF”, “PIN_NUMBER”)
+    
+    dot = Dot() 
+    Line().toy(dot)
 
   .. function:: up() 
 
   Line direction up.
-
 
 .. autoclass:: elektron.Circuit
   :members:

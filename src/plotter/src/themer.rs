@@ -122,11 +122,11 @@ impl<'a> Themer<'a> {
                 }
             }
         }
-        //TODO if stroke.linewidth == 0.0 {
+        if stroke.linewidth == 0.0 {
             if let Some(width) = self.select(style, "stroke-width") {
                 stroke.linewidth = width.parse::<f64>().unwrap_or(1.0);
             }
-        //}
+        }
         stroke
     }
 

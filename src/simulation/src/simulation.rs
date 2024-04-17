@@ -57,8 +57,10 @@ impl Default for Cb {
 
 impl Callbacks for Cb {
     fn send_char(&mut self, s: &str) {
-        if std::env::var("ELEKTRON_DEBUG").is_ok() {
-            println!("{}", s);
+        if let Ok(debug) = std::env::var("ELEKTRON_DEBUG") {
+            if debug == "true" || debug == "1" {
+                println!("{}", s);
+            }
         }
         self.strs.push(s.to_string())
     }

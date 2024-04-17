@@ -10,7 +10,6 @@ This will create the data and parameters to plot datas using D3.
 ## Usage
 
 First create some datas for example in a python block.
-
 ```python
 from elektron import Circuit, Draw, Element, Label, Line, Dot, Simulation
 import numpy as np
@@ -121,10 +120,9 @@ for key, value in svf.items():
 
 draw.plot(scale=6)
 ```
-{{< figure cap="Figure 6: State variable filter" align="center" path="_files/jsoupkvkqaxzetqgteyrjxnnsqxarx.svg">}}
+{{< figure path="_files/dpcwfofcozuhtlaumlnzygdzpzqsva.svg" cap="Figure 6: State variable filter" align="center">}}
 
 This is the first setup with the 4069 as a voltage follower. C1 and C2 are DC blocking capacitors. When we choose R1 and R2 as 100kOhm we would expect a gain of one.
-
-{{< d3 key="svf_ac" x="frequency" y="bp,hp,lp" yRange="" ySize="0" xDomain="125.89254117941672, 10000.000000000007" yDomain="-48.44932852660952, 6.115253317994574" width="600" height="400" yType="scaleLinear" xType="scaleLog" colors="Red,Green,Blue" xLabel="" yLabel="" range="" align="center" cap="Figure 7: State variable filter simulation">}}
+{{< d3 key="svf_ac" x="frequency" y="bp,hp,lp" yRange="" ySize="0" xDomain="125.89254117941672, 10000.000000000007" yDomain="-48.44932852660952, 6.115253317994574" width="600" height="400" yType="scaleLinear" xType="scaleLog" colors="Red,Green,Blue" xLabel="" yLabel="" range="" cap="Figure 7: State variable filter simulation" align="center">}}
 {{< /d3 >}}
 

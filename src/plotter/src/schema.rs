@@ -15,16 +15,12 @@ use simulation::{Netlist, Point};
 
 use sexp::{
     el,
-    math::{normalize_angle, CalcArc, MathUtils, PinOrientation, Shape, Transform},
+    math::{MathUtils, PinOrientation, Shape, Transform},
     utils, PaperSize, PinGraphicalStyle, Sexp, SexpParser, SexpProperty, SexpTree, SexpValueQuery,
     SexpValuesQuery,
 };
 
 const PIN_NUMER_OFFSET: f64 = 0.6;
-
-
-
-
 
 // -----------------------------------------------------------------------------------------------------------
 // ---                             collect the plot model from the sexp tree                               ---
@@ -125,6 +121,7 @@ impl<'a> SchemaPlot<'a> {
     }
 
     pub fn open(&mut self, path: &str) -> Result<(), Error> {
+        debug!("open schema: {}", path);
         if let Some(dir) = Path::new(&path).parent() {
             self.path = dir.to_str().unwrap().to_string();       
         }
@@ -197,7 +194,7 @@ impl<'a> SchemaPlot<'a> {
             ])
         };
 
-        plotter.plot(plot_items.as_slice(), size, self.name.clone())?;
+        plotter.plot(plot_items.as_slice(), size, self.scale, self.name.clone())?;
 
         Ok(())
     }
@@ -210,16 +207,16 @@ impl<'a> SchemaPlot<'a> {
 
         //plot the border 
         let mut plot_items: Vec<PlotItem> = Vec::new();
-        let title_block = if let Some(title_block) = document.root().unwrap().query("title_block").next() {
+        let title_block = if let Some(title_block) = document.root().unwrap().query(el::TITLE_BLOCK).next() {
             Some(title_block)
         } else if let Some(tree) = &self.tree {
-            tree.root().unwrap().query("title_block").next()
+            tree.root().unwrap().query(el::TITLE_BLOCK).next()
         } else {
             None
         };
         if self.border {
             if let Some(title_block) = title_block {
-                if let Some(paper_size) = <Sexp as SexpValueQuery<PaperSize>>::value(document.root().unwrap(), "paper") {
+                if let Some(paper_size) = <Sexp as SexpValueQuery<PaperSize>>::value(document.root().unwrap(), el::TITLE_BLOCK_PAPER) {
                     plot_items.append(&mut border(title_block, paper_size, &self.theme).unwrap());
                 }
             }
@@ -227,6 +224,7 @@ impl<'a> SchemaPlot<'a> {
 
         for item in document.root().unwrap().nodes() {
             match item.name.as_str() {
+                el::ARC => self.plot(ArcElement{ item }, &mut plot_items),
                 el::BUS => self.plot(BusElement{ item }, &mut plot_items),
                 el::BUS_ENTRY => self.plot(BusEntryElement{ item }, &mut plot_items),
                 el::CIRCLE => self.plot(CircleElement{ item }, &mut plot_items),
@@ -241,6 +239,7 @@ impl<'a> SchemaPlot<'a> {
                 el::SYMBOL => self.plot(SymbolElement { item, document, netlist: &netlist }, &mut plot_items),
                 el::WIRE => self.plot(WireElement{ item }, &mut plot_items),
                 el::TEXT => self.plot(TextElement{ item }, &mut plot_items),
+                el::TEXT_BOX => self.plot(TextBoxElement{ item }, &mut plot_items),
                 _ => { 
                     if log_enabled!(Level::Error) {
                         let items = [
@@ -335,34 +334,6 @@ impl<'a> PlotElement<LabelElement<'a>> for SchemaPlot<'a> {
                 ),
             ));
         }
-    /* ooo
-    fn plot(&self, item: LabelElement, plot_items: &mut Vec<PlotItem>) {
-        let angle: f64 = utils::angle(item.item).unwrap();
-        let pos: Array1<f64> = utils::at(item.item).unwrap();
-        let mut angle: f64 = angle;
-        let pos: Array1<f64> = if angle == 0.0 {
-            arr1(&[pos[0] + 1.0, pos[1]])
-        } else if angle == 90.0 {
-            arr1(&[pos[0], pos[1] - 1.0])
-        } else if angle == 180.0 {
-            arr1(&[pos[0] - 1.0, pos[1]])
-        } else {
-            arr1(&[pos[0], pos[1] + 1.0])
-        };
-        if angle >= 180.0 {
-            angle -= 180.0;
-        }
-        let text: String = item.item.get(0).unwrap();
-        plot_items.push(PlotItem::Text(
-            10,
-            Text::new(
-                pos,
-                angle,
-                text,
-                self.theme.get_effects(item.item.into(), &[Style::Label]),
-                false,
-            ),
-        )); */
     } 
 }
 
@@ -536,13 +507,50 @@ impl<'a> PlotElement<PolylineElement<'a>> for SchemaPlot<'a> {
     }
 }
 
+struct TextBoxElement<'a> {
+    item: &'a Sexp,
+}
+
+impl<'a> PlotElement<TextBoxElement<'a>> for SchemaPlot<'a> {
+    fn plot(&self, item: TextBoxElement, plot_items: &mut Vec<PlotItem>) {
+        let at = utils::at(item.item).unwrap();
+        let size: Array1<f64> = item.item.value("size").unwrap();
+        let pts: Array2<f64> = arr2(&[[at[0], at[1]], [at[0] + size[0], at[1] + size[1]]]);
+        let filltype: String = item.item.query("fill").next().unwrap().value("type").unwrap();
+        let mut stroke = self.theme.get_stroke(item.item.into(), &[Style::Polyline, Style::from(filltype)]);
+        if let Some(fill) = item.item.query("fill").next() {
+            if let Some(color) = fill.query("color").next() {
+                let fillcolor = <Sexp as SexpValuesQuery<Vec<u16>>>::values(color);
+                stroke.fillcolor = Color::from(fillcolor);
+            }
+        }
+        plot_items.push(PlotItem::Rectangle(
+            1,
+            Rectangle::new(
+                pts,
+                stroke,
+            ),
+        ));
+        let text: String = item.item.get(0).unwrap();
+        plot_items.push(PlotItem::Text(
+            1,
+            Text::new(
+                &at + arr1(&[0.0, 1.0]),
+                0.0,
+                text,
+                self.theme
+                    .get_effects(Effects::from(item.item), &[Style::Text]),
+                false
+        )));
+    }
+}
+
 struct RectangleElement<'a> {
     item: &'a Sexp,
 }
 
 impl<'a> PlotElement<RectangleElement<'a>> for SchemaPlot<'a> {
     fn plot(&self, item: RectangleElement, plot_items: &mut Vec<PlotItem>) {
-
         let start: Vec<f64> =
             item.item.query(el::GRAPH_START).next().unwrap().values();
         let end: Vec<f64> = item.item.query(el::GRAPH_END).next().unwrap().values();
@@ -577,7 +585,7 @@ impl<'a> PlotElement<SheetElement<'a>> for SchemaPlot<'a> {
 
         let pts: Array2<f64> = arr2(&[[at[0], at[1]], [at[0] + size[0], at[1] + size[1]]]);
         //TODO let filltype: String = item.item.query("fill").next().unwrap().value("type").unwrap();
-        let mut stroke = self.theme.get_stroke(item.item.into(), &[Style::Polyline]);
+        let stroke = self.theme.get_stroke(item.item.into(), &[Style::Polyline]);
         //if let Some(fill) = item.item.query("fill").next() {
         //    if let Some(color) = fill.query("color").next() {
         //        //TODO color has floating digit
@@ -628,7 +636,7 @@ impl<'a> PlotElement<SheetElement<'a>> for SchemaPlot<'a> {
             let label: String = pin.get(0).unwrap();
             let shape: String = pin.get(1).unwrap();
 
-            let theta = (-angle - 180.0).to_radians();
+            let theta = (angle - 180.0).to_radians();
             let rot = arr2(&[[theta.cos(), -theta.sin()], [theta.sin(), theta.cos()]]);
             let verts: Array2<f64> = if shape == "input" {
                 SHEET_PIN_IN.dot(&rot)
@@ -639,19 +647,44 @@ impl<'a> PlotElement<SheetElement<'a>> for SchemaPlot<'a> {
             } else if shape == "tri_state" {
                 SHEET_PIN_3STATE.dot(&rot)
             } else { SHEET_PIN_UNSPC.dot(&rot) };
+            
+            // draw pin on the inside of the sheet
+            let dist = if angle == 0.0 {
+                arr1(&[-2.0, 0.0])
+            } else if angle == 180.0 {
+                arr1(&[2.0, 0.0])
+            } else if angle == 90.0 {
+                arr1(&[0.0, 2.0])
+            } else if angle == 270.0 {
+                arr1(&[0.0, -2.0])
+            } else {
+                panic!("unsupported angle: {}", angle);
+            };
 
             plot_items.push(PlotItem::Polyline(
                 20,
                 Polyline::new(
-                    verts + at.clone(),
+                    verts + at.clone() + dist,
                     self.theme.get_stroke(Stroke::new(), &[Style::Bus]),
                 ),
             ));
 
+            let dist = if angle == 0.0 {
+                arr1(&[-3.0, 0.0])
+            } else if angle == 180.0 {
+                arr1(&[3.0, 0.0])
+            } else if angle == 90.0 {
+                arr1(&[0.0, 3.0])
+            } else if angle == 270.0 {
+                arr1(&[0.0, -3.0])
+            } else {
+                panic!("unsupported angle: {}", angle);
+            };
+
             plot_items.push(PlotItem::Text(
                 10,
                 Text::new(
-                    at,
+                    at + dist,
                     angle,
                     label.to_string(),
                     self.theme.get_effects(effects.clone(), &[Style::Property]),
@@ -668,16 +701,47 @@ struct CircleElement<'a> {
 
 impl<'a> PlotElement<CircleElement<'a>> for SchemaPlot<'a> {
     fn plot(&self, item: CircleElement, plot_items: &mut Vec<PlotItem>) {
-        let stroke = Stroke::from(item.item);
         let center: Array1<f64> = item.item.value("center").unwrap();
         let radius: f64 = item.item.value("radius").unwrap();
+        let filltype: String = item.item.query("fill").next().unwrap().value("type").unwrap();
+        let mut stroke = self.theme.get_stroke(item.item.into(), &[Style::Polyline, Style::from(filltype)]);
+        if let Some(fill) = item.item.query("fill").next() {
+            if let Some(color) = fill.query("color").next() {
+                let fillcolor = <Sexp as SexpValuesQuery<Vec<u16>>>::values(color);
+                stroke.fillcolor = Color::from(fillcolor);
+            }
+        }
         plot_items.push(PlotItem::Circle(
             1,
             Circle::new(
                 center,
                 radius,
-                self.theme
-                    .get_stroke(stroke, &[Style::Outline]),
+                stroke,
+            ),
+        ));
+    }
+}
+
+struct ArcElement<'a> {
+    item: &'a Sexp,
+}
+
+impl<'a> PlotElement<ArcElement<'a>> for SchemaPlot<'a> {
+    fn plot(&self, item: ArcElement, plot_items: &mut Vec<PlotItem>) {
+
+        let arc_start: Array1<f64> = item.item.value(el::GRAPH_START).unwrap();
+        let arc_mid: Array1<f64> = item.item.value("mid").unwrap();
+        let arc_end: Array1<f64> = item.item.value(el::GRAPH_END).unwrap();
+        let classes = vec![Style::Outline, Style::Fill(item.item.into())];
+        plot_items.push(PlotItem::Arc(
+            100,
+            Arc::new(
+                arc_start,
+                arc_mid,
+                arc_end,
+                0.0, 
+                None,
+                self.theme.get_stroke(item.item.into(), classes.as_slice()),
             ),
         ));
     }
@@ -703,7 +767,7 @@ impl<'a> PlotElement<SheetPinElement<'a>> for SchemaPlot<'a> {
         let angle: f64 = utils::angle(item.item).unwrap();
         let shape: String = item.item.value("shape").unwrap();
 
-        let theta = (-angle - 180.0).to_radians();
+        let theta = (angle - 180.0).to_radians();
         let rot = arr2(&[[theta.cos(), -theta.sin()], [theta.sin(), theta.cos()]]);
         let verts: Array2<f64> = if shape == "input" {
             SHEET_PIN_IN.dot(&rot)
@@ -723,11 +787,23 @@ impl<'a> PlotElement<SheetPinElement<'a>> for SchemaPlot<'a> {
             ),
         ));
 
+        let dist = if angle == 0.0 {
+            arr1(&[3.0, 0.0])
+        } else if angle == 180.0 {
+            arr1(&[-3.0, 0.0])
+        } else if angle == 90.0 {
+            arr1(&[0.0, -3.0])
+        } else if angle == 270.0 {
+            arr1(&[0.0, 3.0])
+        } else {
+            panic!("unsupported angle: {}", angle);
+        };
+
         let text: String = item.item.get(0).unwrap();
         plot_items.push(PlotItem::Text(
             10,
             Text::new(
-                at,
+                at + dist,
                 angle,
                 text.to_string(),
                 self.theme.get_effects(effects.clone(), &[Style::Property]),
@@ -753,24 +829,34 @@ impl<'a> PlotElement<SymbolElement<'a>> for SchemaPlot<'a> {
             true
         };
 
-        // let lib_id: String = item.item.value("lib_id").unwrap();
-        //TODO info!("lib_id: {}", lib_id);
-
         if on_schema {
-            // let mut items: Vec<PlotItem> = Vec::new();
             for property in item.item.query(el::PROPERTY) {
                 let mut effects: Effects = property.into();
                 let i_angle = utils::angle(item.item).unwrap();
                 let p_angle = utils::angle(property).unwrap();
+                let mirror: Option<String> = item.item.value(el::MIRROR);
                 let mut justify: Vec<String> = Vec::new();
                 for j in effects.justify {
                     if p_angle + i_angle >= 180.0 && p_angle + i_angle < 360.0 && j == "left" {
-                        justify.push(String::from("right"));
+                        if mirror == Some("y".to_string()) {
+                            justify.push(String::from("left"));
+                        } else {
+                            justify.push(String::from("right"));
+                        }
                     } else if (p_angle + i_angle).abs() >= 180.0
                         && p_angle + i_angle < 360.0
-                        && j == "right"
-                    {
-                        justify.push(String::from("left"));
+                        && j == "right" {
+                        if mirror == Some("y".to_string()) {
+                            justify.push(String::from("right"));
+                        } else {
+                            justify.push(String::from("left"));
+                        }
+                    } else if mirror == Some("y".to_string()) {
+                        if j == "left" {
+                            justify.push("right".to_string());
+                        } else if j == "right" {
+                            justify.push("left".to_string());
+                        }
                     } else {
                         justify.push(j);
                     }
@@ -794,26 +880,9 @@ impl<'a> PlotElement<SymbolElement<'a>> for SchemaPlot<'a> {
                             false,
                         ),
                     ));
-
-                    /* plot_items.push(PlotItem::Circle(
-                        10,
-                        Circle::new(
-                            arr1(&[at[[0, 0]], at[[0, 1]]]),
-                            0.4,
-                            Stroke::new(),
-                            vec![Style::Pin],
-                        ),
-                    ));
-                    plot_items.push(PlotItem::Rectangle(
-                        10,
-                        Rectangle::new(
-                            at,
-                            Stroke::new(),
-                            vec![if effects.justify.contains(&String::from("right")) { Style::Wire } else { Style::Pin }],
-                        ),
-                    )); */
                 }
             }
+
             let lib_id: String = item.item.value(el::LIB_ID).unwrap();
             let item_unit: usize = item.item.value(el::SYMBOL_UNIT).unwrap();
             if let Some(lib) = utils::get_library(item.document.root().unwrap(), &lib_id) {
@@ -890,41 +959,23 @@ impl<'a> PlotElement<SymbolElement<'a>> for SchemaPlot<'a> {
                                         ));
 
                                     } else if graph.name == el::GRAPH_ARC {
-                                        let mut arc_start: Array1<f64> = graph.value(el::GRAPH_START).unwrap();
-                                        //TODO let arc_mid: Array1<f64> = graph.value("mid").unwrap();
-                                        let mut arc_end: Array1<f64> = graph.value(el::GRAPH_END).unwrap();
+                                        let arc_start: Array1<f64> = graph.value(el::GRAPH_START).unwrap();
+                                        let arc_mid: Array1<f64> = graph.value("mid").unwrap();
+                                        let arc_end: Array1<f64> = graph.value(el::GRAPH_END).unwrap();
                                         let mirror: Option<String> = graph.value(el::MIRROR);
-                                        let mut start_angle =
-                                            normalize_angle(graph.start_angle() + utils::angle(item.item).unwrap());
-                                        let mut end_angle =
-                                            normalize_angle(graph.end_angle() + utils::angle(item.item).unwrap());
-                                        if let Some(mirror) = mirror {
-                                            //TODO: is
-                                            //this
-                                            //needed?
-                                            if mirror == "x" {
-                                                start_angle = 180.0 - end_angle;
-                                                end_angle = 180.0 - start_angle;
-                                            } else {
-                                                start_angle = -start_angle;
-                                                end_angle = -end_angle;
-                                            }
-                                            std::mem::swap(&mut arc_start, &mut arc_end);
-                                        }
-
-                                        let classes = vec![Style::Outline, Style::Fill(item.item.into())];
-                                        /* TODO if item.on_board == false {
+                                        let mut classes = vec![Style::Outline, Style::Fill(item.item.into())];
+                                        let on_board: bool = item.item.value("on_board").unwrap();
+                                        if !on_board {
                                             classes.push(Style::NotOnBoard);
-                                        } */
+                                        }
                                         plot_items.push(PlotItem::Arc(
                                             100,
                                             Arc::new(
-                                                Shape::transform(item.item, &graph.center()),
                                                 Shape::transform(item.item, &arc_start),
+                                                Shape::transform(item.item, &arc_mid),
                                                 Shape::transform(item.item, &arc_end),
-                                                graph.radius(),
-                                                start_angle,
-                                                end_angle,
+                                                utils::angle(item.item).unwrap(),
+                                                mirror.clone(), //TODO remove clone
                                                 self.theme.get_stroke(graph.into(), classes.as_slice()),
                                             ),
                                         ));
@@ -1039,8 +1090,7 @@ impl<'a> PlotElement<PinElement<'a>> for SchemaPlot<'a> {
         //sch_painter.cpp->848)
         let orientation = PinOrientation::from(item.symbol, item.item);
         let pin_length: f64 = item.item.value("length").unwrap();
-        let pin_at: Array1<f64> = utils::at(item.item).unwrap(); //TODO remove
-                                                           //all at below
+        let pin_at: Array1<f64> = utils::at(item.item).unwrap();
         let pin_angle: f64 = utils::angle(item.item).unwrap();
         let pin_end = MathUtils::projection(
             &pin_at,
@@ -1245,7 +1295,7 @@ impl<'a> PlotElement<PinElement<'a>> for SchemaPlot<'a> {
                     //TODO Error
                 };
 
-                let effects = Effects::new(); //TODO
+                let effects = Effects::from(item.item);
                 let pin_pos = Shape::transform(item.symbol, &utils::at(item.item).unwrap());
 
                 plot_items.push(PlotItem::Text(

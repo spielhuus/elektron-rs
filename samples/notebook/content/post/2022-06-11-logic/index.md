@@ -39,7 +39,6 @@ and write them with the d3 cell:
  ```
 ~~~
 
-
 ```latex
 \documentclass[tikz, border=1mm]{standalone}
 
@@ -64,4 +63,4 @@ and write them with the d3 cell:
 \end{tikzpicture}
 \end{document}
 ```
-{{< figure path="_files/pkehgdgbedyfvmvxghzphmdfxxurlp.svg">}}
+{{< figure path="_files/vwfpfiuvcpvlvylakebtiahlwyatbq.svg">}}

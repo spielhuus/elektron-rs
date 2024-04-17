@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use log::error;
+
 use crate::{error::Error, notebook::ArgType};
 
 use super::{
@@ -28,6 +30,12 @@ impl CellWrite<PythonCell> for CellWriter {
 
         echo(out, "python", code.join("\n").as_str(), args);
         if let Err(pyerror) = py.run(code.join("\n").as_str(), Some(globals), Some(locals)) {
+            let traceback = if let Some(err) = pyerror.traceback(*py) {
+                err.format().unwrap()
+            } else {
+                String::new()
+            };
+            error!("Error running Python code: {}\n{:?}", pyerror, traceback);
             Err(Error::Python(pyerror.to_string()))
         } else {
             let sys = py.import("sys").unwrap();

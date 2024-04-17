@@ -66,6 +66,7 @@ pub const KICAD_SCHEMA_GENERATOR: &str = "elektron";
 
 ///Constants for the element names.
 pub mod el {
+    pub const ARC: &str = "arc";
     pub const AT: &str = "at";
     pub const BUS: &str = "bus";
     pub const BUS_ENTRY: &str = "bus_entry";
@@ -75,10 +76,10 @@ pub mod el {
     pub const GLOBAL_LABEL: &str = "global_label";
     pub const GRAPH_ARC: &str = "arc";
     pub const GRAPH_CIRCLE: &str = "circle";
+    pub const GRAPH_END: &str = "end";
     pub const GRAPH_POLYLINE: &str = "polyline";
     pub const GRAPH_RECTANGLE: &str = "rectangle";
     pub const GRAPH_START: &str = "start";
-    pub const GRAPH_END: &str = "end";
     pub const GRAPH_TEXT: &str = "text";
     pub const JUNCTION: &str = "junction";
     pub const JUSTIFY: &str = "justify";
@@ -89,23 +90,24 @@ pub mod el {
     pub const LIB_SYMBOLS: &str = "lib_symbols";
     pub const MIRROR: &str = "mirror";
     pub const NO_CONNECT: &str = "no_connect";
+    pub const PIN: &str = "pin";
+    pub const PIN_NAME: &str = "name";
+    pub const PIN_NAMES: &str = "pin_names";
+    pub const PIN_NUMBER: &str = "number";
     pub const POLYLINE: &str = "polyline";
-    pub const RECTANGLE: &str = "rectangle";
     pub const PROPERTY: &str = "property";
     pub const PROPERTY_REFERENCE: &str = "Reference";
     pub const PROPERTY_VALUE: &str = "Value";
-    pub const PIN: &str = "pin";
-    pub const PIN_NUMBER: &str = "number";
-    pub const PIN_NAMES: &str = "pin_names";
-    pub const PIN_NAME: &str = "name";
     pub const PTS: &str = "pts";
+    pub const RECTANGLE: &str = "rectangle";
     pub const SHEET: &str = "sheet";
     pub const SHEET_INSTANCES: &str = "sheet_instances";
     pub const SHEET_PIN: &str = "hierarchical_label";
+    pub const STROKE: &str = "stroke";
     pub const SYMBOL: &str = "symbol";
     pub const SYMBOL_UNIT: &str = "unit";
-    pub const STROKE: &str = "stroke";
     pub const TEXT: &str = "text";
+    pub const TEXT_BOX: &str = "text_box";
     pub const TITLE_BLOCK: &str = "title_block";
     pub const TITLE_BLOCK_COMMENT: &str = "comment";
     pub const TITLE_BLOCK_COMPANY: &str = "company";

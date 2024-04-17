@@ -30,7 +30,7 @@ clean:
 	$(foreach var,$(MARKDOWN_FILES), rm -rf $(dir $(var))_files;)
 
 build: $(MARKDOWN_FILES) #$(VENV)/bin/activate
-	$(foreach var,$(MARKDOWN_FILES),$(DEBUG) ELEKTRON_SPICE=spice ELEKTRON_SYMBOLS=/usr/share/kicad/symbols:/home/etienne/elektrophon/lib/symbols ELEKTRON_THEME=$(THEME) MPLBACKEND=module://elektron elektron convert --input $(var) --output $(subst .rmd,.md,$(var));)
+	$(foreach var,$(MARKDOWN_FILES),$(DEBUG) ELEKTRON_SPICE=spice ELEKTRON_SYMBOLS=/usr/share/kicad/symbols:/home/etienne/elektrophon/lib/symbols ELEKTRON_THEME=$(THEME) MPLBACKEND='module://elektron' elektron convert --input $(var) --output $(subst .rmd,.md,$(var));)
 	
 site: build
 	hugo

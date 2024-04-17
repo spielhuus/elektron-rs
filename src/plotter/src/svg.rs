@@ -8,41 +8,50 @@ use itertools::Itertools;
 use ndarray::Array2;
 use std::io::Write;
 
-use svg::node::element::path::Data;
-use svg::node::element::Path;
-use svg::node::Node;
-use svg::{node, node::element, Document};
+use svg::{
+    node,
+    node::{
+        element::{self, path::Data, Path},
+        Node,
+    },
+    Document,
+};
 
 /// Plotter implemntation for SVG files.
 pub struct SvgPlotter<'a> {
     out: &'a mut dyn Write,
-    scale: f64,
 }
 
 impl<'a> SvgPlotter<'a> {
     pub fn new(out: &'a mut dyn Write) -> Self {
-        SvgPlotter {
-            out,
-            scale: 1.0,
-        }
+        SvgPlotter { out }
     }
 }
 
 impl<'a> PlotterImpl<'a> for SvgPlotter<'a> {
-    fn plot(&mut self, plot_items: &[PlotItem], size: Array2<f64>, name: Option<String>) -> Result<(), Error> {
+    fn plot(
+        &mut self,
+        plot_items: &[PlotItem],
+        size: Array2<f64>,
+        scale: f64,
+        name: Option<String>,
+    ) -> Result<(), Error> {
         let mut document = Document::new()
             .set(
                 "viewBox",
                 (size[[0, 0]], size[[0, 1]], size[[1, 0]], size[[1, 1]]),
             )
-            .set("width", format!("{}mm", (size[[1, 0]]) * self.scale))
-            .set("height", format!("{}mm", (size[[1, 1]]) * self.scale));
+            .set("width", format!("{}mm", (size[[1, 0]]) * scale))
+            .set("height", format!("{}mm", (size[[1, 1]]) * scale));
 
         let mut g = if let Some(name) = name {
             element::Group::new().set("id", name.to_string())
         } else {
             element::Group::new()
         };
+        if scale != 1.0 {
+            g = g.set("scale", scale);
+        }
         self.draw(plot_items, &mut g);
         document.append(g);
         self.out.write_all(document.to_string().as_bytes())?;
@@ -111,29 +120,34 @@ impl<'a> Drawer<Text, element::Group> for SvgPlotter<'a> {
         } else {
             angle
         };
-        let mut t = element::Text::new()
-            .set(
-                "transform",
-                format!(
-                    "translate({},{}) rotate({})",
-                    text.pos[0], text.pos[1], angle
-                ),
-            )
-            .set("text-anchor", align)
-            .set("font-family", text.effects.font_face.to_string())
-            .set(
-                "font-size",
-                format!("{}pt", text.effects.font_size.first().unwrap()),
-            )
-            .set("fill-color", text.effects.font_color.to_string())
-            .add(node::Text::new(text.text.clone()));
 
-        if text.effects.justify.contains(&"top".to_string()) {
-            t = t.set("dominant-baseline", "hanging");
-        } else if !text.effects.justify.contains(&"bottom".to_string()) {
-            t = t.set("dominant-baseline", "middle");
+        let mut offset = 0.0;
+        for line in text.text.split("\\n") {
+            let mut t = element::Text::new()
+                .set(
+                    "transform",
+                    format!(
+                        "translate({},{}) rotate({})",
+                        text.pos[0], text.pos[1] + offset, angle
+                    ),
+                )
+                .set("text-anchor", align)
+                .set("font-family", text.effects.font_face.to_string())
+                .set(
+                    "font-size",
+                    format!("{}pt", text.effects.font_size.first().unwrap()),
+                )
+                .set("fill-color", text.effects.font_color.to_string())
+                .add(node::Text::new(line));
+        
+            if text.effects.justify.contains(&"top".to_string()) {
+                t = t.set("dominant-baseline", "hanging");
+            } else if !text.effects.justify.contains(&"bottom".to_string()) {
+                t = t.set("dominant-baseline", "middle");
+            }
+            document.append(t);
+            offset += text.effects.font_size.first().unwrap() + 0.3;
         }
-        document.append(t);
     }
 }
 
@@ -198,7 +212,6 @@ impl<'a> Drawer<Rectangle, element::Group> for SvgPlotter<'a> {
         };
 
         let path = Path::new()
-
             .set("fill", fill)
             .set("stroke", rectangle.stroke.linecolor.to_string())
             .set("stroke-width", rectangle.stroke.linewidth)
@@ -227,30 +240,34 @@ impl<'a> Drawer<Circle, element::Group> for SvgPlotter<'a> {
 
 impl<'a> Drawer<Arc, element::Group> for SvgPlotter<'a> {
     fn item(&self, arc: &Arc, document: &mut element::Group) {
-        let mut theta1 = arc.start_angle.to_radians();
-
-        if theta1 < 0.0 {
-            theta1 += std::f64::consts::PI * 2.0;
+        let radius = ((arc.start[0] - arc.center[0]).powi(2)
+            + (arc.start[1] - arc.center[1]).powi(2))
+        .sqrt();
+        let mut start_angle = ((arc.start[0] - arc.center[0]).atan2(arc.start[1] - arc.center[1])
+            * 180.0
+            / std::f64::consts::PI)
+            .abs();
+        let mut end_angle = ((arc.end[0] - arc.center[0]).atan2(arc.end[1] - arc.center[1])
+            * 180.0
+            / std::f64::consts::PI)
+            .abs();
+        if arc.angle != 0.0 {
+            start_angle += arc.angle;
+            end_angle += arc.angle;
         }
-
-        let mut theta2 = arc.end_angle.to_radians();
-
-        if theta2 < 0.0 {
-            theta2 += std::f64::consts::PI * 2.0;
-        }
-
-        if theta2 < theta1 {
-            theta2 = std::f64::consts::PI * 2.0;
-        }
-
-        // flag for large or small arc. 0 means less than 180 degrees
-        let flg_arc = if (theta2 - theta1).abs() > std::f64::consts::PI {
-            1.0
+        let large_arc_flag = if end_angle - start_angle > 180.0 {
+            "1"
         } else {
-            0.0
+            "0"
         };
-
-        if matches!(arc.stroke.fillcolor, Color::None) {
+        let sweep_flag = if (arc.start[0] - arc.mid[0]) * (arc.end[1] - arc.mid[1])
+            > (arc.start[1] - arc.mid[1]) * (arc.end[0] - arc.mid[0])
+        {
+            0
+        } else {
+            1
+        };
+        if !matches!(arc.stroke.fillcolor, Color::None) {
             let c = element::Path::new()
                 .set(
                     "d",
@@ -258,10 +275,10 @@ impl<'a> Drawer<Arc, element::Group> for SvgPlotter<'a> {
                         "M{} {} A{} {} 0.0 {} {} {} {} L {} {} Z",
                         arc.start[0],
                         arc.start[1],
-                        arc.radius,
-                        arc.radius,
-                        flg_arc,
-                        0,
+                        radius,
+                        radius,
+                        large_arc_flag,
+                        sweep_flag,
                         arc.end[0],
                         arc.end[1],
                         arc.center[0],
@@ -271,17 +288,18 @@ impl<'a> Drawer<Arc, element::Group> for SvgPlotter<'a> {
                 .set("fill", arc.stroke.fillcolor.to_string());
             document.append(c);
         }
-        let mut c = element::Path::new()
+
+        let c = element::Path::new()
             .set(
                 "d",
                 format!(
                     "M{} {} A{} {} 0.0 {} {} {} {}",
                     arc.start[0],
                     arc.start[1],
-                    arc.radius,
-                    arc.radius,
-                    flg_arc,
-                    0,
+                    radius,
+                    radius,
+                    large_arc_flag,
+                    sweep_flag,
                     arc.end[0],
                     arc.end[1]
                 ),
@@ -289,10 +307,6 @@ impl<'a> Drawer<Arc, element::Group> for SvgPlotter<'a> {
             .set("fill", "none")
             .set("stroke", arc.stroke.linecolor.to_string())
             .set("stroke-width", arc.stroke.linewidth);
-
-        if arc.stroke.linewidth != 0.0 {
-            c = c.set("stroke-width", arc.stroke.linewidth);
-        }
         document.append(c);
     }
 }

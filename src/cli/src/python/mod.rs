@@ -4,6 +4,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use std::collections::HashMap;
 use std::fs::File;
+use log::debug;
 
 pub mod circuit;
 pub mod model;
@@ -470,6 +471,7 @@ impl PyDraw {
             }
             return Ok(None);
         } else {
+            debug!("Plotting to notebook: theme: {:?}, border: {}, scale: {}, netlist: {}", theme, border, scale, netlist);
             let nb = if let Ok(nb) = std::env::var("ELEKTRON_NOTEBOOK") {
                 nb == "true"
             } else {

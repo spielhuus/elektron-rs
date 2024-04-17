@@ -2,4 +2,5 @@ maturin
 sphinx-press-theme
 alabaster
 sphinx
+sphinxcontrib-fulltoc
 

@@ -252,12 +252,23 @@ impl CellWrite<ElektronCell> for CellWriter {
 
                     plotter.open(&input_file)?;
                     for page in plotter.iter() {
-                        let mut file = BufWriter::new(File::create(output_file.clone())?);
+                        let mut file = if *page.0 == 1 {
+                            debug!("write first page to {}", output_file);
+                            writeln!(out, "  {}: {}", input, output_file).unwrap();
+                            File::create(output_file.clone())?
+                        } else {
+                            let output_file = out_dir
+                                .join(format!("{}_schema.svg", page.1))
+                                .to_str()
+                                .unwrap()
+                                .to_string();
+                            debug!("write page {} to {}", page.1, format!("{}.svg", page.1));
+                            writeln!(out, "  {}: {}", page.1, output_file).unwrap();
+                            File::create(output_file)?
+                        };
                         let mut svg_plotter = SvgPlotter::new(&mut file);
-                        plotter.write(page.0, &mut svg_plotter).unwrap();
+                        plotter.write(page.0, &mut svg_plotter)?;
                     }
-
-                    writeln!(out, "  {}: {}", input, output_file).unwrap();
                 }
                 Ok(())
             } else if command == "pcb" {

@@ -163,6 +163,44 @@
 		)
 		(uuid 2f048447-ced4-489f-8e15-f085ab189db6)
 	)
+	(circle
+		(center 101.6 109.22)
+		(radius 16.5588)
+		(stroke
+			(width 0)
+			(type default)
+			(color 149 255 94 1)
+		)
+		(fill
+			(type color)
+			(color 255 232 28 1)
+		)
+		(uuid 3b177563-8ca7-4e3b-9625-13ae507f2ab7)
+	)
+	(rectangle
+		(start 172.72 111.76)
+		(end 180.34 123.19)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(fill
+			(type none)
+		)
+		(uuid 536a21dc-1d60-4dc3-affb-bfd1bcfba51a)
+	)
+	(rectangle
+		(start 177.8 85.09)
+		(end 191.77 99.06)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(fill
+			(type none)
+		)
+		(uuid 6172ad90-068e-4576-b87f-94467350b47a)
+	)
 	(arc
 		(start 177.8 99.06)
 		(mid 181.8917 89.1817)
@@ -187,6 +225,19 @@
 			(type none)
 		)
 		(uuid a15b6aa7-9a3a-4f9c-8976-b43ea5b4d79b)
+	)
+	(arc
+		(start 180.34 111.76)
+		(mid 178.8972 119.0532)
+		(end 172.72 123.19)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(fill
+			(type none)
+		)
+		(uuid d31d79b2-fa53-4068-8a7a-6f7416ca09df)
 	)
 	(rectangle
 		(start 138.43 60.96)
@@ -327,7 +378,17 @@
 				(justify left top)
 			)
 		)
-		(pin "PIN_1" input
+		(pin "PIN_2" input
+			(at 76.2 72.39 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+			(uuid "cb7e5ac0-0b07-4ba8-9430-58f047a34c32")
+		)
+		(pin "PIN_1" output
 			(at 95.25 77.47 0)
 			(effects
 				(font
@@ -335,27 +396,17 @@
 				)
 				(justify right)
 			)
-			(uuid "ebc9e90b-b545-40f2-9b36-d6a139ffeb3b")
+			(uuid "0cec14ea-9f0d-4606-b594-fdfa33a1481f")
 		)
-		(pin "PIN_2" input
-			(at 80.01 72.39 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-			(uuid "58516964-2b3f-4c26-b532-98dbaf7ddfbe")
-		)
-		(pin "PIN_3" input
-			(at 59.69 77.47 180)
+		(pin "PIN_3" bidirectional
+			(at 59.69 78.74 180)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(justify left)
 			)
-			(uuid "46032317-fcdc-4ef8-bb2a-dde6dbf84c16")
+			(uuid "18872dfe-72f5-491c-9e94-49014c60e29e")
 		)
 		(instances
 			(project "all_elements"

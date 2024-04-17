@@ -1,6 +1,6 @@
 baseURL: https://example.com/
 title: notebook
-theme: beautifulhugo
+theme: elektrophon
 
 ignoreFiles: 
   - '\.rmd$'

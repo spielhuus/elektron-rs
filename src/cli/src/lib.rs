@@ -367,44 +367,6 @@ pub fn convert(input: &str, output: &str) -> Result<(), Error> {
     } else {
         Ok(())
     }
-
-    //
-    //
-    //
-    // let mut runner = Document::new();
-    // let res = runner.parse(input);
-    // match res {
-    //     Ok(_) => {
-    //         if let Err(err) = runner.run(
-    //             out,
-    //             Path::new(&input)
-    //                 .parent()
-    //                 .unwrap()
-    //                 .to_str()
-    //                 .unwrap()
-    //                 .to_string(),
-    //             Path::new(&output)
-    //                 .parent()
-    //                 .unwrap()
-    //                 .to_str()
-    //                 .unwrap()
-    //                 .to_string(),
-    //         ) {
-    //             return Err(Error::FileIo(format!(
-    //                 "Can not process markdown file {} ({})",
-    //                 input,
-    //                 err
-    //             )));
-    //         }
-    //     }
-    //     Err(err) => {
-    //         return Err(Error::FileIo(format!(
-    //             "Can not open markdown file {} ({})",
-    //             input,
-    //             err
-    //         )));
-    //     }
-    // }
 }
 
 /// Run the ERC checks for a Schema.

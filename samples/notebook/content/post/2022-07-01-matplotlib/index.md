@@ -11,11 +11,13 @@ This will create the data and parameters to plot datas using matplotlib.
 
 Just use matplotlib in a python cell and show the plot.
 
-
 ```python
 import matplotlib.pyplot as plt
 plt.plot([1, 2, 3, 4])
 plt.ylabel('some numbers')
 plt.show()
 ```
-{{< figure path="_files/ajlyzwpmaixizmhecloaumzhumfmva.svg">}}
+{{< result >}}
+{{< /result >}}
+
+{{< figure path="_files/ppzeeqjhbmmjqtwvuktottnnotrppj.svg">}}

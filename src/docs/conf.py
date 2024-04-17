@@ -22,6 +22,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
+    "sphinxcontrib.fulltoc",
 ]
 templates_path = ['_templates']
 exclude_patterns = []
@@ -29,9 +30,27 @@ exclude_patterns = []
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'alabaster'
-# html_static_path = ['_static']
+#html_theme = 'alabaster'
+html_static_path = ['_static']
 
+# html_sidebars = {
+#    '**': ['globaltoc.html', 'sourcelink.html', 'searchbox.html'],
+# }
 html_sidebars = {
-   '**': ['globaltoc.html', 'sourcelink.html', 'searchbox.html'],
+    "**": [
+        "about.html",
+        "navigation.html",
+        "relations.html",
+        "searchbox.html",
+    ]
+}
+
+
+html_theme_options = {
+    "description": "elektron is a continuous integration and simulation tool for electronics projects.",
+    "github_user": "spielhuus",
+    "github_repo": "elektron-rs",
+    "fixed_sidebar": True,
+    "font_family": "Montserrat",
+    "code_font_family": "Source Code Pro",
 }
