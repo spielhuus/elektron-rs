@@ -46,6 +46,7 @@ $(VENV)/bin/activate: requirements.txt
 
 clean: ## remove all build files.
 	cargo clean
+	rm src/docs/_static/*.svg
 	rm -rf $(VENV)
 	rm -rf target
 
@@ -57,6 +58,7 @@ test: $(VENV)/bin/activate $(SOURCES) ## run all the test cases.
 
 doc: $(VENV)/bin/activate $(SOURCES) ## create the rust and sphinx documentation.
 	cargo doc --workspace --no-deps --lib
+	$(PYTHON) src/docs/snippets.py
 	$(SPHINXBUILD) "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) 
 
 .PHONY: help

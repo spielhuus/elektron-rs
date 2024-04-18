@@ -447,6 +447,7 @@ impl Element {
         }
     }
 
+    ///Anchor pin of the element    
     pub fn anchor<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
@@ -465,6 +466,7 @@ impl Element {
         panic!("unknown type for at: {:?}", pin);
     }
 
+    ///Rotate the element
     pub fn rotate<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
@@ -474,6 +476,7 @@ impl Element {
         slf
     }
 
+    ///place the element at position
     pub fn at<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
@@ -500,10 +503,14 @@ impl Element {
         }
         panic!("unknown type for at: {:?}", reference);
     }
+    /// length of the element
+    /// this will extend the length of the element with wires.
     pub fn length<'py>(mut slf: PyRefMut<'py, Self>, _py: Python, len: f64) -> PyRefMut<'py, Self> {
         slf.length = Some(len);
         slf
     }
+    /// Draw the element to the position.
+    /// This will extend the length of the element with wires.
     pub fn tox<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
@@ -530,6 +537,8 @@ impl Element {
         }
         panic!("unknown type for tox: {:?}", element);
     }
+    /// Draw the element to the position.
+    /// This will extend the length of the element with wires.
     pub fn toy<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
@@ -555,7 +564,7 @@ impl Element {
         }
         panic!("unknown type for toy: {:?}", element);
     }
-    ///mirror the symbol, possible values are x and y.
+    /// Mirror the symbol, possible values are x and y.
     pub fn mirror<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
@@ -564,7 +573,7 @@ impl Element {
         slf.mirror = Some(mirror);
         slf
     }
-    ///place property, possible values are offset tuple or position by name: north, n, northeast, ne...
+    /// Place property, possible values are offset tuple or position by name: north, n, northeast, ne...
     pub fn label<'py>(
         mut slf: PyRefMut<'py, Self>,
         _py: Python,
