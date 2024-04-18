@@ -46,7 +46,6 @@ $(VENV)/bin/activate: requirements.txt
 
 clean: ## remove all build files.
 	cargo clean
-	rm src/docs/_static/*.svg
 	rm -rf $(VENV)
 	rm -rf target
 
