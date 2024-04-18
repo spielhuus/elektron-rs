@@ -41,6 +41,18 @@ jobs:
       - name: Install required cargo
         run: cargo install clippy-sarif sarif-fmt
 
+      - name: dependencies
+        run: |
+            uname -a &&
+            sudo apt-get -y install gcc clang openssl libicu-dev libgraphite2-dev \
+                           libcairo-5c-dev libcairo-gobject2 \
+                           libpango1.0-dev libpoppler-dev libpoppler-glib-dev \
+                           gcc bison flex libtool autoconf automake gcc \
+                           libngspice0-dev kicad-symbols && \
+            sudo mkdir -p /usr/local/share/fonts/TT/ && \
+            sudo curl -L "https://github.com/hikikomori82/osifont/blob/master/osifont-lgpl3fe.ttf?raw=true" \
+                      -o /usr/local/share/fonts/TT/osifont-lgpl3fe.ttf
+
       - name: Run rust-clippy
         run:
           cargo clippy
