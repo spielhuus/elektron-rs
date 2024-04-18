@@ -16,3 +16,4 @@ elektron/elektron.cpython-*.so
 .venv/
 build/
 elektron.egg-info/
+src/docs/_static/draw*.svg
