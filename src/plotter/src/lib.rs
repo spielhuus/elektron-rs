@@ -798,6 +798,7 @@ impl Arc {
     }
 }
 
+#[derive(Debug)]
 pub struct Text {
     pub pos: Array1<f64>,
     pub angle: f64,
@@ -943,7 +944,12 @@ pub trait Outline {
                     let outline = self.text_size(text);
                     let x = text.pos[0];
                     let y = text.pos[1];
-                    Option::from(arr2(&[[x, y], [x + outline[0], y + outline[1]]]))
+                    //TODO does the rotation matter here?
+                    if text.effects.justify.contains(&String::from("right")) {
+                        Option::from(arr2(&[[x - outline[0], y], [x, y + outline[1]]]))
+                    } else {
+                        Option::from(arr2(&[[x, y], [x + outline[0], y + outline[1]]]))
+                    }
                 }
                 PlotItem::Circle(_, circle) => Option::from(arr2(&[
                     [circle.pos[0] - circle.radius, circle.pos[1] - circle.radius],

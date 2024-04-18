@@ -23,5 +23,32 @@ To make a circuit diagram, use a context manager (with statement) on a schemdraw
 
    first useless circuit
 
+Now we want to try to draw a circuit that makes a little bit more sense. We draw an inverting opamp amplifier.
+
+.. code-block:: python
+
+   draw = Draw(["/usr/share/kicad/symbols"])
+   (draw
+       + Label("INPUT").rotate(180)
+       + Element("R1", "Device:R", value="10k").rotate(90)
+       + Element("U1", "Amplifier_Operational:TL072", unit=1, 
+                 value="TL072", Spice_Primitive="X", Spice_Model="TL072c").mirror('x').anchor(2)
+       + Line().up().at("U1", "1").length(5*2.54)
+       + Element("R2", "Device:R", value="10k").tox("U1", "2").rotate(270)
+       + Line().toy("U1", "2")
+
+       + Element("GND", "power:GND", unit=1, value="Gnd").at("U1", "3")
+
+       + Dot().at("U1", "1") + Line()
+       + Label("OUTPUT")
+   )
+
+.. figure:: /_static/draw2.svg
+   :alt: alternate text
+   :align: center
+
+   inverting amplifier
+
+
 
 
