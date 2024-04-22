@@ -3,6 +3,8 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 
+use pyo3::prelude::*;
+
 use super::super::cells::{CellWrite, CellWriter};
 use crate::{error::NotebookError, notebook::ArgType};
 
@@ -22,8 +24,8 @@ impl CellWrite<D3Cell> for CellWriter {
     fn write(
         out: &mut dyn std::io::Write,
         py: &pyo3::Python,
-        globals: &pyo3::types::PyDict,
-        locals: &pyo3::types::PyDict,
+        globals: &Bound<pyo3::types::PyDict>,
+        locals: &Bound<pyo3::types::PyDict>,
         cell: &D3Cell,
         input: &str,
         dest: &str,

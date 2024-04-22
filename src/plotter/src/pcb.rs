@@ -1,7 +1,7 @@
 //! Plot the PCB
 use crate::{error::Error, schema::Themer, Theme};
 use log::{debug, error, warn};
-use pyo3::{py_run, types::PyDict, Python};
+use pyo3::{prelude::*, types::PyDict};
 use rand::Rng;
 use std::fs;
 use svg::{
@@ -269,11 +269,11 @@ pub fn plot_pcb(
         let style = crate::Style::from(layer.to_string());
         Python::with_gil(|py| {
             // let list = PyList::new(py, &[input.clone(), tmp_folder.clone(), layers]);
-            let locals = PyDict::new(py);
+            let locals = PyDict::new_bound(py);
             locals.set_item("input", input.clone()).unwrap();
             locals.set_item("tmp_folder", tmp_folder.clone()).unwrap();
             locals.set_item("layer", layer).unwrap();
-            py_run!(
+            pyo3::py_run!(
                 py,
                 *locals,
                 r#"

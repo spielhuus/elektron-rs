@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use plotters::prelude::*;
+use pyo3::prelude::*;
 
 use crate::cells::{CellWrite, CellWriter};
 use crate::error::NotebookError;
@@ -14,8 +15,8 @@ impl CellWrite<PlotCell> for CellWriter {
     fn write(
         out: &mut dyn std::io::Write,
         _py: &pyo3::Python,
-        _globals: &pyo3::types::PyDict,
-        locals: &pyo3::types::PyDict,
+        _globals: &Bound<pyo3::types::PyDict>,
+        locals: &Bound<pyo3::types::PyDict>,
         cell: &PlotCell,
         input: &str,
         _: &str,

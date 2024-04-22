@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use pyo3::Bound;
+
 use crate::cells::{CellWrite, CellWriter};
 use crate::error::NotebookError;
 use crate::notebook::ArgType;
@@ -12,8 +14,8 @@ impl CellWrite<JavascriptCell> for CellWriter {
     fn write(
         out: &mut dyn std::io::Write,
         py: &pyo3::Python,
-        globals: &pyo3::types::PyDict,
-        locals: &pyo3::types::PyDict,
+        globals: &Bound<pyo3::types::PyDict>,
+        locals: &Bound<pyo3::types::PyDict>,
         cell: &JavascriptCell,
         input: &str,
         _: &str,

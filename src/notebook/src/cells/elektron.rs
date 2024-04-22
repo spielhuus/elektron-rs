@@ -4,6 +4,7 @@ use std::path::Path;
 
 use crate::{error::NotebookError, notebook::ArgType, utils::check_directory};
 
+use pyo3::Bound;
 use reports::{bom::BomItem, drc, erc};
 
 use plotter::{
@@ -25,8 +26,8 @@ impl CellWrite<ElektronCell> for CellWriter {
     fn write(
         out: &mut dyn std::io::Write,
         _py: &pyo3::Python,
-        _globals: &pyo3::types::PyDict,
-        _locals: &pyo3::types::PyDict,
+        _globals: &Bound<pyo3::types::PyDict>,
+        _locals: &Bound<pyo3::types::PyDict>,
         cell: &ElektronCell,
         source: &str,
         dest: &str,

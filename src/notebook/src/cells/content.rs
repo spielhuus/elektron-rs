@@ -1,6 +1,7 @@
 use std::io::Write;
 
 use lazy_static::lazy_static;
+use pyo3::prelude::*;
 use regex::Regex;
 
 use crate::{
@@ -14,8 +15,8 @@ impl CellWrite<ContentCell> for CellWriter {
     fn write(
         out: &mut dyn std::io::Write,
         py: &pyo3::Python,
-        globals: &pyo3::types::PyDict,
-        locals: &pyo3::types::PyDict,
+        globals: &Bound<pyo3::types::PyDict>,
+        locals: &Bound<pyo3::types::PyDict>,
         cell: &ContentCell,
         input: &str,
         _: &str,
@@ -72,9 +73,9 @@ lazy_static! {
 pub fn get_value<'a>(
     key: &str,
     py: &'a pyo3::Python,
-    globals: &'a pyo3::types::PyDict,
-    locals: &'a pyo3::types::PyDict,
-) -> Result<&'a pyo3::PyAny, ValueError> {
+    globals: &'a Bound<pyo3::types::PyDict>,
+    locals: &'a Bound<pyo3::types::PyDict>,
+) -> Result<Bound<'a, pyo3::PyAny>, ValueError> {
     if key.starts_with("py$") {
         let key: &str = key.strip_prefix("py$").unwrap();
         if let Ok(Some(item)) = locals.get_item(key) {
@@ -86,7 +87,7 @@ pub fn get_value<'a>(
         }
     } else if key.starts_with("py@") {
         let key: &str = key.strip_prefix("py@").unwrap();
-        let res = py.eval(key, None, None);
+        let res = py.eval_bound(key, None, None);
         match res {
             Ok(res) => Ok(res),
             Err(err) => Err(ValueError(format!("Variable {} not found ({})", key, err))),
@@ -99,8 +100,8 @@ pub fn get_value<'a>(
 fn parse_variables(
     body: &str,
     py: &pyo3::Python,
-    globals: &pyo3::types::PyDict,
-    locals: &pyo3::types::PyDict,
+    globals: &Bound<pyo3::types::PyDict>,
+    locals: &Bound<pyo3::types::PyDict>,
 ) -> Result<String, ValueError> {
     let mut res: Vec<u8> = Vec::new();
     for line in body.lines() {

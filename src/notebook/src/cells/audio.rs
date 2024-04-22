@@ -1,5 +1,6 @@
 use std::{collections::HashMap, path::Path};
 
+use pyo3::prelude::*;
 use rand::{thread_rng, Rng};
 
 use crate::{
@@ -16,8 +17,8 @@ impl CellWrite<AudioCell> for CellWriter {
     fn write(
         out: &mut dyn std::io::Write,
         py: &pyo3::Python,
-        globals: &pyo3::types::PyDict,
-        locals: &pyo3::types::PyDict,
+        globals: &Bound<pyo3::types::PyDict>,
+        locals: &Bound<pyo3::types::PyDict>,
         cell: &AudioCell,
         input: &str,
         dest: &str,

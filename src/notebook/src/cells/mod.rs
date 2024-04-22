@@ -4,8 +4,9 @@ use std::path::Path;
 use std::{collections::HashMap, io::Write};
 
 use lazy_static::lazy_static;
-use pyo3::{pyclass, pymethods, PyAny};
+use pyo3::{pyclass, pymethods, Bound, PyAny};
 use pyo3::{types::PyDict, Python};
+use pyo3::prelude::*;
 use rand::{thread_rng, Rng};
 use regex::Regex;
 
@@ -59,8 +60,8 @@ pub trait CellWrite<T> {
     fn write(
         out: &mut dyn Write,
         py: &Python,
-        globals: &PyDict,
-        locals: &PyDict,
+        globals: &Bound<PyDict>,
+        locals: &Bound<PyDict>,
         cell: &T,
         source: &str,
         dest: &str,
@@ -72,8 +73,8 @@ pub trait CellDispatch {
         &self,
         out: &mut dyn std::io::Write,
         py: &pyo3::Python,
-        globals: &pyo3::types::PyDict,
-        locals: &pyo3::types::PyDict,
+        globals: &Bound<pyo3::types::PyDict>,
+        locals: &Bound<pyo3::types::PyDict>,
         source: &str,
         dest: &str,
     ) -> Result<(), NotebookError>;
@@ -84,8 +85,8 @@ impl CellDispatch for Cell {
         &self,
         out: &mut dyn std::io::Write,
         py: &pyo3::Python,
-        globals: &pyo3::types::PyDict,
-        locals: &pyo3::types::PyDict,
+        globals: &Bound<pyo3::types::PyDict>,
+        locals: &Bound<pyo3::types::PyDict>,
         source: &str,
         dest: &str,
     ) -> Result<(), NotebookError> {
@@ -168,9 +169,9 @@ pub fn args_to_string(args: &HashMap<String, ArgType>) -> String {
 fn get_value<'a>(
     key: &str,
     py: &'a Python,
-    globals: &'a PyDict,
-    locals: &'a PyDict,
-) -> Result<&'a PyAny, ValueError> {
+    globals: &'a Bound<PyDict>,
+    locals: &'a Bound<PyDict>,
+) -> Result<Bound<'a, PyAny>, ValueError> {
     if key.starts_with("py$") {
         let key: &str = key.strip_prefix("py$").unwrap();
         if let Ok(Some(item)) = locals.get_item(key) {
@@ -185,7 +186,7 @@ fn get_value<'a>(
         }
     } else if key.starts_with("py@") {
         let key: &str = key.strip_prefix("py@").unwrap();
-        let res = py.eval(key, None, None);
+        let res = py.eval_bound(key, None, None);
         match res {
             Ok(res) => Ok(res),
             Err(err) => Err(ValueError(err.to_string())),
@@ -221,8 +222,8 @@ lazy_static! {
 fn parse_variables(
     body: &str,
     py: &Python,
-    globals: &PyDict,
-    locals: &PyDict,
+    globals: &Bound<PyDict>,
+    locals: &Bound<PyDict>,
 ) -> Result<String, ValueError> {
     let mut res: Vec<u8> = Vec::new();
     for line in body.lines() {

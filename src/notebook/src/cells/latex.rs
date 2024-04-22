@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fmt::Arguments;
 
 use cairo::{Context, SvgSurface};
+use pyo3::Bound;
 use tectonic::config::PersistentConfig;
 pub use tectonic::driver;
 //TODO pub use tectonic::engines::bibtex::BibtexEngine;
@@ -61,8 +62,8 @@ impl CellWrite<TikzCell> for CellWriter {
     fn write(
         out: &mut dyn std::io::Write,
         _: &pyo3::Python,
-        _: &pyo3::types::PyDict,
-        _: &pyo3::types::PyDict,
+        _: &Bound<pyo3::types::PyDict>,
+        _: &Bound<pyo3::types::PyDict>,
         cell: &TikzCell,
         input: &str,
         dest: &str,

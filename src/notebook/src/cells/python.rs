@@ -98,8 +98,8 @@ impl CellWrite<PythonCell> for CellWriter {
     fn write(
         out: &mut dyn std::io::Write,
         py: &pyo3::Python,
-        globals: &pyo3::types::PyDict,
-        locals: &pyo3::types::PyDict,
+        globals: &Bound<pyo3::types::PyDict>,
+        locals: &Bound<pyo3::types::PyDict>,
         cell: &PythonCell,
         input: &str,
         dest: &str,
@@ -145,7 +145,7 @@ impl CellWrite<PythonCell> for CellWriter {
         trace!("run: {}, {:?}", code.join("\n").as_str(), args);
         echo(out, "python", code.join("\n").as_str(), cell.0, args);
 
-        py.run(code.join("\n").as_str(), Some(globals), Some(locals))
+        py.run_bound(code.join("\n").as_str(), Some(globals), Some(locals))
             .map_err(|err| pyerr(py, input, code, cell.0, err))?;
 
         let sys = py.import_bound("sys").unwrap();

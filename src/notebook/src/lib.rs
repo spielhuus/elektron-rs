@@ -56,8 +56,8 @@ pub fn convert(
         )
     })?;
     Python::with_gil(|py| {
-        let locals = PyDict::new(py);
-        let globals = PyDict::new(py);
+        let locals = PyDict::new_bound(py);
+        let globals = PyDict::new_bound(py);
         for cell in nb.iter() {
             //capture the python stdout and stderr
             let sys = py.import_bound("sys").unwrap();
@@ -66,7 +66,7 @@ pub fn convert(
             sys.setattr("stdout", &stdout.into_py(py)).unwrap();
             sys.setattr("stderr", stderr.into_py(py)).unwrap();
 
-            if let Err(err) = cell.write(&mut out, &py, globals, locals, input, &dest) {
+            if let Err(err) = cell.write(&mut out, &py, &globals, &locals, input, &dest) {
                 cells::error(&mut out, &err, &HashMap::new());
                 error!("{}", err.to_string());
             }
