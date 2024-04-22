@@ -5,7 +5,11 @@
 
 use thiserror::Error;
 
-include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+#[allow(clippy::all)]
+mod bindings {
+    include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+}
+pub use bindings::*;
 
 //pub use crate::{ngcomplex, ngspice, simulation_types};
 use libloading::library_filename;
