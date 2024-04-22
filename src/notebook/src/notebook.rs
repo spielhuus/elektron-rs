@@ -4,10 +4,15 @@ use std::slice::Iter;
 use log::trace;
 
 use crate::cells::Cell;
-use crate::error::Error;
 
 const INSTR: char = '`';
 const COPEN: char = '{';
+
+#[derive(Debug, Clone)]
+struct LangError;
+
+#[derive(Debug)]
+pub struct ParserError(pub String);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Lang {
@@ -25,7 +30,7 @@ pub enum Lang {
 impl Lang {
     /// Get the Lang enum from a string or return an error.
     /// * `lang`: the lang string.
-    pub fn from(lang: &str) -> Result<Lang, Error> {
+    fn from(lang: &str) -> Result<Lang, LangError> {
         if lang == "audio" {
             Ok(Lang::Audio)
         } else if lang == "python" {
@@ -44,10 +49,7 @@ impl Lang {
             Ok(Lang::Elektron)
         } else {
             trace!("Unknwon language: {}", lang);
-            Err(Error::Notebook(
-                "Unknwon Lang:".to_string(),
-                lang.to_string(),
-            ))
+            Err(LangError)
         }
     }
 }
@@ -90,6 +92,7 @@ impl std::fmt::Display for ArgType {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Notebook {
     line: usize,
+    start_line: usize,
 
     state: State,
     pub language: Lang,
@@ -102,6 +105,7 @@ impl Notebook {
     pub fn new() -> Self {
         Self {
             line: 0,
+            start_line: 0,
 
             state: State::Content,
             language: Lang::Unknown(String::from("lang not set")),
@@ -117,7 +121,7 @@ impl Notebook {
         self.code.clear();
     }
 
-    pub fn from(content: &str) -> Result<Self, Error> {
+    pub fn from(content: &str) -> Result<Self, ParserError> {
         let mut notebook = Self::new();
 
         for line in content.lines() {
@@ -127,12 +131,15 @@ impl Notebook {
         Ok(notebook)
     }
 
-    pub fn open(filename: &str) -> Result<Self, Error> {
-        Self::from(&std::fs::read_to_string(filename)?)
+    pub fn open(filename: &str) -> Result<Self, ParserError> {
+        Self::from(
+            &std::fs::read_to_string(filename)
+                .map_err(|e| ParserError(format!("can not open file: {} ({})", filename, e)))?,
+        )
     }
 
     ///push a new line to the notebook.
-    fn push(&mut self, line: &str) -> Result<(), Error> {
+    fn push(&mut self, line: &str) -> Result<(), ParserError> {
         self.line += 1;
 
         if self.state == State::Content && line.starts_with("```") {
@@ -148,16 +155,19 @@ impl Notebook {
             if line.ends_with("```") {
                 self.cells.push(Cell::from(
                     &self.language,
+                    self.line,
                     self.arguments.clone(),
                     self.code.clone(),
                 ));
                 self.clear();
             } else {
+                self.start_line = self.line;
                 self.state = State::Collect;
             }
         } else if self.state == State::Collect && line.starts_with("```") {
             self.cells.push(Cell::from(
                 &self.language,
+                self.start_line,
                 self.arguments.clone(),
                 self.code.clone(),
             ));
@@ -181,7 +191,7 @@ impl Notebook {
     }
 
     ///parse a markdown scripting instruction.
-    fn parse(&mut self, arg: &str) -> Result<(), Error> {
+    fn parse(&mut self, arg: &str) -> Result<(), ParserError> {
         enum ParserState {
             NotStarted,
             StartInstruction(u8),
@@ -237,10 +247,9 @@ impl Notebook {
                     if c == INSTR {
                         state = StartInstruction(1);
                     } else {
-                        return Err(Error::Notebook(
-                            String::from("error parsing instruction"),
-                            String::from("instruction must begin with '"),
-                        ));
+                        return Err(ParserError(String::from(
+                            "error parsing instruction, must begin with '",
+                        )));
                     }
                 }
                 ParserState::StartInstruction(n) => {
@@ -253,27 +262,25 @@ impl Notebook {
                                 state = Lang;
                             }
                             std::cmp::Ordering::Greater => {
-                                return Err(Error::Notebook(
-                                    String::from("error parsing instruction"),
-                                    String::from("to many starting !."),
-                                ));
+                                return Err(ParserError(String::from(
+                                    "error parsing instruction, to many starting !.",
+                                )));
                             }
                         }
                     } else {
-                        return Err(Error::Notebook(
-                            String::from("error parsing instruction"),
-                            String::from("instruction must begin with !"),
-                        ));
+                        return Err(ParserError(String::from(
+                            "error parsing instruction, instruction must begin with !",
+                        )));
                     }
                 }
                 ParserState::Lang => match c {
                     ',' | COPEN => {}
                     ' ' => {
                         let Ok(lang) = crate::notebook::Lang::from(&lang) else {
-                            return Err(Error::Notebook(
-                                format!("Unknown lang at line: {}", self.line),
-                                format!("lang {} is not supported.", lang),
-                            ));
+                            return Err(ParserError(format!(
+                                "Unknown lang {} at line: {}",
+                                lang, self.line
+                            )));
                         };
                         self.language = lang;
                         state = Key;
@@ -305,10 +312,10 @@ impl Notebook {
         if let ParserState::Lang = state {
             if !lang.is_empty() {
                 let Ok(lang) = crate::notebook::Lang::from(&lang) else {
-                    return Err(Error::Notebook(
-                        format!("Unknown lang at line: {}", self.line),
-                        format!("lang {} is not supported.", lang),
-                    ));
+                    return Err(ParserError(format!(
+                        "Unknown lang {} at line: {}",
+                        lang, self.line
+                    )));
                 };
                 self.language = lang;
             }
@@ -332,8 +339,8 @@ mod tests {
 
         if let Err(err) = res {
             assert_eq!(
-                "`Unknown lang at line: 0`: lang suaheli is not supported.",
-                err.to_string()
+                "Unknown lang suaheli at line: 0",
+                err.0
             );
         } else {
             panic!("should fail");
@@ -379,9 +386,9 @@ mod tests {
         assert!(res.is_ok());
         for content in command.iter() {
             if let Cell::Python(cell) = content {
-                assert_eq!("println(\"Hello World\")", cell.1.first().unwrap());
-                assert_eq!(6, cell.0.len());
-                if let ArgType::String(str) = cell.0.get("fig.cap").unwrap() {
+                assert_eq!("println(\"Hello World\")", cell.2.first().unwrap());
+                assert_eq!(6, cell.1.len());
+                if let ArgType::String(str) = cell.1.get("fig.cap").unwrap() {
                     assert_eq!("Linear amplifier", str);
                 } else {
                     panic!("result is not a string: {:?}", res)
@@ -402,9 +409,9 @@ mod tests {
         assert!(res.is_ok());
         for content in command.iter() {
             if let Cell::Python(cell) = content {
-                assert_eq!("println(\"Hello World\")", cell.1.first().unwrap());
-                assert_eq!(6, cell.0.len());
-                if let ArgType::String(str) = cell.0.get("fig.cap").unwrap() {
+                assert_eq!("println(\"Hello World\")", cell.2.first().unwrap());
+                assert_eq!(6, cell.1.len());
+                if let ArgType::String(str) = cell.1.get("fig.cap").unwrap() {
                     assert_eq!(r#"Linear \"escaped\" amplifier"#, str);
                 } else {
                     panic!("result is not a string: {:?}", res)
@@ -425,9 +432,9 @@ mod tests {
         assert!(res.is_ok());
         for content in command.iter() {
             if let Cell::Python(cell) = content {
-                assert_eq!("println(\"Hello World\")", cell.1.first().unwrap());
-                assert_eq!(5, cell.0.len());
-                if let ArgType::String(str) = cell.0.get("number").unwrap() {
+                assert_eq!("println(\"Hello World\")", cell.2.first().unwrap());
+                assert_eq!(5, cell.1.len());
+                if let ArgType::String(str) = cell.1.get("number").unwrap() {
                     assert_eq!("123", str);
                 } else {
                     panic!("result is not a string: {:?}", res)
@@ -448,9 +455,9 @@ mod tests {
         assert!(res.is_ok());
         for content in command.iter() {
             if let Cell::Python(cell) = content {
-                assert_eq!("println(\"Hello World\")", cell.1.first().unwrap());
-                assert_eq!(5, cell.0.len());
-                if let ArgType::List(str) = cell.0.get("list").unwrap() {
+                assert_eq!("println(\"Hello World\")", cell.2.first().unwrap());
+                assert_eq!(5, cell.1.len());
+                if let ArgType::List(str) = cell.1.get("list").unwrap() {
                     assert_eq!(vec!["a", "b", "c"], *str);
                 } else {
                     panic!("result is not a list: {:?}", res)
@@ -469,9 +476,9 @@ mod tests {
         assert!(res.is_ok());
         for content in command.iter() {
             if let Cell::Python(cell) = content {
-                assert!(cell.1.is_empty());
-                assert_eq!(5, cell.0.len());
-                if let ArgType::List(str) = cell.0.get("list").unwrap() {
+                assert!(cell.2.is_empty());
+                assert_eq!(5, cell.1.len());
+                if let ArgType::List(str) = cell.1.get("list").unwrap() {
                     assert_eq!(vec!["a", "b", "c"], *str);
                 } else {
                     panic!("result is not a list: {:?}", res)
@@ -490,19 +497,19 @@ mod tests {
         for content in command.iter() {
             println!("{:?}", content);
             if let Cell::Elektron(cell) = content {
-                assert!(cell.1.is_empty());
-                assert_eq!(4, cell.0.len());
-                if let ArgType::String(str) = cell.0.get("command").unwrap() {
+                assert!(cell.2.is_empty());
+                assert_eq!(4, cell.1.len());
+                if let ArgType::String(str) = cell.1.get("command").unwrap() {
                     assert_eq!("schema", *str);
                 } else {
                     panic!("result for command is not a string: {:?}", res)
                 }
-                if let ArgType::List(str) = cell.0.get("input").unwrap() {
+                if let ArgType::List(str) = cell.1.get("input").unwrap() {
                     assert_eq!(vec!["main", "mount"], *str);
                 } else {
                     panic!("result for input is not a list: {:?}", res)
                 }
-                if let ArgType::String(str) = cell.0.get("border").unwrap() {
+                if let ArgType::String(str) = cell.1.get("border").unwrap() {
                     assert_eq!("TRUE", *str);
                 } else {
                     panic!("result for border is not a string: {:?}", res)
@@ -520,9 +527,9 @@ mod tests {
         assert!(res.is_ok());
         for content in command.iter() {
             if let Cell::Python(cell) = content {
-                assert!(cell.1.is_empty());
-                assert_eq!(5, cell.0.len());
-                if let ArgType::Options(o) = cell.0.get("options").unwrap() {
+                assert!(cell.2.is_empty());
+                assert_eq!(5, cell.1.len());
+                if let ArgType::Options(o) = cell.1.get("options").unwrap() {
                     assert_eq!(2, o.len());
                     assert_eq!(ArgType::String(String::from("bar")), *o.get("foo").unwrap());
                 } else {
@@ -545,10 +552,10 @@ mod tests {
         assert_eq!(1, command.cells.len());
         let cell = command.cells.pop().unwrap();
         if let Cell::Python(cell) = cell {
-            if let ArgType::String(value) = cell.0.get("error").unwrap() {
+            if let ArgType::String(value) = cell.1.get("error").unwrap() {
                 assert_eq!("TRUE", value);
             }
-            assert_eq!("println(\"Hello World\")", cell.1.first().unwrap());
+            assert_eq!("println(\"Hello World\")", cell.2.first().unwrap());
         } else {
             assert_eq!(0, 1);
         }
@@ -565,10 +572,10 @@ mod tests {
         assert_eq!(1, command.cells.len());
         let cell = command.cells.pop().unwrap();
         if let Cell::Python(cell) = cell {
-            if let ArgType::String(value) = cell.0.get("error").unwrap() {
+            if let ArgType::String(value) = cell.1.get("error").unwrap() {
                 assert_eq!("TRUE", value);
             }
-            assert_eq!("println(\"Hello World\")", cell.1.first().unwrap());
+            assert_eq!("println(\"Hello World\")", cell.2.first().unwrap());
         } else {
             assert_eq!(0, 1);
         }
@@ -737,7 +744,7 @@ This is the first setup with the 4069 as a voltage follower. C1 and C2 are DC bl
 
         let second = cells.next().unwrap();
         if let Cell::Python(cell) = second {
-            assert_eq!(108, cell.1.len());
+            assert_eq!(108, cell.2.len());
         } else {
             panic!("first cell is not of type Python");
         }
@@ -751,7 +758,7 @@ This is the first setup with the 4069 as a voltage follower. C1 and C2 are DC bl
 
         let fourth = cells.next().unwrap();
         if let Cell::D3(cell) = fourth {
-            assert_eq!(2, cell.0.len());
+            assert_eq!(2, cell.1.len());
         } else {
             panic!("fourth cell is not of type D3");
         }

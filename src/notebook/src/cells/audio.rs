@@ -3,7 +3,7 @@ use std::{collections::HashMap, path::Path};
 use rand::{thread_rng, Rng};
 
 use crate::{
-    error::Error,
+    error::NotebookError,
     notebook::ArgType,
     utils::{check_directory, Symbols},
 };
@@ -11,7 +11,7 @@ use crate::{
 use super::{args_to_string, get_value, param, param_or, CellWrite, CellWriter};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AudioCell(pub HashMap<String, ArgType>, pub Vec<String>);
+pub struct AudioCell(pub usize, pub HashMap<String, ArgType>, pub Vec<String>);
 impl CellWrite<AudioCell> for CellWriter {
     fn write(
         out: &mut dyn std::io::Write,
@@ -19,26 +19,39 @@ impl CellWrite<AudioCell> for CellWriter {
         globals: &pyo3::types::PyDict,
         locals: &pyo3::types::PyDict,
         cell: &AudioCell,
-        _: &str,
+        input: &str,
         dest: &str,
-    ) -> Result<(), Error> {
-        let _body = &cell.1;
-        let args = &cell.0;
+    ) -> Result<(), NotebookError> {
+        let _body = &cell.2;
+        let args = &cell.1;
 
         let ext = param_or!(args, "ext", "wav");
         let data_key = param_or!(args, "data", "py$ret");
         let samplerate = param!(
             args,
             "samplerate",
-            Error::PropertyNotFound(String::from("property samperate not found"))
+            NotebookError::new(
+                input.to_string(),
+                String::from("AudioCell"),
+                String::from("PropertyError"),
+                String::from("property samplerate not found"),
+                cell.0,
+                cell.0,
+                None
+            )
         );
 
         //get the data from the pyhton context
         let Ok(py_data) = get_value(samplerate, py, globals, locals) else {
-            return Err(Error::VariableNotFound(format!(
-                "Variable with name '{}' can not be found.",
-                data_key
-            )));
+            return Err(NotebookError::new(
+                input.to_string(),
+                String::from("AudioCell"),
+                String::from("VariableError"),
+                format!("Variable with name '{}' can not be found.", data_key),
+                cell.0,
+                cell.0,
+                None,
+            ));
         };
 
         let samplerate = if let Ok(data) = py_data.extract::<u32>() {
@@ -48,19 +61,47 @@ impl CellWrite<AudioCell> for CellWriter {
         }
         .unwrap();
 
-        let v = get_value(data_key, py, globals, locals)?;
+        let v = get_value(data_key, py, globals, locals).map_err(|err| {
+            NotebookError::new(
+                input.to_string(),
+                String::from("AudioCell"),
+                String::from("VariableError"),
+                err.0,
+                cell.0,
+                cell.0,
+                None,
+            )
+        })?;
         if let Ok(data) = v.extract::<Vec<f32>>() {
             writeln!(
                 out,
                 "{{{{< audio {}>}}}}",
-                args_to_string(&write_audio(dest, data, ext, samplerate, args)?)
+                args_to_string(
+                    &write_audio(dest, data, ext, samplerate, args).map_err(|err| {
+                        NotebookError::new(
+                            input.to_string(),
+                            String::from("AudioCell"),
+                            String::from("WriteError"),
+                            format!("can not write audio file: {} ({})", dest, err),
+                            cell.0,
+                            cell.0,
+                            None,
+                        )
+                    })?
+                )
             )
             .unwrap();
             Ok(())
         } else {
-            Err(Error::VariableCastError(String::from(
-                "plot value must be of type HashMap<Sting<Vec<f32>>",
-            )))
+            Err(NotebookError::new(
+                input.to_string(),
+                String::from("AudioCell"),
+                String::from("ValueError"),
+                String::from("plot value must be of type HashMap<String<Vec<f32>>"),
+                cell.0,
+                cell.0,
+                None,
+            ))
         }
     }
 }
@@ -71,7 +112,7 @@ pub fn write_audio(
     ext: &str,
     fs: u32,
     args: &HashMap<String, ArgType>,
-) -> Result<HashMap<String, ArgType>, Error> {
+) -> Result<HashMap<String, ArgType>, std::io::Error> {
     let out_dir = Path::new(path).join("_files");
     let rand_string: String = thread_rng()
         .sample_iter(&Symbols)
@@ -83,6 +124,7 @@ pub fn write_audio(
         .to_str()
         .unwrap()
         .to_string();
+
     check_directory(&output_file)?;
 
     let spec = hound::WavSpec {

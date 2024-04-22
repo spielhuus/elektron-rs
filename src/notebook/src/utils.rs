@@ -4,8 +4,6 @@ use rand::{
     Rng,
 };
 
-use crate::error::Error;
-
 pub struct Symbols;
 impl Distribution<char> for Symbols {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
@@ -36,7 +34,7 @@ pub fn clean_svg(input: &str) -> String {
     vec.join("\n")
 }
 
-pub fn check_directory(filename: &str) -> Result<(), Error> {
+pub fn check_directory(filename: &str) -> Result<(), std::io::Error> {
     let path = std::path::Path::new(filename);
     let parent = path.parent();
     if let Some(parent) = parent {

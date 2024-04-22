@@ -5,7 +5,7 @@ use regex::Regex;
 
 use crate::{
     cells::{CellWrite, CellWriter},
-    error::Error,
+    error::{NotebookError, ValueError},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -17,21 +17,49 @@ impl CellWrite<ContentCell> for CellWriter {
         globals: &pyo3::types::PyDict,
         locals: &pyo3::types::PyDict,
         cell: &ContentCell,
+        input: &str,
         _: &str,
-        _: &str,
-    ) -> Result<(), Error> {
+    ) -> Result<(), NotebookError> {
         let body = &cell.0;
 
         match parse_variables(&body.join("\n"), py, globals, locals) {
             Ok(code) => {
                 if code.is_empty() {
-                    out.write_all("\n".as_bytes())?;
+                    out.write_all("\n".as_bytes()).map_err(|err| {
+                        NotebookError::new(
+                            input.to_string(),
+                            String::from("ContentCell"),
+                            String::from("WriteError"),
+                            err.to_string(),
+                            0,
+                            0,
+                            None,
+                        )
+                    })?;
                 } else {
-                    out.write_all(code.as_bytes())?;
+                    out.write_all(code.as_bytes()).map_err(|err| {
+                        NotebookError::new(
+                            input.to_string(),
+                            String::from("ContentCell"),
+                            String::from("WriteError"),
+                            err.to_string(),
+                            0,
+                            0,
+                            None,
+                        )
+                    })?;
                 }
                 Ok(())
             }
-            Err(err) => Err(Error::VariableNotFound(err.to_string())),
+            Err(err) => Err(NotebookError::new(
+                input.to_string(),
+                String::from("ContentCell"),
+                String::from("WriteError"),
+                err.0,
+                0,
+                0,
+                None,
+            )),
         }
     }
 }
@@ -46,7 +74,7 @@ pub fn get_value<'a>(
     py: &'a pyo3::Python,
     globals: &'a pyo3::types::PyDict,
     locals: &'a pyo3::types::PyDict,
-) -> Result<&'a pyo3::PyAny, Error> {
+) -> Result<&'a pyo3::PyAny, ValueError> {
     if key.starts_with("py$") {
         let key: &str = key.strip_prefix("py$").unwrap();
         if let Ok(Some(item)) = locals.get_item(key) {
@@ -54,17 +82,17 @@ pub fn get_value<'a>(
         } else if let Ok(Some(item)) = globals.get_item(key) {
             Ok(item)
         } else {
-            Err(Error::Variable(key.to_string()))
+            Err(ValueError(format!("Variable {} not found", key)))
         }
     } else if key.starts_with("py@") {
         let key: &str = key.strip_prefix("py@").unwrap();
         let res = py.eval(key, None, None);
         match res {
             Ok(res) => Ok(res),
-            Err(err) => Err(Error::Python(err.to_string())),
+            Err(err) => Err(ValueError(format!("Variable {} not found ({})", key, err))),
         }
     } else {
-        Err(Error::Variable(key.to_string()))
+        Err(ValueError(format!("variable must start with 'py$' or 'py@' but is {}", key)))
     }
 }
 
@@ -73,7 +101,7 @@ fn parse_variables(
     py: &pyo3::Python,
     globals: &pyo3::types::PyDict,
     locals: &pyo3::types::PyDict,
-) -> Result<String, Error> {
+) -> Result<String, ValueError> {
     let mut res: Vec<u8> = Vec::new();
     for line in body.lines() {
         let mut position = 0;

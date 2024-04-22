@@ -12,12 +12,15 @@ pub use tectonic::driver;
 // pub use tectonic::status;
 use tectonic::status::{MessageKind, StatusBackend};
 
+use crate::error::NotebookError;
 use crate::notebook::ArgType;
 
 use super::super::cells::{CellWrite, CellWriter};
-use super::{echo, write_plot, Error};
+use super::{echo, write_plot};
 
 use super::args_to_string;
+
+struct LatexError(pub String);
 
 struct BufferStatusBackend {
     pub messages: Vec<String>,
@@ -53,7 +56,7 @@ impl StatusBackend for BufferStatusBackend {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TikzCell(pub HashMap<String, ArgType>, pub Vec<String>);
+pub struct TikzCell(pub usize, pub HashMap<String, ArgType>, pub Vec<String>);
 impl CellWrite<TikzCell> for CellWriter {
     fn write(
         out: &mut dyn std::io::Write,
@@ -61,16 +64,24 @@ impl CellWrite<TikzCell> for CellWriter {
         _: &pyo3::types::PyDict,
         _: &pyo3::types::PyDict,
         cell: &TikzCell,
-        _: &str,
+        input: &str,
         dest: &str,
-    ) -> Result<(), Error> {
-        let body = &cell.1;
-        let args = &cell.0;
+    ) -> Result<(), NotebookError> {
+        let body = &cell.2;
+        let args = &cell.1;
 
         let pdf_data = latex_to_pdf(body.join("\n"));
-        echo(out, "latex", body.join("\n").as_str(), args);
+        echo(out, "latex", body.join("\n").as_str(), cell.0, args);
         if let Err(pdf_err) = pdf_data {
-            return Err(Error::Latex(pdf_err.to_string()));
+            return Err(NotebookError::new(
+                input.to_string(),
+                String::from("TikzCell"),
+                String::from("LatexError"),
+                pdf_err.0,
+                cell.0,
+                cell.0,
+                None,
+            ));
         }
         if let Ok(pdf_data) = pdf_data {
             unsafe {
@@ -95,27 +106,27 @@ impl CellWrite<TikzCell> for CellWriter {
     }
 }
 
-pub fn latex_to_pdf<T: AsRef<str>>(latex: T) -> Result<Vec<u8>, Error> {
+fn latex_to_pdf<T: AsRef<str>>(latex: T) -> Result<Vec<u8>, LatexError> {
     let mut status = Box::new(BufferStatusBackend {
         messages: Vec::new(),
     }); // as Box<dyn StatusBackend>;
 
     let auto_create_config_file = false;
     let Ok(config) = PersistentConfig::open(auto_create_config_file) else {
-        return Err(Error::Latex(String::from(
+        return Err(LatexError(String::from(
             "failed to open the default configuration file",
         )));
     };
 
     let only_cached = false;
     let Ok(bundle) = config.default_bundle(only_cached, &mut *status) else {
-        return Err(Error::Latex(String::from(
+        return Err(LatexError(String::from(
             "failed to load the default resource bundle",
         )));
     };
 
     let Ok(format_cache_path) = config.format_cache_path() else {
-        return Err(Error::Latex(String::from(
+        return Err(LatexError(String::from(
             "failed to set up the format cache",
         )));
     };
@@ -135,20 +146,20 @@ pub fn latex_to_pdf<T: AsRef<str>>(latex: T) -> Result<Vec<u8>, Error> {
             .do_not_write_output_files();
 
         let Ok(mut sess) = sb.create(&mut *status) else {
-            return Err(Error::Latex(String::from(
+            return Err(LatexError(String::from(
                 "failed to initialize the LaTeX processing session",
             )));
         };
         // ctry!(sess.run(&mut *status); "the LaTeX engine failed");
         if sess.run(&mut *status).is_err() {
-            return Err(Error::Latex(status.messages.join("\n")));
+            return Err(LatexError(status.messages.join("\n")));
         }
         sess.into_file_data()
     };
 
     match files.remove("texput.pdf") {
         Some(file) => Ok(file.data),
-        None => Err(Error::Latex(String::from(
+        None => Err(LatexError(String::from(
             "LaTeX didn't report failure, but no PDF was created (??)",
         ))),
     }

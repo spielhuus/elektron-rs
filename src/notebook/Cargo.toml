@@ -26,4 +26,4 @@ pyo3.workspace = true
 rand.workspace = true
 regex.workspace = true
 tectonic.workspace = true
-thiserror.workspace = true
+colored.workspace = true

@@ -1,41 +1,74 @@
-#[derive(thiserror::Error, Debug, Clone)]
-pub enum Error {
-    #[error("{0}")]
-    PropertyNotFound(String),
-    #[error("Cell language is not supported {0}.")]
-    LanguageNotSupported(String),
-    #[error("`{0}`: {1}")]
-    Notebook(String, String),
-    #[error("{0}")]
-    VariableNotFound(String),
-    #[error("{0}")]
-    VariableCastError(String),
-    #[error("{0}")]
-    Variable(String),
-    #[error("{0}")]
-    Python(String),
-    #[error("{0}")]
-    GetPythonVariable(String),
-    #[error("{0}")]
-    Latex(String),
-    #[error("No command set")]
-    NoCommand,
-    #[error("{0}")]
-    UnknownCommand(String),
-    #[error("No Input file defined.")]
-    NoInputFile(),
-    #[error("File manipulatuion error {0}.")]
-    IoError(String),
-    #[error("NgSpice Error: \"{0}\"")]
-    NgSpiceError(String),
+use std::fmt;
+use colored::Colorize;
+
+use crate::CodeLine;
+
+#[derive(Debug, Clone)]
+pub struct ValueError(pub String);
+
+#[derive(Debug, Clone)]
+pub struct NotebookError {
+    pub filename: String,
+    pub cell: String,
+    pub title: String,
+    pub message: String,
+    pub line: usize,
+    pub start_line: usize,
+    pub code: Option<Box<Vec<CodeLine>>>,
 }
-impl std::convert::From<std::io::Error> for Error {
-    fn from(err: std::io::Error) -> Self {
-        Error::IoError(err.to_string())
+
+impl NotebookError {
+    pub fn new(
+        filename: String,
+        cell: String,
+        title: String,
+        message: String,
+        line: usize,
+        start_line: usize,
+        code: Option<Box<Vec<CodeLine>>>,
+    ) -> Self {
+        Self {
+            filename,
+            cell,
+            title,
+            message,
+            line,
+            start_line,
+            code,
+        }
     }
 }
-impl std::convert::From<plotter::Error> for Error {
-    fn from(err: plotter::Error) -> Self {
-        Error::IoError(err.to_string())
+
+impl std::error::Error for NotebookError {}
+
+impl fmt::Display for NotebookError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let lines = self.code.as_ref().map(|code| {
+            code.iter()
+                .map(|line| {
+                    if let Some(annotation) = &line.annotation {
+                        format!("{}\t = {}\t{}", line.line, line.code, annotation.red()).bold().to_string()
+                    } else {
+                        format!("{}\t | {}", line.line, line.code)
+                    }
+                })
+                .collect::<Vec<String>>()
+        });
+
+        if let Some(lines) = lines {
+            write!(
+                f,
+                "Python: {}:{}\n{}",
+                self.filename,
+                self.line,
+                lines.join("\n")
+            )
+        } else {
+            write!(
+                f,
+                "{}::{}::{} in {}::{}",
+                self.cell, self.title, self.message, self.filename, self.line
+            )
+        }
     }
 }

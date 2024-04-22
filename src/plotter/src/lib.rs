@@ -1200,7 +1200,7 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
 mod tests {
     use ndarray::{arr1, arr2};
     use crate::{
-        schema::Themer, Arc, Circle, Effects, Line, Outline, PlotItem, Polyline, Rectangle, Stroke, Style, Text, Theme
+        schema::Themer, Circle, Effects, Line, Outline, PlotItem, Polyline, Rectangle, Stroke, Style, Text, Theme
     };
 
     #[test]

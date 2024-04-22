@@ -3,13 +3,13 @@ use std::collections::HashMap;
 use plotters::prelude::*;
 
 use crate::cells::{CellWrite, CellWriter};
+use crate::error::NotebookError;
 use crate::notebook::ArgType;
-use crate::Error;
 
 use super::args_to_string;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PlotCell(pub HashMap<String, ArgType>, pub Vec<String>);
+pub struct PlotCell(pub usize, pub HashMap<String, ArgType>, pub Vec<String>);
 impl CellWrite<PlotCell> for CellWriter {
     fn write(
         out: &mut dyn std::io::Write,
@@ -17,11 +17,11 @@ impl CellWrite<PlotCell> for CellWriter {
         _globals: &pyo3::types::PyDict,
         locals: &pyo3::types::PyDict,
         cell: &PlotCell,
+        input: &str,
         _: &str,
-        _: &str,
-    ) -> Result<(), Error> {
-        let _body = &cell.1;
-        let args = &cell.0;
+    ) -> Result<(), NotebookError> {
+        let _body = &cell.2;
+        let args = &cell.1;
 
         let x: Option<Vec<f64>> = if let Some(ArgType::String(x)) = args.get("x") {
             if x.starts_with("py$") {
@@ -30,10 +30,26 @@ impl CellWrite<PlotCell> for CellWriter {
                     if let Ok(var) = item.extract() {
                         Some(var)
                     } else {
-                        return Err(Error::VariableCastError(item.get_type().to_string()));
+                        return Err(NotebookError::new(
+                            input.to_string(),
+                            String::from("PlotCell"),
+                            String::from("VariableError"),
+                            format!("Variable with name '{}' can not be found.", key),
+                            cell.0,
+                            cell.0,
+                            None,
+                        ));
                     }
                 } else {
-                    return Err(Error::VariableNotFound(key.to_string()));
+                    return Err(NotebookError::new(
+                        input.to_string(),
+                        String::from("PlotCell"),
+                        String::from("VariableError"),
+                        format!("Variable with name '{}' can not be found.", key),
+                        cell.0,
+                        cell.0,
+                        None,
+                    ));
                 }
             } else {
                 None
@@ -50,10 +66,26 @@ impl CellWrite<PlotCell> for CellWriter {
                         if let Ok(var) = item.extract() {
                             result.push(var)
                         } else {
-                            return Err(Error::VariableCastError(item.get_type().to_string()));
+                            return Err(NotebookError::new(
+                                input.to_string(),
+                                String::from("PlotCell"),
+                                String::from("VariableError"),
+                                format!("Variable cast error '{}'.", key),
+                                cell.0,
+                                cell.0,
+                                None,
+                            ));
                         }
                     } else {
-                        return Err(Error::VariableNotFound(key.to_string()));
+                        return Err(NotebookError::new(
+                            input.to_string(),
+                            String::from("PlotCell"),
+                            String::from("VariableError"),
+                            format!("Variable with name '{}' can not be found.", key),
+                            cell.0,
+                            cell.0,
+                            None,
+                        ));
                     }
                 }
             }
@@ -68,9 +100,15 @@ impl CellWrite<PlotCell> for CellWriter {
             writeln!(out, "{{{{< /figure >}}}}").unwrap();
             Ok(())
         } else {
-            Err(Error::PropertyNotFound(String::from(
-                "x and y property not set.",
-            )))
+            Err(NotebookError::new(
+                input.to_string(),
+                String::from("PlotCell"),
+                String::from("ValueError"),
+                String::from("x and y property not set."),
+                cell.0,
+                cell.0,
+                None,
+            ))
         }
 
         /* match parse_variables(&body.join("\n"), &py, globals, locals) {

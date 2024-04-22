@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::fs::File;
 use std::path::Path;
 use std::{collections::HashMap, io::Write};
@@ -8,7 +9,7 @@ use pyo3::{types::PyDict, Python};
 use rand::{thread_rng, Rng};
 use regex::Regex;
 
-use crate::error::Error;
+use crate::error::NotebookError;
 use crate::notebook::{ArgType, Lang};
 use crate::utils::{check_directory, Symbols};
 
@@ -21,6 +22,9 @@ mod javascript;
 mod latex;
 mod plot;
 mod python;
+
+#[derive(Debug, Clone)]
+struct ValueError(String);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Cell {
@@ -35,16 +39,16 @@ pub enum Cell {
     D3(d3::D3Cell),
 }
 impl Cell {
-    pub fn from(lang: &Lang, args: HashMap<String, ArgType>, code: Vec<String>) -> Self {
+    pub fn from(lang: &Lang, line: usize, args: HashMap<String, ArgType>, code: Vec<String>) -> Self {
         match lang {
-            Lang::Audio => Self::Audio(audio::AudioCell(args, code)),
-            Lang::Python => Self::Python(python::PythonCell(args, code)),
-            Lang::Latex => Self::Tikz(latex::TikzCell(args, code)),
-            Lang::Figure => Self::Figure(figure::FigureCell(args, code)),
-            Lang::Plot => Self::Plot(plot::PlotCell(args, code)),
-            Lang::Javascript => Self::Javascript(javascript::JavascriptCell(args, code)),
-            Lang::D3 => Self::D3(d3::D3Cell(args, code)),
-            Lang::Elektron => Self::Elektron(elektron::ElektronCell(args, code)),
+            Lang::Audio => Self::Audio(audio::AudioCell(line, args, code)),
+            Lang::Python => Self::Python(python::PythonCell(line, args, code)),
+            Lang::Latex => Self::Tikz(latex::TikzCell(line, args, code)),
+            Lang::Figure => Self::Figure(figure::FigureCell(line, args, code)),
+            Lang::Plot => Self::Plot(plot::PlotCell(line, args, code)),
+            Lang::Javascript => Self::Javascript(javascript::JavascriptCell(line, args, code)),
+            Lang::D3 => Self::D3(d3::D3Cell(line, args, code)),
+            Lang::Elektron => Self::Elektron(elektron::ElektronCell(line, args, code)),
             Lang::Unknown(lang) => todo!("Unknown Cell: {}", lang),
         }
     }
@@ -60,7 +64,7 @@ pub trait CellWrite<T> {
         cell: &T,
         source: &str,
         dest: &str,
-    ) -> Result<(), Error>;
+    ) -> Result<(), NotebookError>;
 }
 
 pub trait CellDispatch {
@@ -72,7 +76,7 @@ pub trait CellDispatch {
         locals: &pyo3::types::PyDict,
         source: &str,
         dest: &str,
-    ) -> Result<(), Error>;
+    ) -> Result<(), NotebookError>;
 }
 
 impl CellDispatch for Cell {
@@ -84,7 +88,7 @@ impl CellDispatch for Cell {
         locals: &pyo3::types::PyDict,
         source: &str,
         dest: &str,
-    ) -> Result<(), Error> {
+    ) -> Result<(), NotebookError> {
         match self {
             Cell::Audio(cell) => CellWriter::write(out, py, globals, locals, cell, source, dest),
             Cell::Python(cell) => CellWriter::write(out, py, globals, locals, cell, source, dest),
@@ -161,12 +165,12 @@ pub fn args_to_string(args: &HashMap<String, ArgType>) -> String {
     result
 }
 
-pub fn get_value<'a>(
+fn get_value<'a>(
     key: &str,
     py: &'a Python,
     globals: &'a PyDict,
     locals: &'a PyDict,
-) -> Result<&'a PyAny, Error> {
+) -> Result<&'a PyAny, ValueError> {
     if key.starts_with("py$") {
         let key: &str = key.strip_prefix("py$").unwrap();
         if let Ok(Some(item)) = locals.get_item(key) {
@@ -174,7 +178,7 @@ pub fn get_value<'a>(
         } else if let Ok(Some(item)) = globals.get_item(key) {
             Ok(item)
         } else {
-            Err(Error::GetPythonVariable(format!(
+            Err(ValueError(format!(
                 "Figure: Variable with name '{}' can not be found.",
                 key
             )))
@@ -184,7 +188,7 @@ pub fn get_value<'a>(
         let res = py.eval(key, None, None);
         match res {
             Ok(res) => Ok(res),
-            Err(err) => Err(Error::Python(err.to_string())),
+            Err(err) => Err(ValueError(err.to_string())),
         }
     } else if key.contains('.') {
         let k = key.split('.').next().unwrap();
@@ -193,7 +197,7 @@ pub fn get_value<'a>(
         } else if let Ok(Some(item)) = globals.get_item(k) {
             Ok(item)
         } else {
-            Err(Error::GetPythonVariable(format!(
+            Err(ValueError(format!(
                 "Variable with name '{}' can not be found.",
                 k
             )))
@@ -203,7 +207,7 @@ pub fn get_value<'a>(
     } else if let Ok(Some(item)) = globals.get_item(key) {
         Ok(item)
     } else {
-        Err(Error::GetPythonVariable(format!(
+        Err(ValueError(format!(
             "Figure: Variable with name '{}' can not be found.",
             key
         )))
@@ -219,7 +223,7 @@ fn parse_variables(
     py: &Python,
     globals: &PyDict,
     locals: &PyDict,
-) -> Result<String, Error> {
+) -> Result<String, ValueError> {
     let mut res: Vec<u8> = Vec::new();
     for line in body.lines() {
         let mut position = 0;
@@ -239,25 +243,33 @@ fn parse_variables(
     Ok(std::str::from_utf8(&res).unwrap().to_string())
 }
 
-fn echo(out: &mut dyn Write, lang: &str, code: &str, args: &HashMap<String, ArgType>) {
+fn echo(out: &mut dyn Write, lang: &str, code: &str, line_start: usize, args: &HashMap<String, ArgType>) {
     if let Some(ArgType::String(echo)) = args.get("echo") {
         if echo == "FALSE" {
             return;
         }
     }
-    writeln!(out, "```{}", lang).unwrap();
+    writeln!(out, "```{} {{linenos=table,linenostart={},style=pygments}}", lang, line_start + 1).unwrap();
     out.write_all(code.as_bytes()).unwrap();
     writeln!(out, "\n```").unwrap();
 }
 
-pub fn error(out: &mut dyn Write, errtype: &str, content: &[u8], args: &HashMap<String, ArgType>) {
+pub fn error(out: &mut dyn Write, err: &NotebookError, args: &HashMap<String, ArgType>) {
     if let Some(ArgType::String(result)) = args.get("error") {
         if result == "hide" {
             return;
         }
     }
-    writeln!(out, "{{{{< error message=\"{}\" >}}}}", errtype).unwrap();
-    out.write_all(content).unwrap();
+    write!(out, "{{{{< error cell=\"{}\" title=\"{}\" message=\"{}\" line={} start_line={} >}}}}", err.cell, err.title, err.message, err.line, err.start_line + 1).unwrap();
+    if let Some(code) = &err.code.borrow() {
+        for line in code.iter() {
+            if let Some(annotation) = &line.annotation {
+                writeln!(out, "{} 🟥 {}", line.code, annotation).unwrap();
+            } else {
+                writeln!(out, "{}", line.code).unwrap();
+            }
+        }
+    }
     writeln!(out, "{{{{< /error >}}}}\n").unwrap();
 }
 
@@ -269,7 +281,7 @@ pub fn write_plot(
     path: &str,
     plot: Vec<u8>,
     args: &HashMap<String, ArgType>,
-) -> Result<HashMap<String, ArgType>, Error> {
+) -> Result<HashMap<String, ArgType>, std::io::Error> {
     let out_dir = Path::new(path).join("_files");
     let rand_string: String = thread_rng()
         .sample_iter(&Symbols)

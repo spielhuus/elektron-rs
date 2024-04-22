@@ -3,16 +3,12 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 
-//TODO pub use tectonic::driver;
-// pub use tectonic::errors;
-// pub use tectonic::status;
-
 use super::super::cells::{CellWrite, CellWriter};
-use crate::{error::Error, notebook::ArgType};
+use crate::{error::NotebookError, notebook::ArgType};
 
 use super::{args_to_string, get_value, param, param_or};
 
-pub fn check_directory(filename: &str) -> Result<(), Error> {
+pub fn check_directory(filename: &str) -> Result<(), std::io::Error> {
     let path = std::path::Path::new(filename);
     if !path.exists() {
         std::fs::create_dir_all(path)?;
@@ -21,7 +17,7 @@ pub fn check_directory(filename: &str) -> Result<(), Error> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct D3Cell(pub HashMap<String, ArgType>, pub Vec<String>);
+pub struct D3Cell(pub usize, pub HashMap<String, ArgType>, pub Vec<String>);
 impl CellWrite<D3Cell> for CellWriter {
     fn write(
         out: &mut dyn std::io::Write,
@@ -29,32 +25,32 @@ impl CellWrite<D3Cell> for CellWriter {
         globals: &pyo3::types::PyDict,
         locals: &pyo3::types::PyDict,
         cell: &D3Cell,
-        _: &str,
+        input: &str,
         dest: &str,
-    ) -> Result<(), Error> {
-        let code = &cell.1;
-        let args = &cell.0;
+    ) -> Result<(), NotebookError> {
+        let code = &cell.2;
+        let args = &cell.1;
 
         //collect the required arguements.
         let x_key = param!(
             args,
             "x",
-            Error::PropertyNotFound(String::from("property 'x' must be set."))
+            NotebookError::new(input.to_string(),"D3Cell".to_string(), "ParamError".to_string(), String::from("property 'x' must be set."), cell.0, cell.0, None)
         );
         let width = param!(
             args,
             "width",
-            Error::PropertyNotFound(String::from("property 'width' must be set."))
+            NotebookError::new(input.to_string(), "D3Cell".to_string(), "ParamError".to_string(), String::from("property 'width' must be set."), cell.0, cell.0, None)
         );
         let height = param!(
             args,
             "height",
-            Error::PropertyNotFound(String::from("property 'height' must be set."))
+            NotebookError::new(input.to_string(),"D3Cell".to_string(), "ParamError".to_string(), String::from("property 'height' must be set."), cell.0, cell.0, None)
         );
         let data_key = param!(
             args,
             "data",
-            Error::PropertyNotFound(String::from("property 'data' must be set."))
+            NotebookError::new(input.to_string(), "D3Cell".to_string(), "ParamError".to_string(), String::from("property 'data' must be set."), cell.0, cell.0, None)
         );
 
         //collect optional data
@@ -84,10 +80,10 @@ impl CellWrite<D3Cell> for CellWriter {
 
         //get the data from the pyhton context
         let Ok(py_data) = get_value(data_key.as_str(), py, globals, locals) else {
-            return Err(Error::VariableNotFound(format!(
+            return Err(NotebookError::new(input.to_string(), "D3Cell".to_string(), "VariableError".to_string(), format!(
                 "Variable with name '{}' can not be found.",
-                data_key
-            )));
+                data_key), cell.0, cell.0, None
+            ));
         };
 
         let data = if let Ok(data) = py_data.extract::<HashMap<String, Vec<f64>>>() {
@@ -117,7 +113,7 @@ impl CellWrite<D3Cell> for CellWriter {
         //create output directory
         let out_dir = Path::new(dest).join("_files");
         let output_file = out_dir.to_str().unwrap().to_string();
-        check_directory(&output_file)?;
+        check_directory(&output_file).map_err(|e| NotebookError::new(input.to_string(), "D3Cell".to_string(), "IOError".to_string(), e.to_string(), cell.0, cell.0, None))?;
 
         let mut x_domain: Option<(f64, f64)> = None;
         let mut y_domain: Option<(f64, f64)> = None;
@@ -152,8 +148,8 @@ impl CellWrite<D3Cell> for CellWriter {
             if y_keys.is_none() {
                 y_keys = Some(keys);
             }
-            let mut outfile = File::create(output_file)?;
-            outfile.write_all(Json::to_string(&res).as_bytes())?;
+            let mut outfile = File::create(output_file).map_err(|e| NotebookError::new(input.to_string(), "D3Cell".to_string(), "IOError".to_string(), e.to_string(), cell.0, cell.0, None))?;
+            outfile.write_all(Json::to_string(&res).as_bytes()).map_err(|e| NotebookError::new(input.to_string(), "D3Cell".to_string(), "IOError".to_string(), e.to_string(), cell.0, cell.0, None))?;
         } else if let Some(data) = range_data {
             let series = data_key.rsplit('.').next().unwrap();
             for (plot, plots) in data {
@@ -191,15 +187,20 @@ impl CellWrite<D3Cell> for CellWriter {
                         .to_str()
                         .unwrap()
                         .to_string();
-                    let mut outfile = File::create(output_file)?;
-                    outfile.write_all(Json::to_string(&res).as_bytes())?;
+                    let mut outfile = File::create(output_file).map_err(|e| NotebookError::new(input.to_string(), "D3Cell".to_string(), "IOError".to_string(), e.to_string(), cell.0, cell.0, None))?;
+                    outfile.write_all(Json::to_string(&res).as_bytes()).map_err(|e| NotebookError::new(input.to_string(), "D3Cell".to_string(), "IOError".to_string(), e.to_string(), cell.0, cell.0, None))?;
                 }
             }
         } else {
-            return Err(Error::VariableCastError(format!(
-                "plot value must be of type HashMap<Sting<Vec<f64>>, but is {:?}",
-                py_data
-            )));
+            return Err(NotebookError::new(
+                input.to_string(),
+                "D3Cell".to_string(),
+                "ParamError".to_string(),
+                format!("plot value must be of type HashMap<Sting<Vec<f64>>, but is {:?}", py_data),
+                cell.0, 
+                cell.0, 
+                None
+            ));
         }
 
         let colors = COLORS
@@ -224,17 +225,24 @@ impl CellWrite<D3Cell> for CellWriter {
                 if let (Ok(min), Ok(max)) = (tokens[0].parse::<f64>(), tokens[1].parse::<f64>()) {
                     Ok((min, max))
                 } else {
-                    Err(Error::Variable(String::from(
+                    Err(NotebookError::new(input.to_string(), String::from("D3Cell"), String::from("VariableError"), String::from(
                         "Variable xDomain must be \"min, max\"",
-                    )))
+                    ), cell.0, cell.0, None))
                 }
             } else {
-                Err(Error::Variable(String::from(
+                Err(NotebookError::new(input.to_string(), String::from("D3Cell"), String::from("VariableError"), String::from(
                     "Variable xDomain must be \"min, max\"",
-                )))
+                ), cell.0, cell.0, None))
             }
         } else {
-            x_domain.ok_or_else(|| Error::Variable(String::from("xDomain not calculated.")))
+            x_domain.ok_or_else(|| NotebookError::new(
+                    input.to_string(), 
+                    String::from("D3Cell"), 
+                    String::from("VariableError"), 
+                    String::from("xDomain not calculated."),
+                    cell.0,
+                    cell.0,
+                    None))
         }?;
 
         let (min_y, max_y) = if let Some(ArgType::String(ydomain)) = args.get("yDomain") {
@@ -243,17 +251,17 @@ impl CellWrite<D3Cell> for CellWriter {
                 if let (Ok(min), Ok(max)) = (tokens[0].parse::<f64>(), tokens[1].parse::<f64>()) {
                     Ok((min, max))
                 } else {
-                    Err(Error::Variable(String::from(
+                    Err(NotebookError::new(input.to_string(), String::from("D3Cell"), String::from("VariableError"), String::from(
                         "Variable yDomain must be \"min, max\"",
-                    )))
+                    ), cell.0, cell.0, None))
                 }
             } else {
-                Err(Error::Variable(String::from(
+                Err(NotebookError::new(input.to_string(), String::from("D3Cell"), String::from("VariableError"), String::from(
                     "Variable yDomain must be \"min, max\"",
-                )))
+                ), cell.0, cell.0, None))
             }
         } else {
-            y_domain.ok_or_else(|| Error::Variable(String::from("yDomain not calculated.")))
+            y_domain.ok_or_else(|| NotebookError::new(input.to_string(), String::from("D3Cell"), String::from("VariableError"), String::from("yDomain not calculated."), cell.0, cell.0, None))
         }?;
 
         writeln!(out, "{{{{< d3 key=\"{}\" x=\"{}\" y=\"{}\" yRange=\"{}\" ySize=\"{}\" xDomain=\"{}, {}\" yDomain=\"{}, {}\" \

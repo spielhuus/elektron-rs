@@ -1,25 +1,26 @@
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::BufWriter;
 use std::path::Path;
 
-use crate::{notebook::ArgType, utils::check_directory};
+use crate::{error::NotebookError, notebook::ArgType, utils::check_directory};
 
 use reports::{bom::BomItem, drc, erc};
 
 use plotter::{
-    gerber, pcb::{plot_pcb, LAYERS}, schema::SchemaPlot, svg::SvgPlotter
+    gerber,
+    pcb::{plot_pcb, LAYERS},
+    schema::SchemaPlot,
+    svg::SvgPlotter,
 };
 use sexp::{SexpParser, SexpTree};
 
 use super::super::cells::{CellWrite, CellWriter};
 use super::param_or;
-use crate::error::Error;
 
 use log::debug;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ElektronCell(pub HashMap<String, ArgType>, pub Vec<String>);
+pub struct ElektronCell(pub usize, pub HashMap<String, ArgType>, pub Vec<String>);
 impl CellWrite<ElektronCell> for CellWriter {
     fn write(
         out: &mut dyn std::io::Write,
@@ -29,8 +30,15 @@ impl CellWrite<ElektronCell> for CellWriter {
         cell: &ElektronCell,
         source: &str,
         dest: &str,
-    ) -> Result<(), Error> {
-        let args = &cell.0;
+    ) -> Result<(), NotebookError> {
+        let args = &cell.1;
+
+        let source_path = Path::new(&source)
+            .parent()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
 
         if let Some(ArgType::String(command)) = args.get("command") {
             if command == "bom" {
@@ -45,12 +53,20 @@ impl CellWrite<ElektronCell> for CellWriter {
                     None
                 };
                 let Some(ArgType::List(input)) = args.get("input") else {
-                    return Err(Error::NoInputFile());
+                    return Err(NotebookError::new(
+                        source.to_string(),
+                        String::from("ElektronCell"),
+                        String::from("VariableError"),
+                        String::from("input not found."),
+                        cell.0,
+                        cell.0, 
+                        None,
+                    ));
                 };
                 let mut missing: Vec<BomItem> = Vec::new();
                 writeln!(out, "bom:").unwrap();
                 for input in input {
-                    let input_file = Path::new(&source)
+                    let input_file = Path::new(&source_path)
                         .join(input)
                         .join(format!("{}.kicad_sch", input))
                         .to_str()
@@ -79,7 +95,15 @@ impl CellWrite<ElektronCell> for CellWriter {
                             }
                         }
                         Err(err) => {
-                            return Err(Error::IoError(format!("can not create bom: {:?}", err)));
+                            return Err(NotebookError::new(
+                                source.to_string(),
+                                String::from("ElektronCell"),
+                                String::from("IoError"),
+                                format!("can not create bom: {:?}", err),
+                                cell.0,
+                                cell.0,
+                                None,
+                            ));
                         }
                     }
                 }
@@ -100,7 +124,7 @@ impl CellWrite<ElektronCell> for CellWriter {
                     writeln!(out, "drc:").unwrap();
                     let mut count = 0;
                     for input in input {
-                        let input_file = Path::new(&source)
+                        let input_file = Path::new(&source_path)
                             .join(input)
                             .join(format!("{}.kicad_pcb", input))
                             .to_str()
@@ -131,14 +155,22 @@ impl CellWrite<ElektronCell> for CellWriter {
                     writeln!(out, "  count: {}", count).unwrap();
                     Ok(())
                 } else {
-                    Err(Error::NoInputFile())
+                    Err(NotebookError::new(
+                        source.to_string(),
+                        String::from("ElektronCell"),
+                        String::from("VariableError"),
+                        String::from("input not found."),
+                        cell.0,
+                        cell.0,
+                        None,
+                    ))
                 }
             } else if command == "erc" {
                 if let Some(ArgType::List(input)) = args.get("input") {
                     writeln!(out, "erc:").unwrap();
                     let mut count = 0;
                     for input in input {
-                        let input_file = Path::new(&source)
+                        let input_file = Path::new(&source_path)
                             .join(input)
                             .join(format!("{}.kicad_sch", input))
                             .to_str()
@@ -211,16 +243,32 @@ impl CellWrite<ElektronCell> for CellWriter {
                     writeln!(out, "  count: {}", count).unwrap();
                     Ok(())
                 } else {
-                    Err(Error::NoInputFile())
+                    Err(NotebookError::new(
+                        source.to_string(),
+                        String::from("ElektronCell"),
+                        String::from("VariableError"),
+                        String::from("input not found."),
+                        cell.0,
+                        cell.0,
+                        None,
+                    ))
                 }
             } else if command == "schema" {
                 let out_dir = Path::new(dest).join("_files");
                 let Some(ArgType::List(input)) = args.get("input") else {
-                    return Err(Error::NoInputFile());
+                    return Err(NotebookError::new(
+                        source.to_string(),
+                        String::from("ElektronCell"),
+                        String::from("VariableError"),
+                        String::from("input not found."),
+                        cell.0,
+                        cell.0,
+                        None,
+                    ));
                 };
                 writeln!(out, "schema:").unwrap();
                 for input in input {
-                    let input_file = Path::new(&source)
+                    let input_file = Path::new(&source_path)
                         .join(input)
                         .join(format!("{}.kicad_sch", input))
                         .to_str()
@@ -242,7 +290,17 @@ impl CellWrite<ElektronCell> for CellWriter {
                             .to_string()
                     );
 
-                    check_directory(&output_file)?;
+                    check_directory(&output_file).map_err(|err| {
+                        NotebookError::new(
+                            source.to_string(),
+                            String::from("ElektronCell"),
+                            String::from("IOError"),
+                            err.to_string(),
+                            cell.0,
+                            cell.0,
+                            None,
+                        )
+                    })?;
 
                     let mut plotter = SchemaPlot::new()
                         .border(super::flag!(args, "border", false))
@@ -250,12 +308,32 @@ impl CellWrite<ElektronCell> for CellWriter {
                         .scale(str::parse::<f64>(param_or!(args, "scale", "1.0")).unwrap())
                         .name(input);
 
-                    plotter.open(&input_file)?;
+                    plotter.open(&input_file).map_err(|err| {
+                        NotebookError::new(
+                            source.to_string(),
+                            String::from("ElektronCell"),
+                            String::from("IOError"),
+                            err.to_string(),
+                            cell.0,
+                            cell.0,
+                            None,
+                        )
+                    })?;
                     for page in plotter.iter() {
                         let mut file = if *page.0 == 1 {
                             debug!("write first page to {}", output_file);
                             writeln!(out, "  {}: {}", input, output_file).unwrap();
-                            File::create(output_file.clone())?
+                            File::create(output_file.clone()).map_err(|err| {
+                                NotebookError::new(
+                                    source.to_string(),
+                                    String::from("ElektronCell"),
+                                    String::from("IOError"),
+                                    err.to_string(),
+                                    cell.0,
+                                    cell.0,
+                                    None,
+                                )
+                            })?
                         } else {
                             let output_file = out_dir
                                 .join(format!("{}_schema.svg", page.1))
@@ -264,10 +342,30 @@ impl CellWrite<ElektronCell> for CellWriter {
                                 .to_string();
                             debug!("write page {} to {}", page.1, format!("{}.svg", page.1));
                             writeln!(out, "  {}: {}", page.1, output_file).unwrap();
-                            File::create(output_file)?
+                            File::create(output_file).map_err(|err| {
+                                NotebookError::new(
+                                    source.to_string(),
+                                    String::from("ElektronCell"),
+                                    String::from("IOError"),
+                                    err.to_string(),
+                                    cell.0,
+                                    cell.0,
+                                    None,
+                                )
+                            })?
                         };
                         let mut svg_plotter = SvgPlotter::new(&mut file);
-                        plotter.write(page.0, &mut svg_plotter)?;
+                        plotter.write(page.0, &mut svg_plotter).map_err(|err| {
+                            NotebookError::new(
+                                source.to_string(),
+                                String::from("ElektronCell"),
+                                String::from("IOError"),
+                                err.to_string(),
+                                cell.0,
+                                cell.0,
+                                None,
+                            )
+                        })?;
                     }
                 }
                 Ok(())
@@ -282,7 +380,7 @@ impl CellWrite<ElektronCell> for CellWriter {
                     writeln!(out, "pcb:").unwrap();
 
                     for input in input {
-                        let input_file = Path::new(&source)
+                        let input_file = Path::new(&source_path)
                             .join(input)
                             .join(format!("{}.kicad_pcb", input))
                             .to_str()
@@ -299,7 +397,18 @@ impl CellWrite<ElektronCell> for CellWriter {
                             output_file.to_string(),
                             layers,
                             None,
-                        )?;
+                        )
+                        .map_err(|err| {
+                            NotebookError::new(
+                                source.to_string(),
+                                String::from("ElektronCell"),
+                                String::from("PlotPCB"),
+                                err.to_string(),
+                                cell.0,
+                                cell.0,
+                                None,
+                            )
+                        })?;
 
                         debug!(
                             "write pcb '{}' to '{}'",
@@ -329,14 +438,22 @@ impl CellWrite<ElektronCell> for CellWriter {
                     }
                     Ok(())
                 } else {
-                    Err(Error::NoInputFile())
+                    Err(NotebookError::new(
+                        source.to_string(),
+                        String::from("ElektronCell"),
+                        String::from("VariableError"),
+                        String::from("input not found."),
+                        cell.0,
+                        cell.0,
+                        None,
+                    ))
                 }
             } else if command == "gerber" {
                 let out_dir = Path::new(dest).join("_files");
                 if let Some(ArgType::List(input)) = args.get("input") {
                     writeln!(out, "gerber:").unwrap();
                     for input in input {
-                        let input_file = Path::new(&source)
+                        let input_file = Path::new(&source_path)
                             .join(input)
                             .join(format!("{}.kicad_pcb", input))
                             .to_str()
@@ -354,19 +471,53 @@ impl CellWrite<ElektronCell> for CellWriter {
                         {
                             println!("gerber error {}", err); //TODO add to notebook
                         } else {
-                            check_directory(&output_file)?;
+                            check_directory(&output_file).map_err(|err| {
+                                NotebookError::new(
+                                    source.to_string(),
+                                    String::from("ElektronCell"),
+                                    String::from("IOError"),
+                                    err.to_string(),
+                                    cell.0,
+                                    cell.0,
+                                    None,
+                                )
+                            })?;
                             writeln!(out, "  {}: {}", input, output_file).unwrap();
                         }
                     }
                     Ok(())
                 } else {
-                    Err(Error::NoInputFile())
+                    Err(NotebookError::new(
+                        source.to_string(),
+                        String::from("ElektronCell"),
+                        String::from("VariableError"),
+                        String::from("input not found."),
+                        cell.0,
+                        cell.0,
+                        None,
+                    ))
                 }
             } else {
-                Err(Error::UnknownCommand(command.to_string()))
+                Err(NotebookError::new(
+                    source.to_string(),
+                    String::from("ElektronCell"),
+                    String::from("UnknownCommand"),
+                    command.to_string(),
+                    cell.0,
+                    cell.0,
+                    None,
+                ))
             }
         } else {
-            Err(Error::NoCommand)
+            Err(NotebookError::new(
+                source.to_string(),
+                String::from("ElektronCell"),
+                String::from("NoCommand"),
+                String::from("command not found."),
+                cell.0,
+                cell.0,
+                None,
+            ))
         }
     }
 }

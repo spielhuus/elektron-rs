@@ -18,7 +18,7 @@ extern crate simulation;
 extern crate tempfile;
 extern crate thiserror;
 
-use log::{debug, info};
+use log::{debug, info, error};
 
 use pyo3::{exceptions::{PyFileNotFoundError, PyIOError}, prelude::*};
 
@@ -318,6 +318,11 @@ pub fn make_spice(input: &str, path: Vec<String>, output: Option<String>) -> Res
     }
     Ok(())
 }
+fn absolute_path(path: &str) -> String {
+    let mut absolute_path = std::env::current_dir().unwrap();
+    absolute_path.push(path);
+    absolute_path.to_str().unwrap().to_string()
+}
 
 /// Convert a notebook page
 ///
@@ -342,8 +347,8 @@ pub fn convert(input: &str, output: &str) -> Result<(), Error> {
 
     let out: Box<dyn Write> = Box::new(BufWriter::new(File::create(&tmppath).unwrap()));
 
-    notebook::convert(
-        input,
+    if let Err(err) = notebook::convert(
+        &absolute_path(input),
         out,
         Path::new(&input)
             .parent()
@@ -357,7 +362,9 @@ pub fn convert(input: &str, output: &str) -> Result<(), Error> {
             .to_str()
             .unwrap()
             .to_string(),
-    )?;
+    ) {
+        error!("{}", err.to_string());
+    }
 
     if let Err(err) = std::fs::copy(tmppath, output) {
         Err(Error::FileIo(format!(

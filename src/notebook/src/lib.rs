@@ -7,11 +7,30 @@ use std::collections::HashMap;
 use std::io::Write;
 
 use crate::cells::CellDispatch;
-pub use crate::error::Error;
 use cells::{LoggingStderr, LoggingStdout};
+pub use error::NotebookError;
 use notebook::Notebook;
 use pyo3::prelude::*;
 use pyo3::{types::PyDict, Python};
+
+use log::error;
+
+#[derive(Debug, Clone)]
+pub struct CodeLine {
+    pub line: usize,
+    pub code: String,
+    pub annotation: Option<String>,
+}
+
+impl CodeLine {
+    pub fn new(line: usize, code: String, annotation: Option<String>) -> Self {
+        Self {
+            line,
+            code,
+            annotation,
+        }
+    }
+}
 
 /// convert a markdown notebook.
 ///
@@ -24,8 +43,18 @@ pub fn convert(
     mut out: Box<dyn Write>,
     source: String,
     dest: String,
-) -> Result<(), Error> {
-    let nb = Notebook::open(input)?;
+) -> Result<(), NotebookError> {
+    let nb = Notebook::open(input).map_err(|err| {
+        NotebookError::new(
+            source,
+            "Notebook".to_string(),
+            "Can not open notebook".to_string(),
+            format!("can not open noteboook at: {:?} ({})", input, err.0),
+            0,
+            0,
+            None,
+        )
+    })?;
     Python::with_gil(|py| {
         let locals = PyDict::new(py);
         let globals = PyDict::new(py);
@@ -37,84 +66,9 @@ pub fn convert(
             sys.setattr("stdout", &stdout.into_py(py)).unwrap();
             sys.setattr("stderr", stderr.into_py(py)).unwrap();
 
-            if let Err(err) = cell.write(&mut out, &py, globals, locals, &source, &dest) {
-                match err {
-                    Error::Notebook(key, message) => cells::error(
-                        &mut out,
-                        &key,
-                        message.to_string().as_bytes(),
-                        &HashMap::new(),
-                    ),
-                    Error::Variable(e) => cells::error(
-                        &mut out,
-                        "Variable not found:",
-                        e.to_string().as_bytes(),
-                        &HashMap::new(),
-                    ),
-                    Error::Python(e) => cells::error(
-                        &mut out,
-                        "Python execution error:",
-                        e.to_string().as_bytes(),
-                        &HashMap::new(),
-                    ),
-                    Error::PropertyNotFound(e) => cells::error(
-                        &mut out,
-                        "Property not found",
-                        e.to_string().as_bytes(),
-                        &HashMap::new(),
-                    ),
-                    Error::VariableNotFound(e) => cells::error(
-                        &mut out,
-                        format!("Variable {} not found", e).as_str(),
-                        &[],
-                        &HashMap::new(),
-                    ),
-                    Error::VariableCastError(e) => cells::error(
-                        &mut out,
-                        "Can not cast result",
-                        e.to_string().as_bytes(),
-                        &HashMap::new(),
-                    ),
-                    Error::Latex(e) => cells::error(
-                        &mut out,
-                        "Latex execution error",
-                        e.to_string().as_bytes(),
-                        &HashMap::new(),
-                    ),
-                    Error::NoInputFile() => {
-                        cells::error(&mut out, "No input file set", &[], &HashMap::new())
-                    }
-                    Error::UnknownCommand(e) => cells::error(
-                        &mut out,
-                        "Command not supported",
-                        e.to_string().as_bytes(),
-                        &HashMap::new(),
-                    ),
-                    Error::NoCommand => {
-                        cells::error(&mut out, "No command set", &[], &HashMap::new())
-                    }
-                    Error::LanguageNotSupported(e) => cells::error(
-                        &mut out,
-                        "Language is not supported",
-                        e.to_string().as_bytes(),
-                        &HashMap::new(),
-                    ),
-                    Error::GetPythonVariable(e) => cells::error(
-                        &mut out,
-                        format!("can not get variable {} from python context.", e).as_str(),
-                        &[],
-                        &HashMap::new(),
-                    ),
-                    Error::IoError(e) => cells::error(
-                        &mut out,
-                        format!("can not open file {}", e).as_str(),
-                        &[],
-                        &HashMap::new(),
-                    ),
-                    Error::NgSpiceError(_) => {
-                        todo!()
-                    }
-                }
+            if let Err(err) = cell.write(&mut out, &py, globals, locals, input, &dest) {
+                cells::error(&mut out, &err, &HashMap::new());
+                error!("{}", err.to_string());
             }
         }
     });
