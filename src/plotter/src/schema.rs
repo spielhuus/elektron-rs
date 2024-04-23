@@ -28,7 +28,7 @@ const PIN_NUMER_OFFSET: f64 = 0.6;
 
 pub struct SchemaPlot<'a> {
     schema_pages: HashMap<usize, String>,
-    pages: Option<&'a [usize]>,
+    pages: Option<Vec<usize>>,
     theme: Themer<'a>,
     border: bool,
     netlist: bool,
@@ -50,7 +50,7 @@ impl Default for SchemaPlot<'_> {
 /// collect the plot model from the sexp tree
 impl<'a> SchemaPlot<'a> {
     /// select the pages to plot.
-    pub fn pages(mut self, pages: &'a [usize]) -> Self {
+    pub fn pages(mut self, pages: Vec<usize>) -> Self {
         self.pages = Some(pages);
         self
     }

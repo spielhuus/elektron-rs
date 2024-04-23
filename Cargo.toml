@@ -51,6 +51,7 @@ fontdue = "0.8"
 rust-fontconfig = "0.1"
 pangocairo = "0.19"
 simplecss = "0.2"
+clap = { version = "4.5", features = ["derive"] }
 
 [lib]
 name = "elektron"
@@ -89,6 +90,7 @@ rust-fuzzy-search = "0.1.1"
 tempfile = "3"
 env_logger = "0.11"
 json = "0.12"
+clap = { version = "4.5", features = ["derive"] }
 
 [build-dependencies]
 pyo3-build-config = "0.21"

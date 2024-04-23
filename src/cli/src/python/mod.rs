@@ -400,7 +400,7 @@ impl PyDraw {
     #[pyo3(signature = (**kwargs))]
     pub fn plot(&mut self, kwargs: Option<Bound<PyDict>>) -> Result<Option<Vec<Vec<u8>>>, Error> {
         let mut filename: Option<String> = None;
-        let mut id = "not_set";
+        let mut id = String::from("not_set");
         let mut border = false;
         let mut scale = 1.0;
         let mut pages: Option<Vec<usize>> = None;
@@ -415,7 +415,7 @@ impl PyDraw {
                 }
             }
             if let Ok(Some(item)) = kwargs.get_item("id") {
-                let item: Result<&str, PyErr> = item.extract();
+                let item: Result<String, PyErr> = item.extract();
                 if let Ok(item) = item {
                     id = item;
                 }
@@ -459,7 +459,12 @@ impl PyDraw {
                 .border(border)
                 .theme(theme)
                 .scale(scale)
-                .netlist(netlist);
+                .netlist(netlist)
+                .name(id.as_str());
+
+            if let Some(pages) = &pages {
+                plotter = plotter.pages(pages.clone());
+            }
 
             plotter.open_buffer(self.draw.schema.clone());
             for page in plotter.iter() {

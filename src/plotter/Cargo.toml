@@ -24,6 +24,7 @@ rand.workspace = true
 rust-fontconfig.workspace = true
 fontdue.workspace = true
 simplecss.workspace = true
+clap.workspace = true
 
 #pathfinder_geometry.workspace = true
 

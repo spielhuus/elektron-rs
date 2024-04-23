@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [project.scripts]
-elektron = "elektron:main"
+elektron = "elektron.elektron:main"
 
 [build-system]
 requires = ["maturin>=1.0,<2.0"]
@@ -28,4 +28,4 @@ build-backend = "maturin"
 features = ["pyo3/extension-module"]
 python-source = "src"
 module-name = "elektron"
-
+profile = "release"

@@ -20,7 +20,7 @@ extern crate thiserror;
 
 use log::{debug, info, error};
 
-use pyo3::{exceptions::{PyFileNotFoundError, PyIOError}, prelude::*};
+use pyo3::prelude::*;
 
 use std::{
     fs::File,
@@ -35,6 +35,7 @@ use comfy_table::{
 use itertools::Itertools;
 use rust_fuzzy_search::fuzzy_compare;
 use tempfile::NamedTempFile;
+use clap::{Parser, Subcommand};
 
 use colored::*;
 
@@ -43,20 +44,20 @@ mod python;
 
 use crate::error::Error;
 
-use plotter::{
-    schema::SchemaPlot, svg::SvgPlotter, Theme
-};
-use sexp::{el, SexpParser, SexpProperty, SexpTree, SexpValueQuery, State};
+use plotter::Theme;
+
+use sexp::{el, SexpParser, SexpTree, State};
 
 use reports::{bom, drc, erc, mouser};
 use simulation::{Circuit, Netlist};
 
+
 mod constant {
-    pub const EXT_KICAD_SCH: &str = ".kicad_sch";
+    //pub const EXT_KICAD_SCH: &str = ".kicad_sch";
     pub const EXT_JSON: &str = ".json";
-    pub const EXT_SVG: &str = ".svg";
-    pub const EXT_PNG: &str = ".png";
-    pub const EXT_PDF: &str = ".pdf";
+    //pub const EXT_SVG: &str = ".svg";
+    //pub const EXT_PNG: &str = ".png";
+    //pub const EXT_PDF: &str = ".pdf";
     pub const EXT_EXCEL: &str = ".xls";
 }
 
@@ -88,15 +89,13 @@ fn load_sexp(input: &str) -> Result<SexpTree, Error> {
 /// * `partlist` - A YAML file with the parts description (Optional).
 /// * `return`   - Tuple with a `Vec<BomItem>` and the items not found
 ///                in the partlist, when provided.
-#[pyfunction]
-pub fn make_bom(
+pub fn bom(
     input: &str,
-    group: bool,
     output: Option<String>,
+    group: bool,
     partlist: Option<String>,
 ) -> Result<(), Error> {
-    env_logger::init();
-    info!("Write BOM: input:{}, output:{:?}", input, output);
+    debug!("Write BOM: input:{}, output:{:?}", input, output);
     let tree = load_sexp(input)?;
     let results = bom::bom(&tree, group, partlist)?;
 
@@ -198,102 +197,6 @@ pub fn make_bom(
     Ok(())
 }
 
-/// plot the document
-///
-/// The filetype is selected by the output file extension. When no output filename is given the
-/// image will be displayed in the console.
-///
-/// # Arguments
-///
-/// * `input`    - A Schema filename.
-/// * `output`   - The filename of the target image.
-#[pyfunction]
-pub fn plot(input: &str, output: Option<&str>) -> Result<(), PyErr> {
-    env_logger::init();
-    if input.ends_with(constant::EXT_KICAD_SCH) {
-        info!("Write schema: input:{}, output:{:?}", input, output);
-        //load the sexp file.
-        if let Some(output) = output {
-            if let Some(ext_pos) = output.find('.') {
-                let ext = output.split_at(ext_pos).1;
-                if ext == constant::EXT_SVG {
-
-                    let mut plotter = SchemaPlot::new()
-                        .border(true).theme(Theme::Kicad2020).scale(1.0) //TODO set paramenters
-                        .name(input);
-
-                    plotter.open(input)?;
-                    for page in plotter.iter() {
-                        let mut file = if *page.0 == 1 {
-                            debug!("write first page to {}", output);
-                            File::create(output)?
-                        } else {
-                            debug!("write page {} to {}", page.1, format!("{}.svg", page.1));
-                            File::create(format!("{}.svg", page.1))?
-                        };
-                        let mut svg_plotter = SvgPlotter::new(&mut file);
-                        plotter.write(page.0, &mut svg_plotter)?;
-                    }
-
-                /*TODO  } else if ext == constant::EXT_PNG {
-                    let plotter = CairoPlotter::new(
-                        input,
-                        ImageType::Png,
-                        Some(Themer::new(Theme::Kicad2020)), //TODO
-                    );
-                    let mut buffer = File::create(output).unwrap();
-                    plotter
-                        .plot(&tree, &mut buffer, true, 1.0, None, false)
-                        .unwrap();
-                } else if ext == constant::EXT_PDF {
-                    let plotter = CairoPlotter::new(
-                        input,
-                        ImageType::Pdf,
-                        Some(Themer::new(Theme::Kicad2020)),
-                    );
-                    let mut buffer = File::create(output).unwrap();
-                    plotter
-                        .plot(&tree, &mut buffer, true, 1.0, None, false)
-                        .unwrap(); */
-                } else {
-                    return Err(PyIOError::new_err(format!(
-                        "{} Image type not supported for extension: '{}'",
-                        "Error:".red(),
-                        ext.bold()
-                    )));
-                }
-            } else {
-                return Err(PyFileNotFoundError::new_err(format!(
-                    "{} Input file does not exist: {}",
-                    "Error:".red(),
-                    input.bold()
-                )));
-            }
-        } else {
-            println!("no output file");
-        }
-    } else if input.ends_with(".kicad_pcb") {
-        info!("Write PCB: input:{}, output:{:?}", input, output);
-        if let Some(output) = output {
-            plotter::pcb::plot_pcb(
-                input.to_string(),
-                output.to_string(),
-                None, /* TODO */
-                None,
-            )?; //TODO set layers
-        } else {
-            println!("no output file");
-        }
-    } else {
-        return Err(PyFileNotFoundError::new_err(format!(
-            "{} Input file does not exist: {}",
-            "Error:".red(),
-            input
-        )));
-    }
-    Ok(())
-}
-
 /// output the spice netlist.
 ///
 /// # Arguments
@@ -301,8 +204,7 @@ pub fn plot(input: &str, output: Option<&str>) -> Result<(), PyErr> {
 /// * `input`    - A Schema filename.
 /// * `path`     - Path to the spice library
 /// * `output`   - output file name, when no filename is given the result will be printed to the console.
-#[pyfunction]
-pub fn make_spice(input: &str, path: Vec<String>, output: Option<String>) -> Result<(), Error> {
+pub fn spice(input: &str, path: Vec<String>, output: Option<String>) -> Result<(), Error> {
     let tree = load_sexp(input)?;
     let netlist = Netlist::from(&tree);
     if let Ok(netlist) = netlist {
@@ -331,8 +233,7 @@ fn absolute_path(path: &str) -> String {
 /// * `input`    - notebook markdown file.
 /// * `output`   - destination markdown file.
 /// * `return`   - possible error.
-#[pyfunction]
-pub fn convert(input: &str, output: &str) -> Result<(), Error> {
+fn convert(input: &str, output: &str) -> Result<(), Error> {
     env_logger::init();
     info!("Write notebook: input:{}, output:{:?}", input, output);
 
@@ -385,8 +286,7 @@ pub fn convert(input: &str, output: &str) -> Result<(), Error> {
 /// * `partlist` - A YAML file with the parts description.
 /// * `return`   - Tuple with a 'Vec<BomItem>' and the items not found
 ///                in the partlist, when provided.
-#[pyfunction]
-pub fn make_erc(input: &str, output: Option<String>) -> Result<(), Error> {
+pub fn erc(input: &str, output: Option<String>) -> Result<(), Error> {
     let Ok(results) = erc::erc(input) else {
         return Err(Error::FileIo(format!(
             "{} can not load drc information from eschema: {})",
@@ -437,9 +337,7 @@ pub fn make_erc(input: &str, output: Option<String>) -> Result<(), Error> {
 /// * `partlist` - A YAML file with the parts description.
 /// * `return`   - Tuple with a `Vec<BomItem>` and the items not found
 ///                in the partlist, when provided.
-#[pyfunction]
-pub fn make_drc(input: &str, output: Option<String>) -> Result<(), Error> {
-    env_logger::init();
+pub fn drc(input: &str, output: Option<String>) -> Result<(), Error> {
     info!("Write DRC: input:{}, output:{:?}", input, output);
     let results = match drc::drc(input.to_string()) {
         Ok(result) => result,
@@ -506,7 +404,6 @@ pub fn make_drc(input: &str, output: Option<String>) -> Result<(), Error> {
 ///
 /// * `term`     - The symbol name.
 /// * `path`     - List of library paths.
-#[pyfunction]
 pub fn search(term: &str, path: Vec<String>) -> Result<(), Error> {
     let mut results: Vec<(f32, String, String, String)> = Vec::new();
     for p in path {
@@ -539,10 +436,8 @@ pub fn search(term: &str, path: Vec<String>) -> Result<(), Error> {
                                                 while let Some(node) = iter.next() {
                                                     if let State::StartSymbol(name) = node {
                                                         if name == "property" {
-                                                            if let Some(State::Text(name)) =
-                                                                iter.next()
-                                                            {
-                                                                if name == "ki_description" {
+                                                            if let Some(State::Text(name)) = iter.next() {
+                                                                if name == "Description" {
                                                                     if let Some(State::Text(desc)) =
                                                                         iter.next()
                                                                     {
@@ -595,6 +490,110 @@ pub fn search(term: &str, path: Vec<String>) -> Result<(), Error> {
     Ok(())
 }
 
+///the elektron command line interface
+#[derive(Parser)]
+#[command(version, about, long_about = None)]
+struct Cli {
+    /// Optional name to operate on
+    name: Option<String>,
+
+    /// Turn debugging information on
+    #[arg(short, long, action = clap::ArgAction::Count)]
+    debug: u8,
+
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// create a BOM from a kicad schematic.
+    Bom {
+        /// input kicad schema file.
+        #[arg(short, long)]
+        input: String,
+        /// output file, this can be a json or excel file.
+        #[arg(short, long)]
+        output: Option<String>,
+        /// group the items.
+        #[arg(short, long)]
+        group: bool,
+        /// partlist yaml file, fields of the parts will be added or replaced with the partlist
+        /// content.
+        #[arg(short, long)]
+        partlist: Option<String>,
+    },
+    /// convet a notebook
+    Convert {
+        /// input file
+        #[arg(short, long)]
+        input: String,
+        /// ouptut file
+        #[arg(short, long)]
+        output: String,
+    },
+    /// run the drc checks on a kicad pcb.
+    Drc {
+        /// input file
+        #[arg(short, long)]
+        input: String,
+        /// ouptut file
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+    /// run the erc checks on a kicad schematic.
+    Erc {
+        /// input file
+        #[arg(short, long)]
+        input: String,
+        /// ouptut file
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+    /// plot a schematic or pcb from kicad file.
+    Plot {
+        /// input file.
+        #[arg(short, long)]
+        input: String,
+        /// output file.
+        #[arg(short, long)]
+        output: String,
+        /// plot the border
+        #[arg(short, long)]
+        border: bool,
+        /// color theme
+        #[arg(short, long, value_enum, default_value_t=Theme::Kicad2020)]
+        theme: Theme,
+        /// scale the plot
+        #[arg(short, long, default_value_t = 1.0)]
+        scale: f64,
+        /// select the pages to plot
+        #[arg(short, long)]
+        pages: Option<Vec<usize>>,
+    },
+    /// search for a symbol in the kicad library.
+    Search {
+        /// path where the spice models are located.
+        #[arg(short, long)]
+        path: Vec<String>,
+        /// search term
+        term: String,
+
+    },
+    /// create a spice netlist from a kicad schema.
+    Spice {
+        /// input file.
+        #[arg(short, long)]
+        input: String,
+        /// output file.
+        #[arg(short, long)]
+        output: Option<String>,
+        /// path where the spice models are located.
+        #[arg(short, long)]
+        path: Vec<String>,
+    },
+}
+
 /// Search a Kicad symbol.
 ///
 /// # Arguments
@@ -602,41 +601,64 @@ pub fn search(term: &str, path: Vec<String>) -> Result<(), Error> {
 /// * `term`     - The symbol name.
 /// * `path`     - List of library paths.
 #[pyfunction]
-pub fn list(input: &str) -> Result<(), Error> {
-    let mut data = json::JsonValue::new_array();
+pub fn main() -> PyResult<()> {
+    env_logger::init();
+    let cli = Cli::parse();
 
-    if let Ok(doc) = SexpParser::load(input) {
-        if let Ok(tree) = SexpTree::from(doc.iter()) {
-            for node in tree.root()?.query(el::SYMBOL) {
-                let sym_name: String = node.get(0).unwrap();
-                let sym_desc: String = node.property("ki_description").unwrap();
-                data.push(json::object! {
-                    library: sym_name,
-                    description: sym_desc,
-                })
-                .unwrap();
-            }
-        }
+    //// You can check the value provided by positional arguments, or option arguments
+    //if let Some(name) = cli.name.as_deref() {
+    //    println!("Value for name: {name}");
+    //}
+    //
+    //if let Some(config_path) = cli.config.as_deref() {
+    //    println!("Value for config: {}", config_path.display());
+    //}
+    //
+    //// You can see how many times a particular flag or argument occurred
+    //// Note, only flags can have multiple occurrences
+    //match cli.debug {
+    //    0 => println!("Debug mode is off"),
+    //    1 => println!("Debug mode is kind of on"),
+    //    2 => println!("Debug mode is on"),
+    //    _ => println!("Don't be crazy"),
+    //}
+
+    // You can check for the existence of subcommands, and if found use their
+    // matches just as you would the top level cmd
+    if let Err(error) = match cli.command {
+        Some(Commands::Bom { input, output, group, partlist }) => {
+            bom(&input, output.clone(), group, partlist)
+        },
+        Some(Commands::Drc { input, output }) => {
+            drc(&input, output)
+        },
+        Some(Commands::Erc { input, output }) => {
+            erc(&input, output)
+        },
+        Some(Commands::Plot { input, output, border, theme, scale, pages}) => {
+            Ok(plotter::plot(&input, &output, border, theme, scale, pages)?)
+        },
+        Some(Commands::Convert { input, output }) => {
+            convert(&input, &output)
+        },
+        Some(Commands::Search { path, term }) => {
+            search(&term, path)
+        },
+        Some(Commands::Spice { input, output, path }) => {
+            spice(&input, path, output)
+        },
+        None => { Err(Error::NoCommand) },
+    } {
+        error!("{}", error);
     }
 
-    std::io::stdout()
-        .write_all(data.to_string().as_bytes())
-        .unwrap();
-    std::io::stdout().write_all("\n".as_bytes()).unwrap();
     Ok(())
 }
 
 /// A Python module implemented in Rust.
 #[pymodule]
 fn elektron(_py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
-    m.add_wrapped(wrap_pyfunction!(make_bom))?;
-    m.add_wrapped(wrap_pyfunction!(plot))?;
-    m.add_wrapped(wrap_pyfunction!(make_spice))?;
-    m.add_wrapped(wrap_pyfunction!(convert))?;
-    m.add_wrapped(wrap_pyfunction!(make_erc))?;
-    m.add_wrapped(wrap_pyfunction!(make_drc))?;
-    m.add_wrapped(wrap_pyfunction!(search))?;
-    m.add_wrapped(wrap_pyfunction!(list))?;
+    m.add_wrapped(wrap_pyfunction!(main))?;
     m.add_class::<crate::python::PyDraw>()?;
     m.add_class::<crate::python::model::Line>()?;
     m.add_class::<crate::python::model::Dot>()?;

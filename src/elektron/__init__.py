@@ -13,77 +13,6 @@ import sys, os
 import tempfile
 import pcbnew
 
-import argparse
-from .elektron import make_bom, plot, convert, make_erc, make_drc, make_spice, search, list
-
-def main():
-    # create the top-level parser
-    parser = argparse.ArgumentParser(prog='elektron')
-    sub_parsers = parser.add_subparsers(help='sub-command help', dest="command")
-
-    # create the sub parsers
-    parser_bom = sub_parsers.add_parser('bom', help='generate bom from kicad schema')
-    parser_bom.add_argument('--input', type=str, required=True, help='path to kicad schema')
-    parser_bom.add_argument('--output', type=str, required=False, help='output as json file')
-    parser_bom.add_argument('--group', action='store_true', help='group symbols')
-    parser_bom.add_argument('--partlist', type=str, required=False, help='path to partlist file')
-
-    parser_plot = sub_parsers.add_parser('plot', help='plot kicad schema or PCB')
-    parser_plot.add_argument('--input', type=str, required=True, help='path to kicad schema')
-    parser_plot.add_argument('--output', type=str, required=False, help='output as json file')
-
-    parser_convert = sub_parsers.add_parser('convert', help='Convert a markdown notebook file.')
-    parser_convert.add_argument('--input', type=str, required=True, help='path to input markdown file.')
-    parser_convert.add_argument('--output', type=str, required=False, help='path to the output markdown file.')
-
-    parser_erc = sub_parsers.add_parser('erc', help='Run the ERC checks for a schema file.')
-    parser_erc.add_argument('--input', type=str, required=True, help='path to input schema file.')
-    parser_erc.add_argument('--output', type=str, required=False, help='the result from the checks')
-    
-    parser_drc = sub_parsers.add_parser('drc', help='Run the the DRC checks for a PCB file.')
-    parser_drc.add_argument('--input', type=str, required=True, help='path to input PCB file.')
-    parser_drc.add_argument('--output', type=str, required=False, help='the result from the checks')
-    
-    parser_spice = sub_parsers.add_parser('spice', help='Create the spice netlist for the schema.')
-    parser_spice.add_argument('--input', type=str, required=True, help='path to input Schema file.')
-    parser_spice.add_argument('--output', type=str, required=False, help='the result from the checks, default print to console.')
-    parser_spice.add_argument('--path', action='append', required=True, dest='spice_path', help='The spice library path.')
-
-    parser_search = sub_parsers.add_parser('search', help='Search Kicad Symbol.')
-    parser_search.add_argument('--term', type=str, required=True, help='The search term.')
-    parser_search.add_argument('--path', action='append', required=True, dest='sym_path', help='The symbol library path.')
-
-    parser_list = sub_parsers.add_parser('list', help='list symbols in a library file.')
-    parser_list.add_argument('--input', type=str, required=True, help='The filename')
-
-    args = parser.parse_args()
-
-    try:
-        if(args.command == 'plot'):
-                plot(args.input, args.output)
-
-        elif(args.command == 'bom'):
-            make_bom(args.input, args.group, args.output, args.partlist)
-        elif(args.command == 'convert'):
-            convert(args.input, args.output)
-        elif(args.command == 'erc'):
-            make_erc(args.input, args.output)
-        elif(args.command == 'drc'):
-            make_drc(args.input, args.output)
-        elif(args.command == 'spice'):
-            make_spice(args.input, args.spice_path, args.output)
-        elif(args.command == 'search'):
-            search(args.term, args.sym_path)
-        elif(args.command == 'list'):
-            list(args.input)
-        else:
-            print(args)
-    except Exception as inst:
-        print(inst)
-    os._exit(0)
-
-
-
 PLOTS = []
 
 def plots():
@@ -311,122 +240,68 @@ class Pcb:
         plot_controller.ClosePlot()  
 
 
-#if os.environ.get("MPLBACKEND") == "module://elektron":
-from io import BytesIO
-from subprocess import run
+if os.environ.get("MPLBACKEND") == "module://elektron":
+    from io import BytesIO
+    from subprocess import run
 
-from matplotlib import interactive, is_interactive
-from matplotlib._pylab_helpers import Gcf
-from matplotlib.backend_bases import (_Backend, FigureManagerBase)
-from matplotlib.backends.backend_agg import FigureCanvasAgg
+    from matplotlib import interactive, is_interactive
+    from matplotlib._pylab_helpers import Gcf
+    from matplotlib.backend_bases import (_Backend, FigureManagerBase)
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 
 # XXX heuristic for interactive repl
-if hasattr(sys, 'ps1') or sys.flags.interactive:
-    interactive(True)
+    if hasattr(sys, 'ps1') or sys.flags.interactive:
+        interactive(True)
 
 
-class FigureManagerElektron(FigureManagerBase):
+    class FigureManagerElektron(FigureManagerBase):
 
-    @classmethod
-    def _run(cls, *cmd):
-        def f(*args, output=True, **kwargs):
-            if output:
-                kwargs['capture_output'] = True
-                kwargs['text'] = True
-            r = run(cmd + args, **kwargs)
-            if output:
-                return r.stdout.rstrip()
-        return f
+        @classmethod
+        def _run(cls, *cmd):
+            def f(*args, output=True, **kwargs):
+                if output:
+                    kwargs['capture_output'] = True
+                    kwargs['text'] = True
+                r = run(cmd + args, **kwargs)
+                if output:
+                    return r.stdout.rstrip()
+            return f
 
-    def show(self):
+        def show(self):
 
-        with BytesIO() as buf:
-            global PLOTS
-            self.canvas.figure.savefig(buf, format='svg')
-            PLOTS = [bytes(buf.getvalue())]
+            with BytesIO() as buf:
+                global PLOTS
+                self.canvas.figure.savefig(buf, format='svg')
+                PLOTS = [bytes(buf.getvalue())]
 
-class FigureCanvasElektron(FigureCanvasAgg):
-    manager_class = FigureManagerElektron
-
-
-@_Backend.export
-class _BackendElektronAgg(_Backend):
-
-    FigureCanvas = FigureCanvasElektron
-    FigureManager = FigureManagerElektron
-
-    # Noop function instead of None signals that
-    # this is an "interactive" backend
-    mainloop = lambda: None
-
-    # XXX: `draw_if_interactive` isn't really intended for
-    # on-shot rendering. We run the risk of being called
-    # on a figure that isn't completely rendered yet, so
-    # we skip draw calls for figures that we detect as
-    # not being fully initialized yet. Our heuristic for
-    # that is the presence of axes on the figure.
-    @classmethod
-    def draw_if_interactive(cls):
-        manager = Gcf.get_active()
-        if is_interactive() and manager.canvas.figure.get_axes():
-            cls.show()
-
-    @classmethod
-    def show(cls, *args, **kwargs):
-        _Backend.show(*args, **kwargs)
-        Gcf.destroy_all()
+    class FigureCanvasElektron(FigureCanvasAgg):
+        manager_class = FigureManagerElektron
 
 
+    @_Backend.export
+    class _BackendElektronAgg(_Backend):
 
+        FigureCanvas = FigureCanvasElektron
+        FigureManager = FigureManagerElektron
 
+        # Noop function instead of None signals that
+        # this is an "interactive" backend
+        mainloop = lambda: None
 
+        # XXX: `draw_if_interactive` isn't really intended for
+        # on-shot rendering. We run the risk of being called
+        # on a figure that isn't completely rendered yet, so
+        # we skip draw calls for figures that we detect as
+        # not being fully initialized yet. Our heuristic for
+        # that is the presence of axes on the figure.
+        @classmethod
+        def draw_if_interactive(cls):
+            manager = Gcf.get_active()
+            if is_interactive() and manager.canvas.figure.get_axes():
+                cls.show()
 
-
-
-
-# if sys.flags.interactive:
-#     interactive(True)
-#
-# class FigureManagerElektron(FigureManagerBase):
-#
-#  @classmethod
-#  def _run(cls, *cmd):
-#      def f(*args, output=True, **kwargs):
-#          if output:
-#              kwargs['capture_output'] = True
-#              kwargs['text'] = True
-#          r = run(cmd + args, **kwargs)
-#          if output:
-#              return r.stdout.rstrip()
-#      return f
-#
-#  def show(self):
-#      with BytesIO() as buf:
-#          global PLOTS
-#          self.canvas.figure.savefig(buf, format='png')
-#          PLOTS = [list(bytes(buf.getbuffer()))]
-#
-# class FigureCanvasElektron(FigureCanvasAgg):
-#     manager_class = FigureManagerElektron
-#
-# @_Backend.export
-# class _BackendElektron(_Backend):
-#
-#  FigureCanvas = FigureCanvasElektron
-#  FigureManager = FigureManagerElektron
-#
-#  # Noop function instead of None signals that
-#  # this is an "interactive" backend
-#  mainloop = lambda: None
-#
-#  @classmethod
-#  def draw_if_interactive(cls):
-#      manager = Gcf.get_active()
-#      if is_interactive() and manager.canvas.figure.get_axes():
-#          cls.show()
-#
-#  @classmethod
-#  def show(cls, *args, **kwargs):
-#      _Backend.show(*args, **kwargs)
-#      Gcf.destroy_all()
+        @classmethod
+        def show(cls, *args, **kwargs):
+            _Backend.show(*args, **kwargs)
+            Gcf.destroy_all()

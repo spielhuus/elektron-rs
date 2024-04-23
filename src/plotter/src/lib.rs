@@ -3,6 +3,8 @@ use std::{collections::HashMap, fmt, fs::File, io::Read, sync::Mutex};
 use fontdue::{layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle}, Font};
 
 use ndarray::{arr1, arr2, Array1, Array2};
+use clap::ValueEnum;
+use log::debug;
 
 //pub mod cairo_plotter;
 pub mod error;
@@ -25,7 +27,112 @@ const BORDER_RASTER: i32 = 60;
 const BORDER_HEADER_3: f64 = 7.5;
 
 // -----------------------------------------------------------------------------------------------------------
-// ---                                             sexp utils                                              ---
+// ---                                             main funtion                                            ---
+// -----------------------------------------------------------------------------------------------------------
+
+/// plot the document
+///
+/// The filetype is selected by the output file extension. When no output filename is given the
+/// image will be displayed in the console.
+///
+/// # Arguments
+///
+/// * `input`    - A Schema filename.
+/// * `output`   - The filename of the target image.
+pub fn plot(input: &str, output: &str, border: bool, theme: Theme, scale: f64, pages: Option<Vec<usize>>) -> Result<(), Error> {
+    if input.ends_with(".kicad_sch") {
+        debug!("Write schema: input:{}, output:{:?}, border: {} theme: {:?}", input, output, border, theme);
+        //load the sexp file.
+        //if let Some(output) = output {
+            if let Some(ext_pos) = output.find('.') {
+                let ext = output.split_at(ext_pos).1;
+                if ext == ".svg" {
+
+                    let mut plotter = schema::SchemaPlot::new()
+                        .border(border).theme(theme).scale(scale)
+                        .name(input);
+
+                    if let Some(pages) = pages {
+                        plotter = plotter.pages(pages);
+                    }
+
+                    plotter.open(input)?;
+                    for page in plotter.iter() {
+                        let mut file = if *page.0 == 1 {
+                            debug!("write first page to {}", output);
+                            File::create(output)?
+                        } else {
+                            debug!("write page {} to {}", page.1, format!("{}.svg", page.1));
+                            File::create(format!("{}.svg", page.1))?
+                        };
+                        let mut svg_plotter = svg::SvgPlotter::new(&mut file);
+                        plotter.write(page.0, &mut svg_plotter)?;
+                    }
+
+                /*TODO  } else if ext == constant::EXT_PNG {
+                    let plotter = CairoPlotter::new(
+                        input,
+                        ImageType::Png,
+                        Some(Themer::new(Theme::Kicad2020)), //TODO
+                    );
+                    let mut buffer = File::create(output).unwrap();
+                    plotter
+                        .plot(&tree, &mut buffer, true, 1.0, None, false)
+                        .unwrap();
+                } else if ext == constant::EXT_PDF {
+                    let plotter = CairoPlotter::new(
+                        input,
+                        ImageType::Pdf,
+                        Some(Themer::new(Theme::Kicad2020)),
+                    );
+                    let mut buffer = File::create(output).unwrap();
+                    plotter
+                        .plot(&tree, &mut buffer, true, 1.0, None, false)
+                        .unwrap(); */
+                } else {
+                    return Err(Error::Plotter(format!(
+                        "{} Image type not supported for extension: '{}'",
+                        "Error:",
+                        ext
+                    )));
+                }
+            } else {
+                return Err(Error::FileNotFound(format!(
+                    "{} Input file does not exist: {}",
+                    "Error:",
+                    input,
+                )));
+            }
+        //} else {
+        //    println!("no output file");
+        //}
+
+    //} else if input.ends_with(".kicad_pcb") {
+    //    info!("Write PCB: input:{}, output:{:?}", input, output);
+    //    if let Some(output) = output {
+    //        plotter::pcb::plot_pcb(
+    //            input.to_string(),
+    //            output.to_string(),
+    //            None, /* TODO */
+    //            None,
+    //        )?; //TODO set layers
+    //    } else {
+    //        println!("no output file");
+    //    }
+    } else {
+        return Err(Error::FileNotFound(format!(
+            "{} Input file does not exist: {}",
+            "Error:",
+            input
+        )));
+    }
+    Ok(())
+}
+
+
+
+// -----------------------------------------------------------------------------------------------------------
+// ---                                           plotter model                                             ---
 // -----------------------------------------------------------------------------------------------------------
 
 /// Text Effects
@@ -224,7 +331,7 @@ impl From<&Sexp> for Stroke {
 // ---                                          The plotter model                                          ---
 // -----------------------------------------------------------------------------------------------------------
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, ValueEnum)]
 ///The color theme
 pub enum Theme {
     ///Kicad alike theme.
