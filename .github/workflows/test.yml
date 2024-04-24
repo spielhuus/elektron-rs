@@ -23,8 +23,8 @@ jobs:
       - name: dependencies
         run: |
             uname -a &&
-            sudo -y apt-get update &&
-            sudo -y apt-get -y upgrade &&
+            sudo apt-get -y update &&
+            sudo apt-get -y upgrade &&
             sudo apt-get -y install gcc clang openssl libicu-dev libgraphite2-dev \
                            libcairo-5c-dev libcairo-gobject2 \
                            libpango1.0-dev libpoppler-dev libpoppler-glib-dev \
