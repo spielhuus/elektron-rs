@@ -95,7 +95,7 @@ pub fn bom(
     group: bool,
     partlist: Option<String>,
 ) -> Result<(), Error> {
-    debug!("Write BOM: input:{}, output:{:?}", input, output);
+    info!("Write BOM: input:{}, output:{:?}", input, output);
     let tree = load_sexp(input)?;
     let results = bom::bom(&tree, group, partlist)?;
 
@@ -234,7 +234,6 @@ fn absolute_path(path: &str) -> String {
 /// * `output`   - destination markdown file.
 /// * `return`   - possible error.
 fn convert(input: &str, output: &str) -> Result<(), Error> {
-    env_logger::init();
     info!("Write notebook: input:{}, output:{:?}", input, output);
 
     check_directory(output).unwrap();
@@ -287,6 +286,7 @@ fn convert(input: &str, output: &str) -> Result<(), Error> {
 /// * `return`   - Tuple with a 'Vec<BomItem>' and the items not found
 ///                in the partlist, when provided.
 pub fn erc(input: &str, output: Option<String>) -> Result<(), Error> {
+    info!("Write ERC: input:{}, output:{:?}", input, output);
     let Ok(results) = erc::erc(input) else {
         return Err(Error::FileIo(format!(
             "{} can not load drc information from eschema: {})",
@@ -494,9 +494,6 @@ pub fn search(term: &str, path: Vec<String>) -> Result<(), Error> {
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Cli {
-    /// Optional name to operate on
-    name: Option<String>,
-
     /// Turn debugging information on
     #[arg(short, long, action = clap::ArgAction::Count)]
     debug: u8,
@@ -603,28 +600,10 @@ enum Commands {
 #[pyfunction]
 pub fn main() -> PyResult<()> {
     env_logger::init();
-    let cli = Cli::parse();
+    let mut args: Vec<String> = std::env::args().map(|s| s.to_string()).collect();
+    args.remove(0);
+    let cli = Cli::parse_from(args);
 
-    //// You can check the value provided by positional arguments, or option arguments
-    //if let Some(name) = cli.name.as_deref() {
-    //    println!("Value for name: {name}");
-    //}
-    //
-    //if let Some(config_path) = cli.config.as_deref() {
-    //    println!("Value for config: {}", config_path.display());
-    //}
-    //
-    //// You can see how many times a particular flag or argument occurred
-    //// Note, only flags can have multiple occurrences
-    //match cli.debug {
-    //    0 => println!("Debug mode is off"),
-    //    1 => println!("Debug mode is kind of on"),
-    //    2 => println!("Debug mode is on"),
-    //    _ => println!("Don't be crazy"),
-    //}
-
-    // You can check for the existence of subcommands, and if found use their
-    // matches just as you would the top level cmd
     if let Err(error) = match cli.command {
         Some(Commands::Bom { input, output, group, partlist }) => {
             bom(&input, output.clone(), group, partlist)

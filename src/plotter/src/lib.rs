@@ -4,7 +4,7 @@ use fontdue::{layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle}, Fon
 
 use ndarray::{arr1, arr2, Array1, Array2};
 use clap::ValueEnum;
-use log::debug;
+use log::{debug, info};
 
 //pub mod cairo_plotter;
 pub mod error;
@@ -41,7 +41,7 @@ const BORDER_HEADER_3: f64 = 7.5;
 /// * `output`   - The filename of the target image.
 pub fn plot(input: &str, output: &str, border: bool, theme: Theme, scale: f64, pages: Option<Vec<usize>>) -> Result<(), Error> {
     if input.ends_with(".kicad_sch") {
-        debug!("Write schema: input:{}, output:{:?}, border: {} theme: {:?}", input, output, border, theme);
+        info!("Write schema: input:{}, output:{:?}, border: {} theme: {:?}", input, output, border, theme);
         //load the sexp file.
         //if let Some(output) = output {
             if let Some(ext_pos) = output.find('.') {
