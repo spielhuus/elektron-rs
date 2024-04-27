@@ -12,6 +12,7 @@ use lazy_static::lazy_static;
 use ndarray::{arr1, arr2, Array1};
 use regex::Regex;
 use uuid::Uuid;
+use log::warn;
 
 pub use error::Error;
 use reports::erc;
@@ -292,6 +293,7 @@ impl Draw {
             .unwrap()
             .push(SexpAtom::Node(Sexp::from(String::from(el::LIB_SYMBOLS))))
             .unwrap();
+
         Self {
             pos: At::Pos((25.4, 25.4)),
             schema,
@@ -300,14 +302,6 @@ impl Draw {
             references: HashMap::new(),
         }
     }
-
-    //Build the netlist and get the circuit
-    /* pub fn circuit(&self, pathlist: Vec<String>) -> Result<Circuit, Error> {
-        let netlist = Netlist::from(&self.schema)?;
-        let mut circuit = Circuit::new(String::from("draw circuit"), pathlist);
-        netlist.circuit(&mut circuit).unwrap();
-        Ok(circuit)
-    } */
 
     ///Set the position.
     pub fn set(&mut self, pos: At) {
@@ -386,38 +380,6 @@ impl Draw {
                 item.id, item.reference, item.at[0], item.at[1]
             )
             .unwrap();
-            /* match i {
-                erc::ErcItem::NoReference { reference, at } => {
-                    writeln!(res, "NoReference: {} ({}x{})", reference, at[0], at[1]).unwrap();
-                }
-                erc::ErcItem::ValuesDiffer { reference, at } => {
-                    writeln!(
-                        res,
-                        "Different values for: {} ({}x{})",
-                        reference, at[0], at[1]
-                    )
-                    .unwrap();
-                }
-                erc::ErcItem::Netlist(nl) => {
-                    writeln!(res, "Netlist: {}", nl).unwrap();
-                }
-                erc::ErcItem::NotAllParts { reference, at } => {
-                    writeln!(
-                        res,
-                        "Not all symbol units on schema: {} ({}x{})",
-                        reference, at[0], at[1]
-                    )
-                    .unwrap();
-                }
-                erc::ErcItem::PinNotConnected { reference, at } => {
-                    writeln!(
-                        res,
-                        "Pin not connected: {} ({}x{})",
-                        reference, at[0], at[1]
-                    )
-                    .unwrap();
-                }
-            } */
         }
         std::str::from_utf8(&res).unwrap().to_string()
     }
@@ -591,14 +553,17 @@ impl Draw {
             LabelPosition::North => "center",
             LabelPosition::South => "center",
             LabelPosition::West => {
-                let orientation = if angle == 180.0 {
+                let mut orientation = if angle == 180.0 {
                     el::JUSTIFY_LEFT
                 } else {
                     el::JUSTIFY_RIGHT
                 };
-                if !mirror.is_empty() && mirror.contains('x') {
-                    //TODO what to do here?
-                    // orientation = if orientation == el::JUSTIFY_RIGHT { el::JUSTIFY_LEFT } else { el::JUSTIFY_RIGHT };
+                if !mirror.is_empty() && mirror.contains('y') {
+                    orientation = if orientation == el::JUSTIFY_RIGHT { 
+                        el::JUSTIFY_LEFT 
+                    } else { 
+                        el::JUSTIFY_RIGHT 
+                    };
                 }
                 orientation
             }
@@ -708,16 +673,16 @@ impl Draw {
                 label
             } else if pins == 1 {
                 if positions.contains(&PinOrientation::Up) {
-                    LabelPosition::North
-                } else if positions.contains(&PinOrientation::Right) {
-                    LabelPosition::East
-                } else if positions.contains(&PinOrientation::Left) {
-                    LabelPosition::West
-                } else if positions.contains(&PinOrientation::Down) {
                     LabelPosition::South
-                } else {
+                } else if positions.contains(&PinOrientation::Right) {
+                    LabelPosition::West
+                } else if positions.contains(&PinOrientation::Left) {
+                    LabelPosition::East
+                } else if positions.contains(&PinOrientation::Down) {
                     LabelPosition::North
-                    //TODO todo!("unplacable property");
+                } else {
+                    warn!("property can not be placed: {:?}", prop);
+                    LabelPosition::North
                 }
             } else if !positions.contains(&PinOrientation::Up) {
                 LabelPosition::North
@@ -728,94 +693,62 @@ impl Draw {
             } else if !positions.contains(&PinOrientation::Down) {
                 LabelPosition::South
             } else {
+                warn!("property can not be placed: {:?}", prop);
                 LabelPosition::North
-                //TODO todo!("unplacable property");
             };
 
-            let at = if pins == 1 {
-                match position {
-                    LabelPosition::North => {
-                        arr1(&[
-                            symbol_position[0],
-                            _size[[1, 1]] + LABEL_BORDER,
-                            0.0, /*- symbol_angle*/
-                        ])
-                    }
-                    LabelPosition::South => arr1(&[
+            let at = match position {
+                LabelPosition::North => {
+                    let top_pos = if _size[[0, 1]] < _size[[1, 1]] {
+                        _size[[0, 1]] - ((vis_len as f64 - 1.0) * LABEL_BORDER) - LABEL_BORDER
+                    } else {
+                        _size[[1, 1]] - ((vis_len as f64 - 1.0) * LABEL_BORDER) - LABEL_BORDER
+                    };
+                    arr1(&[
                         symbol_position[0],
-                        _size[[0, 1]] - LABEL_BORDER,
-                        0.0 - symbol_angle,
-                    ]),
-                    LabelPosition::West => arr1(&[
-                        _size[[1, 0]] + LABEL_BORDER,
-                        symbol_position[1],
-                        symbol_angle,
-                    ]),
-                    LabelPosition::East => arr1(&[
-                        _size[[0, 0]] - LABEL_BORDER,
-                        symbol_position[1],
-                        0.0 - symbol_angle,
-                    ]),
-                    LabelPosition::Offset(x, y) => arr1(&[
-                        symbol_position[0] + x,
-                        symbol_position[1] - y,
-                        0.0 - symbol_angle,
-                    ]),
+                        top_pos - offset,
+                        self.angle(symbol_angle),
+                    ])
                 }
-            } else {
-                match position {
-                    LabelPosition::North => {
-                        let top_pos = if _size[[0, 1]] < _size[[1, 1]] {
-                            _size[[0, 1]] - ((vis_len as f64 - 1.0) * LABEL_BORDER) - LABEL_BORDER
-                        } else {
-                            _size[[1, 1]] - ((vis_len as f64 - 1.0) * LABEL_BORDER) - LABEL_BORDER
-                        };
-                        arr1(&[
-                            symbol_position[0],
-                            top_pos - offset,
-                            self.angle(symbol_angle),
-                        ])
-                    }
-                    LabelPosition::South => {
-                        let bottom_pos = if _size[[0, 1]] < _size[[1, 1]] {
-                            _size[[1, 1]] + LABEL_BORDER
-                        } else {
-                            _size[[0, 1]] + LABEL_BORDER
-                        };
-                        arr1(&[
-                            symbol_position[0],
-                            bottom_pos - offset,
-                            0.0 - self.angle(symbol_angle),
-                        ])
-                    }
-                    LabelPosition::West => {
-                        let top_pos = _size[[0, 1]] + ((_size[[1, 1]] - _size[[0, 1]]) / 2.0)
-                            - ((vis_len as f64 - 1.0) * LABEL_BORDER) / 2.0;
-                        arr1(&[
-                            _size[[0, 0]] - LABEL_BORDER / 2.0,
-                            top_pos - offset,
-                            self.angle(symbol_angle),
-                        ])
-                    }
-                    LabelPosition::East => {
-                        let top_pos = _size[[0, 1]] + ((_size[[1, 1]] - _size[[0, 1]]) / 2.0)
-                            - ((vis_len as f64 - 1.0) * LABEL_BORDER) / 2.0;
-                        arr1(&[
-                            _size[[1, 0]] + LABEL_BORDER / 2.0,
-                            top_pos - offset,
-                            self.angle(symbol_angle),
-                        ])
-                    }
-                    LabelPosition::Offset(x, y) => arr1(&[
-                        symbol_position[0] + x,
-                        symbol_position[1] + y - offset,
-                        0.0 - symbol_angle,
-                    ]),
+                LabelPosition::South => {
+                    let bottom_pos = if _size[[0, 1]] < _size[[1, 1]] {
+                        _size[[1, 1]] + LABEL_BORDER
+                    } else {
+                        _size[[0, 1]] + LABEL_BORDER
+                    };
+                    arr1(&[
+                        symbol_position[0],
+                        bottom_pos - offset,
+                        0.0 - self.angle(symbol_angle),
+                    ])
                 }
+                LabelPosition::West => {
+                    let top_pos = _size[[0, 1]] + ((_size[[1, 1]] - _size[[0, 1]]) / 2.0)
+                        - ((vis_len as f64 - 1.0) * LABEL_BORDER) / 2.0;
+                    arr1(&[
+                        _size[[0, 0]] - LABEL_BORDER / 2.0,
+                        top_pos - offset,
+                        self.angle(symbol_angle),
+                    ])
+                }
+                LabelPosition::East => {
+                    let top_pos = _size[[0, 1]] + ((_size[[1, 1]] - _size[[0, 1]]) / 2.0)
+                        - ((vis_len as f64 - 1.0) * LABEL_BORDER) / 2.0;
+                    arr1(&[
+                        _size[[1, 0]] + LABEL_BORDER / 2.0,
+                        top_pos - offset,
+                        self.angle(symbol_angle),
+                    ])
+                }
+                LabelPosition::Offset(x, y) => arr1(&[
+                    symbol_position[0] + x,
+                    symbol_position[1] + y - offset,
+                    0.0 - symbol_angle,
+                ]),
             };
 
             let effects = prop.query_mut(el::EFFECTS).next().unwrap();
-            let orientation = self.align(position, symbol_angle, symbol_mirror.clone());
+            let orientation = self.align(position.clone(), symbol_angle, symbol_mirror.clone());
             if orientation == "center" {
                 if effects.has(el::JUSTIFY) {
                     effects.remove(el::JUSTIFY).unwrap();
@@ -831,7 +764,7 @@ impl Draw {
                         1,
                         SexpAtom::Node(
                             sexp::sexp!(
-                            (justify {orientation.as_str()}))
+                            (justify {&orientation}))
                             .root()
                             .unwrap()
                             .clone(),
@@ -919,11 +852,10 @@ impl Drawer<Label> for Draw {
             (uuid {sexp::uuid!()})
         ));
 
-        //TODO compact
-        let l = result.root().unwrap().clone();
-        let root = self.schema.root_mut().unwrap();
-        root.push(SexpAtom::Node(l))?;
-        Ok(Some(result.root().unwrap().clone()))
+        let l = result.root()?;
+        let root = self.schema.root_mut()?;
+        root.push(SexpAtom::Node(l.clone()))?;
+        Ok(Some(l.clone()))
     }
 }
 
