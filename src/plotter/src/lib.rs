@@ -98,30 +98,26 @@ pub fn plot(input: &str, output: &str, border: bool, theme: Theme, scale: f64, p
                 }
             } else {
                 return Err(Error::FileNotFound(format!(
-                    "{} Input file does not exist: {}",
+                    "{} can not evaluate output file format from: {}",
                     "Error:",
-                    input,
+                    output,
                 )));
             }
         //} else {
         //    println!("no output file");
         //}
 
-    //} else if input.ends_with(".kicad_pcb") {
-    //    info!("Write PCB: input:{}, output:{:?}", input, output);
-    //    if let Some(output) = output {
-    //        plotter::pcb::plot_pcb(
-    //            input.to_string(),
-    //            output.to_string(),
-    //            None, /* TODO */
-    //            None,
-    //        )?; //TODO set layers
-    //    } else {
-    //        println!("no output file");
-    //    }
+    } else if input.ends_with(".kicad_pcb") {
+        info!("Write PCB: input:{}, output:{:?}", input, output);
+        pcb::plot_pcb(
+            input.to_string(),
+            output.to_string(),
+            None, /* TODO */
+            None,
+        )?; //TODO set layers
     } else {
         return Err(Error::FileNotFound(format!(
-            "{} Input file does not exist: {}",
+            "{} Input file format not supported: {}",
             "Error:",
             input
         )));

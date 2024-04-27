@@ -260,7 +260,6 @@ pub fn plot_pcb(
     let name = &input[last_slash + 1..last_dot];
 
     let mut document = Document::new();
-    // .set("viewBox", (0, 0, 70, 70));
 
     let mut width = 0.0;
     let mut height = 0.0;
@@ -615,7 +614,7 @@ pub fn plot_pcb(
     }
 
     //move the target folder
-    let last_slash = output.rfind('/').unwrap();
+    let last_slash = output.rfind('/').unwrap(); //TODO fails when output is only file name without path
     if let Err(err) = check_directory(&format!("{}/pcb", &output[0..last_slash])) {
         return Err(Error::IoError(format!(
             "{} can not create output directory: '{}'",
