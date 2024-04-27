@@ -105,10 +105,10 @@ R4
 <path d="M22.78,65.5 L22.78,65.5" stroke="rgb(132,0,0)" stroke-width="0.35"/>
 <path d="M22.78,55.34 L12.62,55.34" stroke="rgb(0,150,0)" stroke-width="0.25"/>
 <path d="M12.62,55.34 L12.62,57.88" stroke="rgb(0,150,0)" stroke-width="0.25"/>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="end" transform="translate(15.169999999999998,61.96000000000001) rotate(0)">
+<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="start" transform="translate(15.169999999999998,61.96000000000001) rotate(0)">
 Q3
 </text>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="end" transform="translate(15.169999999999998,63.96000000000001) rotate(0)">
+<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="start" transform="translate(15.169999999999998,63.96000000000001) rotate(0)">
 BC547
 </text>
 <path d="M12.62,68.04 L12.62,65.5" stroke="rgb(132,0,0)" stroke-width="0.35"/>

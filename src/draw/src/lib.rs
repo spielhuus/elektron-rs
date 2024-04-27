@@ -573,11 +573,11 @@ impl Draw {
                 } else {
                     el::JUSTIFY_LEFT
                 };
-                if !mirror.is_empty() {
-                    orientation = if orientation == el::JUSTIFY_RIGHT {
-                        el::JUSTIFY_LEFT
-                    } else {
-                        el::JUSTIFY_RIGHT
+                if !mirror.is_empty() && mirror.contains('y') {
+                    orientation = if orientation == el::JUSTIFY_RIGHT { 
+                        el::JUSTIFY_LEFT 
+                    } else { 
+                        el::JUSTIFY_RIGHT 
                     };
                 }
                 orientation
