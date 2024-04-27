@@ -109,12 +109,67 @@ pub fn plot(input: &str, output: &str, border: bool, theme: Theme, scale: f64, p
 
     } else if input.ends_with(".kicad_pcb") {
         info!("Write PCB: input:{}, output:{:?}", input, output);
-        pcb::plot_pcb(
-            input.to_string(),
-            output.to_string(),
-            None, /* TODO */
-            None,
-        )?; //TODO set layers
+
+            if let Some(ext_pos) = output.find('.') {
+                let ext = output.split_at(ext_pos).1;
+                if ext == ".svg" {
+
+                    let mut plotter = pcb::PcbPlot::new()
+                        .border(border).theme(theme).scale(scale)
+                        .name(input);
+
+                    plotter.open(input)?;
+                    debug!("write first page to {}", output);
+                    let mut file =File::create(output)?;
+                    let mut svg_plotter = svg::SvgPlotter::new(&mut file);
+                    plotter.write(&mut svg_plotter)?;
+
+                /*TODO  } else if ext == constant::EXT_PNG {
+                    let plotter = CairoPlotter::new(
+                        input,
+                        ImageType::Png,
+                        Some(Themer::new(Theme::Kicad2020)), //TODO
+                    );
+                    let mut buffer = File::create(output).unwrap();
+                    plotter
+                        .plot(&tree, &mut buffer, true, 1.0, None, false)
+                        .unwrap();
+                } else if ext == constant::EXT_PDF {
+                    let plotter = CairoPlotter::new(
+                        input,
+                        ImageType::Pdf,
+                        Some(Themer::new(Theme::Kicad2020)),
+                    );
+                    let mut buffer = File::create(output).unwrap();
+                    plotter
+                        .plot(&tree, &mut buffer, true, 1.0, None, false)
+                        .unwrap(); */
+                } else {
+                    return Err(Error::Plotter(format!(
+                        "{} Image type not supported for extension: '{}'",
+                        "Error:",
+                        ext
+                    )));
+                }
+            } else {
+                return Err(Error::FileNotFound(format!(
+                    "{} can not evaluate output file format from: {}",
+                    "Error:",
+                    output,
+                )));
+            }
+
+
+
+
+
+
+        //pcb::plot_pcb(
+        //    input.to_string(),
+        //    output.to_string(),
+        //    None, /* TODO */
+        //    None,
+        //)?; //TODO set layers
     } else {
         return Err(Error::FileNotFound(format!(
             "{} Input file format not supported: {}",

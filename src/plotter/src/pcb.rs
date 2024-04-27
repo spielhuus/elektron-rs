@@ -1,9 +1,13 @@
 //! Plot the PCB
-use crate::{error::Error, schema::Themer, Theme};
+use crate::{border, error::Error, schema::Themer, Color, Line, Outline, PlotItem, PlotterImpl, Stroke, Theme};
 use log::{debug, error, warn};
+use ndarray::{arr1, arr2, Array1};
 use pyo3::{prelude::*, types::PyDict};
 use rand::Rng;
-use std::fs;
+use log::*;
+
+use sexp::{el, PaperSize, Sexp, SexpParser, SexpTree, SexpValueQuery};
+use std::{collections::HashMap, fs};
 use svg::{
     node::element::{Circle, Description, Group, Path, Symbol, Text, Title, Use},
     parser::Event,
@@ -21,6 +25,241 @@ pub const LAYERS: &[&str; 9] = &[
     "B_Mask",
     "Edge_Cuts",
 ];
+
+// -----------------------------------------------------------------------------------------------------------
+// ---                             collect the plot model from the sexp tree                               ---
+// -----------------------------------------------------------------------------------------------------------
+
+pub struct PcbPlot<'a> {
+    theme: Themer<'a>,
+    border: bool,
+    scale: f64,
+    name: Option<String>,
+    path: String,
+    tree: Option<SexpTree>,
+}
+
+impl Outline for PcbPlot<'_> {}
+
+//default trait implementations for PcbPlot
+impl Default for PcbPlot<'_> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// collect the plot model from the sexp tree
+impl<'a> PcbPlot<'a> {
+    /// Select the color theme.
+    pub fn theme(mut self, theme: Theme) -> Self {
+        self.theme = Themer::new(theme);
+        self
+    }
+    /// Draw a border around the plot, otherwise crop the plot.
+    pub fn border(mut self, border: bool) -> Self {
+        self.border = border;
+        self
+    }
+    /// Scale the plot
+    pub fn scale(mut self, scale: f64) -> Self {
+        self.scale = scale;
+        self
+    }
+    /// The name of the plot.
+    pub fn name(mut self, name: &str) -> Self {
+        self.name = Some(name.to_string());
+        self
+    }
+    /// create a new SchemaPlot with defalt values.
+    pub fn new() -> Self {
+        Self {
+            theme: Themer::new(Theme::default()),
+            border: true,
+            scale: 1.0,
+            name: None,
+            path: String::new(),
+            tree: None,
+        }
+    }
+
+    pub fn open(&mut self, path: &str) -> Result<(), Error> {
+        debug!("open pcb: {}", path);
+        if let Some(dir) = std::path::Path::new(&path).parent() {
+            self.path = dir.to_str().unwrap().to_string();       
+        }
+        let Ok(document) = SexpParser::load(path) else {
+            return Err(Error::Plotter(format!("could not load schema: {}", path)));
+        };
+        let tree = SexpTree::from(document.iter())?;
+        self.tree = Some(tree);
+        Ok(())
+    }
+
+    pub fn write(&self, plotter: &mut dyn PlotterImpl) -> Result<(), Error> {
+        trace!("write page: {}", 1);
+        let tree = if let Some(tree) = &self.tree {
+            tree.clone()
+        } else {
+            return Err(Error::Plotter("no root schema loaded".into()));
+        };
+
+        let paper_size: (f64, f64) =
+            <Sexp as SexpValueQuery<PaperSize>>::value(tree.root().unwrap(), "paper")
+                .unwrap()
+                .into();
+
+        //TODO handle portraint and landscape
+        
+        let mut plot_items = self.parse_items(&tree);
+        let size = if self.border {
+            arr2(&[[0.0, 0.0], [paper_size.0, paper_size.1]])
+        } else {
+            //when the border is not plotted, the plotter will just use the default bounds
+            let rect = self.bounds(&plot_items) + arr2(&[[-2.54, -2.54], [2.54, 2.54]]);
+            let x = rect[[0, 0]];
+            let y = rect[[0, 1]];
+            let offset = arr1(&[x, y]);
+            for item in plot_items.iter_mut() {
+                match item {
+                    PlotItem::Arc(_, arc) => {
+                        arc.start = arc.start.clone() - &offset;
+                        arc.end = arc.end.clone() - &offset;
+                        arc.center = arc.center.clone() - &offset;
+                    }
+                    PlotItem::Circle(_, circle) => circle.pos = circle.pos.clone() - &offset,
+                    PlotItem::Line(_, line) => line.pts = line.pts.clone() - &offset,
+                    PlotItem::Rectangle(_, rect) => rect.pts = rect.pts.clone() - &offset,
+                    PlotItem::Polyline(_, poly) => poly.pts = poly.pts.clone() - &offset,
+                    PlotItem::Text(_, text) => text.pos = text.pos.clone() - &offset,
+                }
+            }
+            arr2(&[
+                [0.0, 0.0],
+                [rect[[1, 0]] - rect[[0, 0]], rect[[1, 1]] - rect[[0, 1]]],
+            ])
+        };
+
+        plotter.plot(plot_items.as_slice(), size, self.scale, self.name.clone())?;
+
+        Ok(())
+    }
+
+    fn parse_items(
+        &self,
+        document: &SexpTree,
+    ) -> Vec<PlotItem> {
+
+        //plot the border 
+        let mut plot_items: Vec<PlotItem> = Vec::new();
+        let title_block = if let Some(title_block) = document.root().unwrap().query(el::TITLE_BLOCK).next() {
+            Some(title_block)
+        } else if let Some(tree) = &self.tree {
+            tree.root().unwrap().query(el::TITLE_BLOCK).next()
+        } else {
+            None
+        };
+        if self.border {
+            if let Some(title_block) = title_block {
+                if let Some(paper_size) = <Sexp as SexpValueQuery<PaperSize>>::value(document.root().unwrap(), el::TITLE_BLOCK_PAPER) {
+                    plot_items.append(&mut border(title_block, paper_size, &self.theme).unwrap());
+                }
+            }
+        }
+
+        for item in document.root().unwrap().nodes() {
+            match item.name.as_str() {
+                el::SEGMENT => self.plot(SegmentElement{ item }, &mut plot_items),
+                //el::BUS => self.plot(BusElement{ item }, &mut plot_items),
+                //el::BUS_ENTRY => self.plot(BusEntryElement{ item }, &mut plot_items),
+                //el::CIRCLE => self.plot(CircleElement{ item }, &mut plot_items),
+                //el::LABEL => self.plot(LabelElement{ item, global: false }, &mut plot_items),
+                //el::GLOBAL_LABEL => self.plot(LabelElement{ item, global: true }, &mut plot_items),
+                //el::JUNCTION => self.plot(JunctionElement{ item }, &mut plot_items),
+                //el::NO_CONNECT => self.plot(NoConnectElement{ item }, &mut plot_items),
+                //el::POLYLINE => self.plot(PolylineElement { item }, &mut plot_items),
+                //el::RECTANGLE => self.plot(RectangleElement { item }, &mut plot_items),
+                //el::SHEET => self.plot(SheetElement { item }, &mut plot_items),
+                //el::SHEET_PIN => self.plot(SheetPinElement { item }, &mut plot_items),
+                //el::SYMBOL => self.plot(SymbolElement { item, document, netlist: &netlist }, &mut plot_items),
+                //el::WIRE => self.plot(WireElement{ item }, &mut plot_items),
+                //el::TEXT => self.plot(TextElement{ item }, &mut plot_items),
+                //el::TEXT_BOX => self.plot(TextBoxElement{ item }, &mut plot_items),
+                _ => { 
+                    if log_enabled!(Level::Error) {
+                        let items = [
+                            "generator_version",
+                            "version",
+                            "generator",
+                            "uuid",
+                            "paper",
+                            "lib_symbols",
+                            "sheet_instances",
+                            el::TITLE_BLOCK,
+                        ];
+                        if !items.contains(&item.name.as_str()) {
+                            error!("unparsed node: {}", item.name);
+                        }
+                    }
+                },
+            }
+        }
+        plot_items
+    }
+}
+
+
+
+trait PlotElement<T> {
+    fn plot(&self, item: T, plot_items: &mut Vec<PlotItem>);
+}
+
+
+struct SegmentElement<'a> {
+    item: &'a Sexp,
+}
+
+impl<'a> PlotElement<SegmentElement<'a>> for PcbPlot<'a> {
+    fn plot(&self, item: SegmentElement, plot_items: &mut Vec<PlotItem>) {
+        let start: Array1<f64> = item.item.value(el::START).unwrap();
+        let end: Array1<f64> = item.item.value(el::END).unwrap();
+        let width: f64 = item.item.value(el::WIDTH).unwrap();
+        let layer: String = item.item.value(el::LAYER).unwrap();
+
+        let mut stroke = Stroke::new();
+        stroke.linewidth = width;
+        stroke.linecolor = Color::Rgb(0, 255, 0);
+
+        plot_items.push(PlotItem::Line(
+            10,
+            Line::new(
+                arr2(&[[start[0], start[1]], [end[0], end[1]]]),
+                stroke,
+                //self.theme.get_stroke(item.item.into(), &[Style::Wire]),
+                None,
+            ),
+        ));
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 macro_rules! end {
     ( $group:expr, $stack:expr ) => {

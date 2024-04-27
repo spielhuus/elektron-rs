@@ -73,6 +73,7 @@ pub mod el {
     pub const CIRCLE: &str = "circle";
     pub const EFFECTS: &str = "effects";
     pub const EFFECTS_JUSTIFY: &str = "justify";
+    pub const END: &str = "end";
     pub const GLOBAL_LABEL: &str = "global_label";
     pub const GRAPH_ARC: &str = "arc";
     pub const GRAPH_CIRCLE: &str = "circle";
@@ -86,6 +87,7 @@ pub mod el {
     pub const JUSTIFY_LEFT: &str = "left";
     pub const JUSTIFY_RIGHT: &str = "right";
     pub const LABEL: &str = "label";
+    pub const LAYER: &str = "layer";
     pub const LIB_ID: &str = "lib_id";
     pub const LIB_SYMBOLS: &str = "lib_symbols";
     pub const MIRROR: &str = "mirror";
@@ -103,6 +105,7 @@ pub mod el {
     pub const SHEET: &str = "sheet";
     pub const SHEET_INSTANCES: &str = "sheet_instances";
     pub const SHEET_PIN: &str = "hierarchical_label";
+    pub const START: &str = "start";
     pub const STROKE: &str = "stroke";
     pub const SYMBOL: &str = "symbol";
     pub const SYMBOL_UNIT: &str = "unit";
@@ -115,8 +118,10 @@ pub mod el {
     pub const TITLE_BLOCK_PAPER: &str = "paper";
     pub const TITLE_BLOCK_REV: &str = "rev";
     pub const TITLE_BLOCK_TITLE: &str = "title";
+    pub const WIDTH: &str = "width";
     pub const WIRE: &str = "wire";
     pub const XY: &str = "xy";
+    pub const SEGMENT: &str = "segment";
 }
 
 ///create an UUID.
