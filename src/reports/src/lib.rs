@@ -17,6 +17,7 @@ pub enum Error {
     #[error("Unable to load partlist: {0} ({1}).")]
     PartlistError(String, String),
 }
+
 impl std::convert::From<sexp::Error> for Error {
     fn from(err: sexp::Error) -> Self {
         Error::SexpError(err.to_string())
