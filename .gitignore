@@ -16,3 +16,8 @@ elektron/elektron.cpython-*.so
 .venv/
 build/
 elektron.egg-info/
+.hugo_build.lock
+_files
+samples/notebook/public/
+samples/notebook/resources/
+
