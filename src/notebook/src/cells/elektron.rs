@@ -4,16 +4,10 @@ use std::path::Path;
 
 use crate::{error::NotebookError, notebook::ArgType, utils::check_directory};
 
-use plotter::Theme;
 use pyo3::Bound;
 use reports::{bom::BomItem, drc, erc};
 
-use plotter::{
-    gerber,
-    pcb::LAYERS,
-    schema::SchemaPlot,
-    svg::SvgPlotter,
-};
+use plotter::{gerber, pcb::LAYERS, schema::SchemaPlot, svg::SvgPlotter};
 use sexp::{SexpParser, SexpTree};
 
 use super::super::cells::{CellWrite, CellWriter};
@@ -61,7 +55,7 @@ impl CellWrite<ElektronCell> for CellWriter {
                         String::from("VariableError"),
                         String::from("input not found."),
                         cell.0,
-                        cell.0, 
+                        cell.0,
                         None,
                     ));
                 };
@@ -394,7 +388,15 @@ impl CellWrite<ElektronCell> for CellWriter {
                             .unwrap()
                             .to_string();
 
-                        plotter::plot(&input_file, &output_file, true, Theme::Kicad2020, 1.0, None, layers.clone())
+                        plotter::plot(
+                            &input_file,
+                            &output_file,
+                            super::flag!(args, "border", false),
+                            param_or!(args, "theme", "").into(),
+                            str::parse::<f64>(param_or!(args, "scale", "1.0")).unwrap(),
+                            None,
+                            layers.clone(),
+                        )
                         .map_err(|err| {
                             NotebookError::new(
                                 source.to_string(),

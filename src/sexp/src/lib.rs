@@ -66,6 +66,7 @@ pub const KICAD_SCHEMA_GENERATOR: &str = "elektron";
 
 ///Constants for the element names.
 pub mod el {
+    pub const FILLED_POLYGON: &str = "filled_polygon";
     pub const PAD: &str = "pad";
     pub const FP_TEXT: &str = "fp_text";
     pub const FP_LINE: &str = "fp_line";

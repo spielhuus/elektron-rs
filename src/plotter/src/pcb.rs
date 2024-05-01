@@ -1,11 +1,11 @@
 //! Plot the PCB
 use crate::{
-    border, error::Error, schema::Themer, Arc, Circle, Color, Effects, Line, Outline, PlotItem,
+    border, error::Error, schema::Themer, Arc, Circle, Effects, Line, Outline, PlotItem,
     PlotterImpl, Polyline, Stroke, Style, Text, Theme,
 };
 use log::*;
 use log::{debug, error, warn};
-use ndarray::{arr1, arr2, Array1, Array2, ArrayView};
+use ndarray::{arr1, arr2, s, Array, Array1, Array2, ArrayView};
 
 use regex::Regex;
 use sexp::{
@@ -211,13 +211,67 @@ impl<'a> PcbPlot<'a> {
         trace!("layers: {:?}", self.layers);
     }
 
+    fn get_border(&self) -> Result<Array2<f64>, Error> {
+        let mut array = Vec::new();
+        let mut rows: usize = 0;
+        if let Some(tree) = &self.tree {
+            for element in tree.root().unwrap().nodes() {
+                if element.name == el::GR_LINE {
+                    let line_layer: String = element.value(el::LAYER).unwrap();
+                    if line_layer == "Edge.Cuts" {
+                        let start: Array1<f64> = element.value(el::START).unwrap();
+                        let end: Array1<f64> = element.value(el::END).unwrap();
+                        array.extend_from_slice(&[start[0], start[1]]);
+                        array.extend_from_slice(&[end[0], end[1]]);
+                        rows += 2;
+                    }
+                }
+            }
+        }
+
+        if rows > 0 {
+            let boundery: Array2<f64>;
+            let array = Array::from_shape_vec((rows, 2), array).unwrap();
+            let axis1 = array.slice(s![.., 0]);
+            let axis2 = array.slice(s![.., 1]);
+            boundery = arr2(&[
+                [
+                    *axis1
+                        .iter()
+                        .min_by(|a, b| a.partial_cmp(b).unwrap())
+                        .unwrap(),
+                    *axis2
+                        .iter()
+                        .min_by(|a, b| a.partial_cmp(b).unwrap())
+                        //.min_by(|a, b| a.partial_cmp(b).unwrap())
+                        .unwrap(),
+                ],
+                [
+                    *axis1
+                        .iter()
+                        .max_by(|a, b| a.partial_cmp(b).unwrap())
+                        .unwrap(),
+                    *axis2
+                        .iter()
+                        .max_by(|a, b| a.partial_cmp(b).unwrap())
+                        .unwrap(),
+                ],
+            ]);
+            Ok(boundery)
+        } else {
+            Err(Error::Plotter(
+                "no border found, maybe the PCB does not have Edge.Cuts".to_string(),
+            ))
+        }
+    }
+
     pub fn open(&mut self, path: &str) -> Result<(), Error> {
         debug!("open pcb: {}", path);
         if let Some(dir) = std::path::Path::new(&path).parent() {
             self.path = dir.to_str().unwrap().to_string();
         }
         let Ok(document) = SexpParser::load(path) else {
-            return Err(Error::Plotter(format!("could not load schema: {}", path)));
+            return Err(Error::Plotter(format!("could not load file: {}", path)));
         };
         let tree = SexpTree::from(document.iter())?;
         self.tree = Some(tree);
@@ -234,7 +288,9 @@ impl<'a> PcbPlot<'a> {
         };
 
         let paper_size: (f64, f64) =
-            <Sexp as SexpValueQuery<PaperSize>>::value(tree.root().unwrap(), "paper").unwrap().into();
+            <Sexp as SexpValueQuery<PaperSize>>::value(tree.root().unwrap(), "paper")
+                .unwrap()
+                .into();
 
         //TODO handle portraint and landscape
 
@@ -251,7 +307,8 @@ impl<'a> PcbPlot<'a> {
             arr2(&[[0.0, 0.0], [paper_size.0, paper_size.1]])
         } else {
             //when the border is not plotted, the plotter will just use the default bounds
-            let rect = self.bounds(&plot_items) + arr2(&[[-2.54, -2.54], [2.54, 2.54]]);
+
+            let rect = self.get_border()?;
             let x = rect[[0, 0]];
             let y = rect[[0, 1]];
             let offset = arr1(&[x, y]);
@@ -379,9 +436,10 @@ impl<'a> PlotElement<GrLineElement<'a>> for PcbPlot<'a> {
             let end: Array1<f64> = item.item.value(el::END).unwrap();
             let width: f64 = stroke!(item.item);
 
+            let line_layer: String = item.item.value(el::LAYER).unwrap();
             let mut stroke = Stroke::new();
             stroke.linewidth = width;
-            stroke.linecolor = Color::Rgb(0, 255, 0);
+            stroke.linecolor = self.theme.layer_color(&[Style::from(line_layer)]);
 
             plot_items.push(PlotItem::Line(
                 10,
@@ -468,7 +526,7 @@ impl<'a> PlotElement<ZoneElement<'a>> for PcbPlot<'a> {
         layer: &str,
         plot_items: &mut Vec<PlotItem>,
     ) -> Result<(), Error> {
-        for polygon in item.item.query("filled_polygon") {
+        for polygon in item.item.query(el::FILLED_POLYGON) {
             let mut pts: Array2<f64> = Array2::zeros((0, 2));
             if PcbPlot::is_layer(polygon, layer) {
                 for pt in polygon.query(el::PTS) {
@@ -741,30 +799,18 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                     ));
                 }
             } else if name == el::FP_TEXT {
-                //(fp_text user "KEEPOUT"
-                //	(at 0 0 -90)
-                //	(layer "Cmts.User")
-                //	(uuid "76715af0-64ec-4e97-b724-005a93bf8b23")
-                //	(effects
-                //		(font
-                //			(size 0.4 0.4)
-                //			(thickness 0.051)
-                //		)
-                //	)
-                //)
-
-                let at = sexp::utils::at(item.item).unwrap();
-                let angle = sexp::utils::angle(item.item).unwrap_or(0.0);
-                let act_layer: String = element.value(el::LAYER).unwrap();
-
-                if PcbPlot::is_layer_in(layer, &act_layer) {
-                    let effects = Effects::from(item.item);
+                let text_layer: String = element.value(el::LAYER).unwrap();
+                if PcbPlot::is_layer_in(layer, &text_layer) {
+                    let at = sexp::utils::at(element).unwrap();
+                    let angle = sexp::utils::angle(element).unwrap_or(0.0);
+                    let mut effects = Effects::from(element);
+                    effects.font_color = self.theme.layer_color(&[Style::from(text_layer)]);
                     let text: String = element.get(1).unwrap();
 
                     plot_items.push(PlotItem::Text(
                         10,
                         Text::new(
-                            Shape::transform(item.item, &at),
+                            Shape::transform_pad(item.item, item.is_flipped(), angle, &at),
                             angle,
                             text,
                             effects,
@@ -802,7 +848,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                     plot_items.push(PlotItem::Text(
                         10,
                         Text::new(
-                            Shape::transform(item.item, &at),
+                            Shape::transform_pad(item.item, item.is_flipped(), angle, &at),
                             angle,
                             text,
                             effects,
@@ -811,17 +857,6 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                     ));
                 }
             } else if name == el::PAD {
-                //(pad "TN" thru_hole circle
-                //	(at 0 -3.38 180)
-                //	(size 2.13 2.13)
-                //	(drill 1.42)
-                //	(layers "*.Cu" "*.Mask")
-                //	(remove_unused_layers no)
-                //	(net 28 "unconnected-(J5-PadTN)")
-                //	(pintype "passive+no_connect")
-                //	(uuid "e935c61c-e7a7-4f98-90a3-eede5998165e")
-                //)
-
                 let at = sexp::utils::at(element).unwrap();
                 let angle = sexp::utils::angle(element).unwrap_or(0.0);
 
@@ -837,10 +872,8 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                 for act_layer in layers {
                     if PcbPlot::is_layer_in(layer, &act_layer) {
                         match pad_shape {
-                        //match PadType::from(<Sexp as SexpValueQuery<String>>::get(element, 1).unwrap()) {
                             PadShape::Circle => {
-                                let front = act_layer.starts_with("F."); //this should be set per footprint
-                                if let PadType::ThruHole = pad_type {
+                                if let PadType::ThruHole | PadType::NpThruHole = pad_type {
                                     let sexp_drill = element.query(el::DRILL).next().unwrap();
                                     let drill = DrillHole::from(sexp_drill);
 
@@ -851,14 +884,39 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                                         stroke.fillcolor =
                                             self.theme.layer_color(&[Style::PadThroughHole]);
                                     } else {
-                                        stroke.linecolor = self.theme.layer_color(&[Style::PadBack]);
+                                        stroke.linecolor =
+                                            self.theme.layer_color(&[Style::PadBack]);
                                     }
 
                                     plot_items.push(PlotItem::Circle(
                                         10,
                                         Circle::new(
-                                            Shape::transform_pad(item.item, front, angle, &at),
+                                            Shape::transform_pad(
+                                                item.item,
+                                                item.is_flipped(),
+                                                angle,
+                                                &at,
+                                            ),
                                             (pad_size[0] / 2.0) - linewidth / 2.0,
+                                            stroke,
+                                        ),
+                                    ));
+                                } else if let PadType::Connect = pad_type {
+                                    let mut stroke = Stroke::new();
+                                    stroke.linewidth = 0.0;
+                                    stroke.fillcolor =
+                                        self.theme.layer_color(&[Style::from(act_layer)]);
+
+                                    plot_items.push(PlotItem::Circle(
+                                        10,
+                                        Circle::new(
+                                            Shape::transform_pad(
+                                                item.item,
+                                                item.is_flipped(),
+                                                angle,
+                                                &at,
+                                            ),
+                                            pad_size[0] / 2.0,
                                             stroke,
                                         ),
                                     ));
@@ -886,7 +944,8 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                                 let mut stroke = Stroke::new();
                                 stroke.linewidth = linewidth;
                                 if layer.starts_with("F.") {
-                                    stroke.fillcolor = self.theme.layer_color(&[Style::PadThroughHole]);
+                                    stroke.fillcolor =
+                                        self.theme.layer_color(&[Style::PadThroughHole]);
                                 } else {
                                     stroke.linecolor = self.theme.layer_color(&[Style::PadBack]);
                                 }
@@ -894,7 +953,12 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                                 plot_items.push(PlotItem::Circle(
                                     10,
                                     Circle::new(
-                                        Shape::transform_pad(item.item, item.is_flipped(), angle, &at),
+                                        Shape::transform_pad(
+                                            item.item,
+                                            item.is_flipped(),
+                                            angle,
+                                            &at,
+                                        ),
                                         size - 2.0 * linewidth,
                                         stroke,
                                     ),
@@ -931,20 +995,29 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                                 plot_items.push(PlotItem::Rectangle(
                                     1,
                                     crate::Rectangle::new(
-                                        Shape::transform_pad(item.item, item.is_flipped(), angle, &pts),
+                                        Shape::transform_pad(
+                                            item.item,
+                                            item.is_flipped(),
+                                            angle,
+                                            &pts,
+                                        ),
                                         stroke.clone(),
                                     ),
                                 ));
-                                let sexp_drill = element.query(el::DRILL).next().unwrap();
-                                let drill = DrillHole::from(sexp_drill);
-                                plot_items.push(PlotItem::Circle(
-                                    10,
-                                    Circle::new(
-                                        Shape::transform(item.item, &at),
-                                        drill.width.unwrap_or(0.0),
-                                        stroke,
-                                    ),
-                                ));
+                                if let PadType::ThruHole = pad_type {
+                                    let sexp_drill = element.query(el::DRILL).next().unwrap();
+                                    let drill = DrillHole::from(sexp_drill);
+                                    plot_items.push(PlotItem::Circle(
+                                        10,
+                                        Circle::new(
+                                            Shape::transform(item.item, &at),
+                                            drill.width.unwrap_or(0.0),
+                                            stroke,
+                                        ),
+                                    ));
+                                } else if !matches!(pad_type, PadType::Smd) {
+                                    warn!("unknown pad type for rect {:?}", pad_type);
+                                }
                             }
                             PadShape::RoundRect => {
                                 //} else if pad_sub_type == "roundrect" {
@@ -966,7 +1039,12 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                                 plot_items.push(PlotItem::Rectangle(
                                     1,
                                     crate::Rectangle::new(
-                                        Shape::transform_pad(item.item, item.is_flipped(), angle, &pts),
+                                        Shape::transform_pad(
+                                            item.item,
+                                            item.is_flipped(),
+                                            angle,
+                                            &pts,
+                                        ),
                                         stroke.clone(),
                                     ),
                                 ));
@@ -987,7 +1065,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                                             stroke,
                                         ),
                                     ));
-                                } else if !matches!(PadType::Smd, pad_type) {
+                                } else if !matches!(pad_type, PadType::Smd) {
                                     warn!("unknown roundrect pad type {:?}", pad_type);
                                 }
                             }
@@ -1054,5 +1132,10 @@ mod test {
         assert!(!super::PcbPlot::is_layer_in("Edge.Cuts", "*.Cu"));
     }
     #[test]
-    fn iterate_with_color() {}
+    fn test_get_border() {
+        let mut pcb = super::PcbPlot::default();
+        pcb.open("tests/cp3.kicad_pcb").unwrap();
+        let border = pcb.get_border().unwrap();
+        assert_eq!(border, ndarray::arr2(&[[50.8, 50.8], [91.1, 158.98]]));
+    }
 }

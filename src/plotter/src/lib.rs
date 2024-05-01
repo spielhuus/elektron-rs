@@ -102,7 +102,7 @@ pub fn plot(input: &str, output: &str, border: bool, theme: Theme, scale: f64, p
         //}
 
     } else if input.ends_with(".kicad_pcb") {
-        info!("Write PCB: input:{}, output:{:?}", input, output);
+        debug!("Write PCB: input:{}, output:{:?}", input, output);
         let layers = if let Some(layers) = layers {
             layers
         } else {
@@ -593,7 +593,7 @@ pub enum Style {
     User7,
     User8,
     User9,
-    
+
     ViaHole,
     ViaMicro,
     ViaThrough,
@@ -1023,7 +1023,7 @@ fn cached_font(text: &str, effects: &Effects) -> Array1<f64> {
 
         last.insert(effects.font_face.to_string(), Font::from_bytes(font, fontdue::FontSettings::default()).unwrap());
     }
-    
+
     let fonts = &[last.get(&effects.font_face).unwrap()];
     let mut layout = Layout::new(CoordinateSystem::PositiveYUp);
     layout.reset(&LayoutSettings {
@@ -1147,7 +1147,7 @@ pub trait Outline {
 pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Option<Vec<PlotItem>> {
     let mut plotter: Vec<PlotItem> = Vec::new();
     let paper_dimension: (f64, f64) = paper_size.clone().into();
- 
+
     //outline
     let pts: Array2<f64> = arr2(&[[5.0, 5.0], [paper_dimension.0 - 5.0, paper_dimension.1 - 5.0]]);
     plotter.push(PlotItem::Rectangle(
@@ -1520,7 +1520,7 @@ mod tests {
             let mut svg_plotter = SvgPlotter::new(&mut file);
             plotter.write(page.0, &mut svg_plotter).unwrap();
         }
-        
+
         // plotter.plot(&mut svg_plotter);
 
         /* svg_plotter
