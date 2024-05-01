@@ -7,36 +7,36 @@
 <path d="M21.76,51.53 L23.8,51.53 L23.8,46.45 L21.76,46.45 L21.76,51.53 z" fill="none" stroke="rgb(132,0,0)" stroke-width="0.254"/>
 <path d="M21.76,64.23 L23.8,64.23 L23.8,59.15 L21.76,59.15 L21.76,64.23 z" fill="none" stroke="rgb(132,0,0)" stroke-width="0.254"/>
 <circle cx="11.349999999999998" cy="62.96000000000001" fill="none" r="2.8194" stroke="rgb(132,0,0)" stroke-width="0.254"/>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="start" transform="translate(15.169999999999998,34.019999999999996) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="start" transform="translate(15.169999999999998,34.019999999999996) rotate(0)">
 Q1
 </text>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="start" transform="translate(15.169999999999998,36.019999999999996) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="start" transform="translate(15.169999999999998,36.019999999999996) rotate(0)">
 BC547
 </text>
 <path d="M12.62,29.94 L12.62,32.48" stroke="rgb(132,0,0)" stroke-width="0.35"/>
-<text dominant-baseline="middle" fill-color="rgb(169,0,0)" font-family="osifont" font-size="0.75pt" text-anchor="middle" transform="translate(13.220000000000002,31.21) rotate(-90)">
+<text dominant-baseline="middle" fill="rgb(169,0,0)" font-family="osifont" font-size="0.75pt" text-anchor="middle" transform="translate(13.220000000000002,31.21) rotate(-90)">
 1
 </text>
 <path d="M5,35.02 L10.08,35.02" stroke="rgb(132,0,0)" stroke-width="0.35"/>
-<text dominant-baseline="middle" fill-color="rgb(169,0,0)" font-family="osifont" font-size="0.75pt" text-anchor="middle" transform="translate(7.539999999999996,34.42) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(169,0,0)" font-family="osifont" font-size="0.75pt" text-anchor="middle" transform="translate(7.539999999999996,34.42) rotate(0)">
 2
 </text>
 <path d="M12.62,40.1 L12.62,37.56" stroke="rgb(132,0,0)" stroke-width="0.35"/>
-<text dominant-baseline="middle" fill-color="rgb(169,0,0)" font-family="osifont" font-size="0.75pt" text-anchor="middle" transform="translate(13.220000000000002,38.83) rotate(-90)">
+<text dominant-baseline="middle" fill="rgb(169,0,0)" font-family="osifont" font-size="0.75pt" text-anchor="middle" transform="translate(13.220000000000002,38.83) rotate(-90)">
 3
 </text>
 <path d="M12.62,29.94 L12.62,24.86" stroke="rgb(0,150,0)" stroke-width="0.25"/>
 <path d="M12.62,24.86 L12.62,19.78" stroke="rgb(0,150,0)" stroke-width="0.25"/>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="start" transform="translate(14.639999999999997,14.97) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="start" transform="translate(14.639999999999997,14.97) rotate(0)">
 R1
 </text>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="start" transform="translate(14.639999999999997,16.97) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="start" transform="translate(14.639999999999997,16.97) rotate(0)">
 15k
 </text>
 <path d="M12.62,19.78 L12.62,18.51" stroke="rgb(132,0,0)" stroke-width="0.35"/>
 <path d="M12.62,12.16 L12.62,13.43" stroke="rgb(132,0,0)" stroke-width="0.35"/>
 <path d="M12.62,12.16 L12.62,7.08" stroke="rgb(0,150,0)" stroke-width="0.25"/>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(12.620000000000001,2.540000000000001) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(12.620000000000001,2.540000000000001) rotate(0)">
 +15V
 </text>
 <path d="M12.62,7.08 L12.62,7.08" stroke="rgb(132,0,0)" stroke-width="0.35"/>
@@ -44,102 +44,102 @@ R1
 <path d="M12.62,45.18 L22.78,45.18" stroke="rgb(0,150,0)" stroke-width="0.25"/>
 <path d="M22.78,45.18 L32.94,45.18" stroke="rgb(0,150,0)" stroke-width="0.25"/>
 <path d="M32.94,45.18 L32.94,40.1" stroke="rgb(0,150,0)" stroke-width="0.25"/>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="end" transform="translate(30.389999999999997,34.019999999999996) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="end" transform="translate(30.389999999999997,34.019999999999996) rotate(0)">
 Q2
 </text>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="end" transform="translate(30.389999999999997,36.019999999999996) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="end" transform="translate(30.389999999999997,36.019999999999996) rotate(0)">
 BC547
 </text>
 <path d="M32.94,29.94 L32.94,32.48" stroke="rgb(132,0,0)" stroke-width="0.35"/>
-<text dominant-baseline="middle" fill-color="rgb(169,0,0)" font-family="osifont" font-size="0.75pt" text-anchor="middle" transform="translate(33.540000000000006,31.21) rotate(-90)">
+<text dominant-baseline="middle" fill="rgb(169,0,0)" font-family="osifont" font-size="0.75pt" text-anchor="middle" transform="translate(33.540000000000006,31.21) rotate(-90)">
 1
 </text>
 <path d="M40.56,35.02 L35.48,35.02" stroke="rgb(132,0,0)" stroke-width="0.35"/>
-<text dominant-baseline="middle" fill-color="rgb(169,0,0)" font-family="osifont" font-size="0.75pt" text-anchor="middle" transform="translate(38.019999999999996,34.42) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(169,0,0)" font-family="osifont" font-size="0.75pt" text-anchor="middle" transform="translate(38.019999999999996,34.42) rotate(0)">
 2
 </text>
 <path d="M32.94,40.1 L32.94,37.56" stroke="rgb(132,0,0)" stroke-width="0.35"/>
-<text dominant-baseline="middle" fill-color="rgb(169,0,0)" font-family="osifont" font-size="0.75pt" text-anchor="middle" transform="translate(33.540000000000006,38.83) rotate(-90)">
+<text dominant-baseline="middle" fill="rgb(169,0,0)" font-family="osifont" font-size="0.75pt" text-anchor="middle" transform="translate(33.540000000000006,38.83) rotate(-90)">
 3
 </text>
 <path d="M32.94,29.94 L32.94,24.86" stroke="rgb(0,150,0)" stroke-width="0.25"/>
 <path d="M32.94,24.86 L32.94,19.78" stroke="rgb(0,150,0)" stroke-width="0.25"/>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="start" transform="translate(34.959999999999994,14.97) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="start" transform="translate(34.959999999999994,14.97) rotate(0)">
 R2
 </text>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="start" transform="translate(34.959999999999994,16.97) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="start" transform="translate(34.959999999999994,16.97) rotate(0)">
 15k
 </text>
 <path d="M32.94,19.78 L32.94,18.51" stroke="rgb(132,0,0)" stroke-width="0.35"/>
 <path d="M32.94,12.16 L32.94,13.43" stroke="rgb(132,0,0)" stroke-width="0.35"/>
 <path d="M32.94,12.16 L32.94,7.08" stroke="rgb(0,150,0)" stroke-width="0.25"/>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(32.94,2.540000000000001) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(32.94,2.540000000000001) rotate(0)">
 +15V
 </text>
 <path d="M32.94,7.08 L32.94,7.08" stroke="rgb(132,0,0)" stroke-width="0.35"/>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(40.56,39.56) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(40.56,39.56) rotate(0)">
 GND
 </text>
 <path d="M40.56,35.02 L40.56,35.02" stroke="rgb(132,0,0)" stroke-width="0.35"/>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="start" transform="translate(24.8,47.99000000000001) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="start" transform="translate(24.8,47.99000000000001) rotate(0)">
 R3
 </text>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="start" transform="translate(24.8,49.99000000000001) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="start" transform="translate(24.8,49.99000000000001) rotate(0)">
 33k
 </text>
 <path d="M22.78,45.18 L22.78,46.45" stroke="rgb(132,0,0)" stroke-width="0.35"/>
 <path d="M22.78,52.8 L22.78,51.53" stroke="rgb(132,0,0)" stroke-width="0.35"/>
 <path d="M22.78,52.8 L22.78,55.34" stroke="rgb(0,150,0)" stroke-width="0.25"/>
 <path d="M22.78,55.34 L22.78,57.88" stroke="rgb(0,150,0)" stroke-width="0.25"/>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="start" transform="translate(24.8,60.69) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="start" transform="translate(24.8,60.69) rotate(0)">
 R4
 </text>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="start" transform="translate(24.8,62.69) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="start" transform="translate(24.8,62.69) rotate(0)">
 15k
 </text>
 <path d="M22.78,57.88 L22.78,59.15" stroke="rgb(132,0,0)" stroke-width="0.35"/>
 <path d="M22.78,65.5 L22.78,64.23" stroke="rgb(132,0,0)" stroke-width="0.35"/>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(22.779999999999998,70.04) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(22.779999999999998,70.04) rotate(0)">
 -15V
 </text>
 <path d="M22.78,65.5 L22.78,65.5" stroke="rgb(132,0,0)" stroke-width="0.35"/>
 <path d="M22.78,55.34 L12.62,55.34" stroke="rgb(0,150,0)" stroke-width="0.25"/>
 <path d="M12.62,55.34 L12.62,57.88" stroke="rgb(0,150,0)" stroke-width="0.25"/>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="end" transform="translate(15.169999999999998,61.96000000000001) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="end" transform="translate(15.169999999999998,61.96000000000001) rotate(0)">
 Q3
 </text>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="end" transform="translate(15.169999999999998,63.96000000000001) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="end" transform="translate(15.169999999999998,63.96000000000001) rotate(0)">
 BC547
 </text>
 <path d="M12.62,68.04 L12.62,65.5" stroke="rgb(132,0,0)" stroke-width="0.35"/>
-<text dominant-baseline="middle" fill-color="rgb(169,0,0)" font-family="osifont" font-size="0.75pt" text-anchor="middle" transform="translate(13.220000000000002,66.77) rotate(-90)">
+<text dominant-baseline="middle" fill="rgb(169,0,0)" font-family="osifont" font-size="0.75pt" text-anchor="middle" transform="translate(13.220000000000002,66.77) rotate(-90)">
 1
 </text>
 <path d="M5,62.96 L10.08,62.96" stroke="rgb(132,0,0)" stroke-width="0.35"/>
-<text dominant-baseline="middle" fill-color="rgb(169,0,0)" font-family="osifont" font-size="0.75pt" text-anchor="middle" transform="translate(7.539999999999996,62.36) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(169,0,0)" font-family="osifont" font-size="0.75pt" text-anchor="middle" transform="translate(7.539999999999996,62.36) rotate(0)">
 2
 </text>
 <path d="M12.62,57.88 L12.62,60.42" stroke="rgb(132,0,0)" stroke-width="0.35"/>
-<text dominant-baseline="middle" fill-color="rgb(169,0,0)" font-family="osifont" font-size="0.75pt" text-anchor="middle" transform="translate(13.220000000000002,59.150000000000006) rotate(-90)">
+<text dominant-baseline="middle" fill="rgb(169,0,0)" font-family="osifont" font-size="0.75pt" text-anchor="middle" transform="translate(13.220000000000002,59.150000000000006) rotate(-90)">
 3
 </text>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(12.620000000000001,72.58) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(12.620000000000001,72.58) rotate(0)">
 GND
 </text>
 <path d="M12.62,68.04 L12.62,68.04" stroke="rgb(132,0,0)" stroke-width="0.35"/>
 <path d="M5,62.96 L7.54,62.96" stroke="rgb(0,150,0)" stroke-width="0.25"/>
 <path d="M12.62,24.86 L7.54,24.86" stroke="rgb(0,150,0)" stroke-width="0.25"/>
 <path d="M32.94,24.86 L38.02,24.86" stroke="rgb(0,150,0)" stroke-width="0.25"/>
-<text dominant-baseline="middle" fill-color="rgb(132,0,132)" font-family="osifont" font-size="1.25pt" text-anchor="end" transform="translate(3.9999999999999964,35.22) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(132,0,132)" font-family="osifont" font-size="1.25pt" text-anchor="end" transform="translate(3.9999999999999964,35.22) rotate(0)">
 X
 </text>
-<text dominant-baseline="middle" fill-color="rgb(132,0,132)" font-family="osifont" font-size="1.25pt" text-anchor="end" transform="translate(6.539999999999999,63.16000000000001) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(132,0,132)" font-family="osifont" font-size="1.25pt" text-anchor="end" transform="translate(6.539999999999999,63.16000000000001) rotate(0)">
 Y
 </text>
-<text dominant-baseline="middle" fill-color="rgb(132,0,132)" font-family="osifont" font-size="1.25pt" text-anchor="end" transform="translate(6.539999999999999,25.060000000000002) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(132,0,132)" font-family="osifont" font-size="1.25pt" text-anchor="end" transform="translate(6.539999999999999,25.060000000000002) rotate(0)">
 OUTa
 </text>
-<text dominant-baseline="middle" fill-color="rgb(132,0,132)" font-family="osifont" font-size="1.25pt" text-anchor="start" transform="translate(39.019999999999996,25.060000000000002) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(132,0,132)" font-family="osifont" font-size="1.25pt" text-anchor="start" transform="translate(39.019999999999996,25.060000000000002) rotate(0)">
 OUTb
 </text>
 <path d="M10.08,35.02 L10.72,35.02" fill="none" stroke="rgb(132,0,0)" stroke-width="0.3"/>

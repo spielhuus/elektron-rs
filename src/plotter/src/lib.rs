@@ -4,7 +4,7 @@ use fontdue::{layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle}, Fon
 
 use ndarray::{arr1, arr2, Array1, Array2};
 use clap::ValueEnum;
-use log::{debug, info};
+use log::{debug, info, warn};
 
 //pub mod cairo_plotter;
 pub mod error;
@@ -18,6 +18,8 @@ pub mod themer;
 pub use error::Error;
 use rust_fontconfig::{FcFontCache, FcPattern};
 
+use crate::pcb::LAYERS;
+
 use self::themer::Themer;
 use sexp::{el, PaperSize, Sexp, SexpValueQuery, SexpValuesQuery};
 
@@ -25,6 +27,7 @@ use lazy_static::lazy_static;
 
 const BORDER_RASTER: i32 = 60;
 const BORDER_HEADER_3: f64 = 7.5;
+const DEFAULT_FONT: &str = "osifont";
 
 // -----------------------------------------------------------------------------------------------------------
 // ---                                             main funtion                                            ---
@@ -39,127 +42,111 @@ const BORDER_HEADER_3: f64 = 7.5;
 ///
 /// * `input`    - A Schema filename.
 /// * `output`   - The filename of the target image.
-pub fn plot(input: &str, output: &str, border: bool, theme: Theme, scale: f64, pages: Option<Vec<usize>>) -> Result<(), Error> {
+pub fn plot(input: &str, output: &str, border: bool, theme: Theme, scale: f64, pages: Option<Vec<usize>>, layers: Option<Vec<String>>) -> Result<(), Error> {
     if input.ends_with(".kicad_sch") {
         info!("Write schema: input:{}, output:{:?}, border: {} theme: {:?}", input, output, border, theme);
         //load the sexp file.
         //if let Some(output) = output {
-            if let Some(ext_pos) = output.find('.') {
-                let ext = output.split_at(ext_pos).1;
-                if ext == ".svg" {
+        if output.ends_with(".svg") {
 
-                    let mut plotter = schema::SchemaPlot::new()
-                        .border(border).theme(theme).scale(scale)
-                        .name(input);
+            let mut plotter = schema::SchemaPlot::new()
+                .border(border).theme(theme).scale(scale)
+                .name(input);
 
-                    if let Some(pages) = pages {
-                        plotter = plotter.pages(pages);
-                    }
-
-                    plotter.open(input)?;
-                    for page in plotter.iter() {
-                        let mut file = if *page.0 == 1 {
-                            debug!("write first page to {}", output);
-                            File::create(output)?
-                        } else {
-                            debug!("write page {} to {}", page.1, format!("{}.svg", page.1));
-                            File::create(format!("{}.svg", page.1))?
-                        };
-                        let mut svg_plotter = svg::SvgPlotter::new(&mut file);
-                        plotter.write(page.0, &mut svg_plotter)?;
-                    }
-
-                /*TODO  } else if ext == constant::EXT_PNG {
-                    let plotter = CairoPlotter::new(
-                        input,
-                        ImageType::Png,
-                        Some(Themer::new(Theme::Kicad2020)), //TODO
-                    );
-                    let mut buffer = File::create(output).unwrap();
-                    plotter
-                        .plot(&tree, &mut buffer, true, 1.0, None, false)
-                        .unwrap();
-                } else if ext == constant::EXT_PDF {
-                    let plotter = CairoPlotter::new(
-                        input,
-                        ImageType::Pdf,
-                        Some(Themer::new(Theme::Kicad2020)),
-                    );
-                    let mut buffer = File::create(output).unwrap();
-                    plotter
-                        .plot(&tree, &mut buffer, true, 1.0, None, false)
-                        .unwrap(); */
-                } else {
-                    return Err(Error::Plotter(format!(
-                        "{} Image type not supported for extension: '{}'",
-                        "Error:",
-                        ext
-                    )));
-                }
-            } else {
-                return Err(Error::FileNotFound(format!(
-                    "{} can not evaluate output file format from: {}",
-                    "Error:",
-                    output,
-                )));
+            if let Some(pages) = pages {
+                plotter = plotter.pages(pages);
             }
+
+            plotter.open(input)?;
+            for page in plotter.iter() {
+                let mut file = if *page.0 == 1 {
+                    debug!("write first page to {}", output);
+                    File::create(output)?
+                } else {
+                    debug!("write page {} to {}", page.1, format!("{}.svg", page.1));
+                    File::create(format!("{}.svg", page.1))?
+                };
+                let mut svg_plotter = svg::SvgPlotter::new(&mut file);
+                plotter.write(page.0, &mut svg_plotter)?;
+            }
+
+        /*TODO  } else if ext == constant::EXT_PNG {
+            let plotter = CairoPlotter::new(
+                input,
+                ImageType::Png,
+                Some(Themer::new(Theme::Kicad2020)), //TODO
+            );
+            let mut buffer = File::create(output).unwrap();
+            plotter
+                .plot(&tree, &mut buffer, true, 1.0, None, false)
+                .unwrap();
+        } else if ext == constant::EXT_PDF {
+            let plotter = CairoPlotter::new(
+                input,
+                ImageType::Pdf,
+                Some(Themer::new(Theme::Kicad2020)),
+            );
+            let mut buffer = File::create(output).unwrap();
+            plotter
+                .plot(&tree, &mut buffer, true, 1.0, None, false)
+                .unwrap(); */
+        } else {
+            return Err(Error::Plotter(format!(
+                "{} Image type not supported for schema plot: '{}'",
+                "Error:",
+                output
+            )));
+        }
         //} else {
         //    println!("no output file");
         //}
 
     } else if input.ends_with(".kicad_pcb") {
         info!("Write PCB: input:{}, output:{:?}", input, output);
+        let layers = if let Some(layers) = layers {
+            layers
+        } else {
+            LAYERS.iter().map(|s| s.to_string()).collect()
+        };
+        if output.ends_with(".svg") {
 
-            if let Some(ext_pos) = output.find('.') {
-                let ext = output.split_at(ext_pos).1;
-                if ext == ".svg" {
+            let mut plotter = pcb::PcbPlot::new()
+                .border(border).theme(theme).scale(scale)
+                .name(input);
 
-                    let mut plotter = pcb::PcbPlot::new()
-                        .border(border).theme(theme).scale(scale)
-                        .name(input);
+            plotter.open(input)?;
+            debug!("write first page to {}", output);
+            let mut file =File::create(output)?;
+            let mut svg_plotter = svg::SvgPlotter::new(&mut file);
+            plotter.write(&mut svg_plotter, layers)?;
 
-                    plotter.open(input)?;
-                    debug!("write first page to {}", output);
-                    let mut file =File::create(output)?;
-                    let mut svg_plotter = svg::SvgPlotter::new(&mut file);
-                    plotter.write(&mut svg_plotter)?;
-
-                /*TODO  } else if ext == constant::EXT_PNG {
-                    let plotter = CairoPlotter::new(
-                        input,
-                        ImageType::Png,
-                        Some(Themer::new(Theme::Kicad2020)), //TODO
-                    );
-                    let mut buffer = File::create(output).unwrap();
-                    plotter
-                        .plot(&tree, &mut buffer, true, 1.0, None, false)
-                        .unwrap();
-                } else if ext == constant::EXT_PDF {
-                    let plotter = CairoPlotter::new(
-                        input,
-                        ImageType::Pdf,
-                        Some(Themer::new(Theme::Kicad2020)),
-                    );
-                    let mut buffer = File::create(output).unwrap();
-                    plotter
-                        .plot(&tree, &mut buffer, true, 1.0, None, false)
-                        .unwrap(); */
-                } else {
-                    return Err(Error::Plotter(format!(
-                        "{} Image type not supported for extension: '{}'",
-                        "Error:",
-                        ext
-                    )));
-                }
-            } else {
-                return Err(Error::FileNotFound(format!(
-                    "{} can not evaluate output file format from: {}",
-                    "Error:",
-                    output,
-                )));
-            }
-
-
+        /*TODO  } else if ext == constant::EXT_PNG {
+            let plotter = CairoPlotter::new(
+                input,
+                ImageType::Png,
+                Some(Themer::new(Theme::Kicad2020)), //TODO
+            );
+            let mut buffer = File::create(output).unwrap();
+            plotter
+                .plot(&tree, &mut buffer, true, 1.0, None, false)
+                .unwrap();
+        } else if ext == constant::EXT_PDF {
+            let plotter = CairoPlotter::new(
+                input,
+                ImageType::Pdf,
+                Some(Themer::new(Theme::Kicad2020)),
+            );
+            let mut buffer = File::create(output).unwrap();
+            plotter
+                .plot(&tree, &mut buffer, true, 1.0, None, false)
+                .unwrap(); */
+        } else {
+            return Err(Error::Plotter(format!(
+                "{} Image type not supported for file: '{}'",
+                "Error:",
+                output
+            )));
+        }
 
 
 
@@ -213,7 +200,7 @@ pub struct Effects {
 impl Effects {
     pub fn new() -> Self {
         Self {
-            font_face: "default".to_string(),
+            font_face: DEFAULT_FONT.to_string(),
             font_size: Vec::from([1.27, 1.27]),
             font_thickness: 1.27,
             font_color: Color::None,
@@ -241,7 +228,7 @@ impl From<&Sexp> for Effects {
                     effects.font_thickness = thickness.get(0).unwrap();
                 }
                 if let Some(color) = font.query("color").next() {
-                    let c: Vec<u16> = color.values();
+                    let c: Vec<String> = color.values();
                     effects.font_color = c.into()
                 }
 
@@ -272,20 +259,31 @@ impl From<&Sexp> for Effects {
 }
 
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub enum Color {
     #[default]
     None,
     Rgb(u16, u16, u16),
-    Rgba(u16, u16, u16, u16),
+    Rgba(u16, u16, u16, f64),
 }
 
-impl From<Vec<u16>> for Color {
-    fn from(value: Vec<u16>) -> Self {
+
+
+impl From<Vec<String>> for Color {
+    fn from(value: Vec<String>) -> Self {
         if value.len() == 3 {
-            Color::Rgb(value[0], value[1], value[2])
+            Color::Rgb(
+                value.get(0).unwrap().parse::<u16>().unwrap(),
+                value.get(1).unwrap().parse::<u16>().unwrap(),
+                value.get(2).unwrap().parse::<u16>().unwrap(),
+            )
         } else if value.len() == 4 {
-            Color::Rgba(value[0], value[1], value[2], value[3])
+            Color::Rgba(
+                value.get(0).unwrap().parse::<u16>().unwrap(),
+                value.get(1).unwrap().parse::<u16>().unwrap(),
+                value.get(2).unwrap().parse::<u16>().unwrap(),
+                value.get(3).unwrap().parse::<f64>().unwrap()
+            )
         } else {
             panic!("can not parse color {:?}", value);
         }
@@ -309,8 +307,8 @@ impl From<&str> for Color {
         };
         content
             .split(',')
-            .map(|c| c.trim().parse::<u16>().unwrap())
-            .collect::<Vec<u16>>().into()
+            .map(|c| c.trim().to_string())
+            .collect::<Vec<String>>().into()
     }
 }
 
@@ -370,7 +368,7 @@ impl From<&Sexp> for Stroke {
                 stroke.linetype = linetype.get(0).unwrap()
             }
             if let Some(color) = s.query("color").next() {
-                let colors: Vec<u16> =  color.values();
+                let colors: Vec<String> =  color.values();
                 stroke.linecolor = colors.into()
             }
         }
@@ -533,6 +531,7 @@ pub enum Style {
     Segment,
     PadFront,
     PadBack,
+    PadThroughHole,
     Test,
     NotOnBoard,
     FCu,
@@ -594,7 +593,13 @@ pub enum Style {
     User7,
     User8,
     User9,
+    
+    ViaHole,
+    ViaMicro,
+    ViaThrough,
+
     None,
+
 }
 
 impl fmt::Display for Style {
@@ -626,6 +631,7 @@ impl fmt::Display for Style {
             Style::Segment => write!(f, "pcb-segment"),
             Style::PadFront => write!(f, "pad_front"),
             Style::PadBack => write!(f, "pad_back"),
+            Style::PadThroughHole => write!(f, "pad_through_hole"),
             Style::Test => write!(f, "test"),
             Style::PinDecoration => write!(f, "schema-pin-decoration"),
             Style::NotOnBoard => write!(f, "opaque"),
@@ -690,6 +696,10 @@ impl fmt::Display for Style {
             Style::User8 => write!(f, "User_8"),
             Style::User9 => write!(f, "User_9"),
 
+            Style::ViaHole => write!(f, "via_hole"),
+            Style::ViaMicro => write!(f, "via_micro"),
+            Style::ViaThrough => write!(f, "via_through"),
+
             Style::None => write!(f, "none"),
         }
     }
@@ -699,125 +709,126 @@ impl From<String> for Style {
     fn from(style: String) -> Self {
         if style.to_lowercase() == "b_cu" {
             Style::BCu
-        } else if style.to_lowercase() == "f_cu" {
+        } else if style.to_lowercase() == "f.cu" {
             Style::FCu
-        } else if style.to_lowercase() == "in1_cu" {
+        } else if style.to_lowercase() == "in1.cu" {
             Style::In1Cu
-        } else if style.to_lowercase() == "in2_cu" {
+        } else if style.to_lowercase() == "in2.cu" {
             Style::In2Cu
-        } else if style.to_lowercase() == "in3_cu" {
+        } else if style.to_lowercase() == "in3.cu" {
             Style::In3Cu
-        } else if style.to_lowercase() == "in4_cu" {
+        } else if style.to_lowercase() == "in4.cu" {
             Style::In4Cu
-        } else if style.to_lowercase() == "in5_cu" {
+        } else if style.to_lowercase() == "in5.cu" {
             Style::In5Cu
-        } else if style.to_lowercase() == "in6_cu" {
+        } else if style.to_lowercase() == "in6.cu" {
             Style::In6Cu
-        } else if style.to_lowercase() == "in7_cu" {
+        } else if style.to_lowercase() == "in7.cu" {
             Style::In7Cu
-        } else if style.to_lowercase() == "in8_cu" {
+        } else if style.to_lowercase() == "in8.cu" {
             Style::In8Cu
-        } else if style.to_lowercase() == "in9_cu" {
+        } else if style.to_lowercase() == "in9.cu" {
             Style::In9Cu
-        } else if style.to_lowercase() == "in10_cu" {
+        } else if style.to_lowercase() == "in10.cu" {
             Style::In10Cu
-        } else if style.to_lowercase() == "in11_cu" {
+        } else if style.to_lowercase() == "in11.cu" {
             Style::In11Cu
-        } else if style.to_lowercase() == "in12_cu" {
+        } else if style.to_lowercase() == "in12.cu" {
             Style::In12Cu
-        } else if style.to_lowercase() == "in13_cu" {
+        } else if style.to_lowercase() == "in13.cu" {
             Style::In13Cu
-        } else if style.to_lowercase() == "in14_cu" {
+        } else if style.to_lowercase() == "in14.cu" {
             Style::In14Cu
-        } else if style.to_lowercase() == "in15_cu" {
+        } else if style.to_lowercase() == "in15.cu" {
             Style::In15Cu
-        } else if style.to_lowercase() == "in16_cu" {
+        } else if style.to_lowercase() == "in16.cu" {
             Style::In16Cu
-        } else if style.to_lowercase() == "in17_cu" {
+        } else if style.to_lowercase() == "in17.cu" {
             Style::In17Cu
-        } else if style.to_lowercase() == "in18_cu" {
+        } else if style.to_lowercase() == "in18.cu" {
             Style::In18Cu
-        } else if style.to_lowercase() == "in19_cu" {
+        } else if style.to_lowercase() == "in19.cu" {
             Style::In19Cu
-        } else if style.to_lowercase() == "in20_cu" {
+        } else if style.to_lowercase() == "in20.cu" {
             Style::In20Cu
-        } else if style.to_lowercase() == "in21_cu" {
+        } else if style.to_lowercase() == "in21.cu" {
             Style::In21Cu
-        } else if style.to_lowercase() == "in22_cu" {
+        } else if style.to_lowercase() == "in22.cu" {
             Style::In22Cu
-        } else if style.to_lowercase() == "in23_cu" {
+        } else if style.to_lowercase() == "in23.cu" {
             Style::In23Cu
-        } else if style.to_lowercase() == "in24_cu" {
+        } else if style.to_lowercase() == "in24.cu" {
             Style::In24Cu
-        } else if style.to_lowercase() == "in25_cu" {
+        } else if style.to_lowercase() == "in25.cu" {
             Style::In25Cu
-        } else if style.to_lowercase() == "in26_cu" {
+        } else if style.to_lowercase() == "in26.cu" {
             Style::In26Cu
-        } else if style.to_lowercase() == "in27_cu" {
+        } else if style.to_lowercase() == "in27.cu" {
             Style::In27Cu
-        } else if style.to_lowercase() == "in28_cu" {
+        } else if style.to_lowercase() == "in28.cu" {
             Style::In28Cu
-        } else if style.to_lowercase() == "in29_cu" {
+        } else if style.to_lowercase() == "in29.cu" {
             Style::In29Cu
-        } else if style.to_lowercase() == "in30_cu" {
+        } else if style.to_lowercase() == "in30.cu" {
             Style::In30Cu
-        } else if style.to_lowercase() == "b_cu" {
+        } else if style.to_lowercase() == "b.cu" {
             Style::BCu
-        } else if style.to_lowercase() == "b_adhes" {
+        } else if style.to_lowercase() == "b.adhes" {
             Style::BAdhes
-        } else if style.to_lowercase() == "f_adhes" {
+        } else if style.to_lowercase() == "f.adhes" {
             Style::FAdhes
-        } else if style.to_lowercase() == "b_paste" {
+        } else if style.to_lowercase() == "b.paste" {
             Style::BPaste
-        } else if style.to_lowercase() == "f_paste" {
+        } else if style.to_lowercase() == "f.paste" {
             Style::FPaste
-        } else if style.to_lowercase() == "b_silks" {
+        } else if style.to_lowercase() == "b.silks" {
             Style::BSilkS
-        } else if style.to_lowercase() == "f_silks" {
+        } else if style.to_lowercase() == "f.silks" {
             Style::FSilkS
-        } else if style.to_lowercase() == "b_mask" {
+        } else if style.to_lowercase() == "b.mask" {
             Style::BMask
-        } else if style.to_lowercase() == "f_mask" {
+        } else if style.to_lowercase() == "f.mask" {
             Style::FMask
-        } else if style.to_lowercase() == "dwgs_user" {
+        } else if style.to_lowercase() == "dwgs.user" {
             Style::DwgsUser
-        } else if style.to_lowercase() == "cmts_user" {
+        } else if style.to_lowercase() == "cmts.user" {
             Style::CmtsUser
-        } else if style.to_lowercase() == "eco1_user" {
+        } else if style.to_lowercase() == "eco1.user" {
             Style::Eco1User
-        } else if style.to_lowercase() == "eco2_user" {
+        } else if style.to_lowercase() == "eco2.user" {
             Style::Eco2User
-        } else if style.to_lowercase() == "edge_cuts" {
+        } else if style.to_lowercase() == "edge.cuts" {
             Style::EdgeCuts
         } else if style.to_lowercase() == "margin" {
             Style::Margin
-        } else if style.to_lowercase() == "b_crtyd" {
+        } else if style.to_lowercase() == "b.crtyd" {
             Style::BCrtYd
-        } else if style.to_lowercase() == "f_crtyd" {
+        } else if style.to_lowercase() == "f.crtyd" {
             Style::FCrtYd
-        } else if style.to_lowercase() == "b_fab" {
+        } else if style.to_lowercase() == "b.fab" {
             Style::BFab
-        } else if style.to_lowercase() == "f_fab" {
+        } else if style.to_lowercase() == "f.fab" {
             Style::FFab
-        } else if style.to_lowercase() == "user_1" {
+        } else if style.to_lowercase() == "user.1" {
             Style::User1
-        } else if style.to_lowercase() == "user_2" {
+        } else if style.to_lowercase() == "user.2" {
             Style::User2
-        } else if style.to_lowercase() == "user_3" {
+        } else if style.to_lowercase() == "user.3" {
             Style::User3
-        } else if style.to_lowercase() == "user_4" {
+        } else if style.to_lowercase() == "user.4" {
             Style::User4
-        } else if style.to_lowercase() == "user_5" {
+        } else if style.to_lowercase() == "user.5" {
             Style::User5
-        } else if style.to_lowercase() == "user_6" {
+        } else if style.to_lowercase() == "user.6" {
             Style::User6
-        } else if style.to_lowercase() == "user_7" {
+        } else if style.to_lowercase() == "user.7" {
             Style::User7
-        } else if style.to_lowercase() == "user_8" {
+        } else if style.to_lowercase() == "user.8" {
             Style::User8
-        } else if style.to_lowercase() == "user_9" {
+        } else if style.to_lowercase() == "user.9" {
             Style::User9
         } else {
+            warn!("Unknown style: {}", style);
             Style::None
         }
     }
@@ -907,6 +918,10 @@ impl Circle {
             radius,
             stroke,
         }
+    }
+    pub fn radius(center: &Array1<f64>, end: &Array1<f64>) -> f64 {
+        let r = ((center[0] - end[0]) * (center[0] - end[0]) + (center[1] - end[1]) * (center[1] - end[1])).sqrt();
+        format!("{:.2}", r).parse::<f64>().unwrap()
     }
 }
 
@@ -1515,4 +1530,8 @@ mod tests {
         // assert!(!buffer.is_empty());
         assert!(true);
     } */
+    #[test]
+    fn test_circle_from_points() {
+        assert_eq!(0.1, Circle::radius(&arr1(&[103.378, 85.09]), &arr1(&[103.478, 85.09])));
+    }
 }

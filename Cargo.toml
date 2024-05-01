@@ -58,9 +58,9 @@ name = "elektron"
 path = "src/cli/src/lib.rs"
 crate-type = ["cdylib"]
 
-[profile.release-lto]
-inherits = "release"
-lto = true
+# [profile.release-lto]
+# inherits = "release"
+# lto = true
 
 [dependencies]
 sexp = { path = "src/sexp" }

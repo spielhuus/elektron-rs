@@ -66,10 +66,20 @@ pub const KICAD_SCHEMA_GENERATOR: &str = "elektron";
 
 ///Constants for the element names.
 pub mod el {
+    pub const PAD: &str = "pad";
+    pub const FP_TEXT: &str = "fp_text";
+    pub const FP_LINE: &str = "fp_line";
+    pub const FP_POLY: &str = "fp_poly";
+    pub const FP_CIRCLE: &str = "fp_circle";
+    pub const DRILL: &str = "drill";
+    pub const OVAL: &str = "oval";
+    pub const OFFSET: &str = "offset";
+    pub const DIAMETER: &str = "diameter";
     pub const ARC: &str = "arc";
     pub const AT: &str = "at";
     pub const BUS: &str = "bus";
     pub const BUS_ENTRY: &str = "bus_entry";
+    pub const CENTER: &str = "center";
     pub const CIRCLE: &str = "circle";
     pub const EFFECTS: &str = "effects";
     pub const EFFECTS_JUSTIFY: &str = "justify";
@@ -122,6 +132,14 @@ pub mod el {
     pub const WIRE: &str = "wire";
     pub const XY: &str = "xy";
     pub const SEGMENT: &str = "segment";
+    pub const GR_LINE: &str = "gr_line";
+    pub const GR_POLY: &str = "gr_poly";
+    pub const GR_CIRCLE: &str = "gr_circle";
+    pub const SIZE: &str = "size";
+    pub const VIA: &str = "via";
+    pub const GR_TEXT: &str = "gr_text";
+    pub const FOOTPRINT: &str = "footprint";
+    pub const ZONE: &str = "zone";
 }
 
 ///create an UUID.

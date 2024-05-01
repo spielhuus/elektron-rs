@@ -4,12 +4,13 @@ use std::path::Path;
 
 use crate::{error::NotebookError, notebook::ArgType, utils::check_directory};
 
+use plotter::Theme;
 use pyo3::Bound;
 use reports::{bom::BomItem, drc, erc};
 
 use plotter::{
     gerber,
-    pcb::{plot_pcb, LAYERS},
+    pcb::LAYERS,
     schema::SchemaPlot,
     svg::SvgPlotter,
 };
@@ -373,7 +374,7 @@ impl CellWrite<ElektronCell> for CellWriter {
             } else if command == "pcb" {
                 let out_dir = Path::new(dest).join("_files");
                 let layers = if let Some(ArgType::List(layers)) = args.get("layers") {
-                    Some(layers)
+                    Some(layers.clone())
                 } else {
                     None
                 };
@@ -393,12 +394,7 @@ impl CellWrite<ElektronCell> for CellWriter {
                             .unwrap()
                             .to_string();
 
-                        let size = plot_pcb(
-                            input_file.to_string(),
-                            output_file.to_string(),
-                            layers,
-                            None,
-                        )
+                        plotter::plot(&input_file, &output_file, true, Theme::Kicad2020, 1.0, None, layers.clone())
                         .map_err(|err| {
                             NotebookError::new(
                                 source.to_string(),
@@ -424,10 +420,10 @@ impl CellWrite<ElektronCell> for CellWriter {
                         writeln!(out, "  -").unwrap();
                         writeln!(out, "    name: {}", input).unwrap();
                         writeln!(out, "    file: {}", output_file).unwrap();
-                        writeln!(out, "    width: {}", size.0).unwrap();
-                        writeln!(out, "    height: {}", size.1).unwrap();
+                        //TODO writeln!(out, "    width: {}", size.0).unwrap();
+                        //writeln!(out, "    height: {}", size.1).unwrap();
                         writeln!(out, "    layers:").unwrap();
-                        if let Some(layers) = layers {
+                        if let Some(layers) = &layers {
                             for layer in layers {
                                 writeln!(out, "    - {}", layer).unwrap();
                             }

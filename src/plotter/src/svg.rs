@@ -137,7 +137,7 @@ impl<'a> Drawer<Text, element::Group> for SvgPlotter<'a> {
                     "font-size",
                     format!("{}pt", text.effects.font_size.first().unwrap()),
                 )
-                .set("fill-color", text.effects.font_color.to_string())
+                .set("fill", text.effects.font_color.to_string())
                 .add(node::Text::new(line));
         
             if text.effects.justify.contains(&"top".to_string()) {

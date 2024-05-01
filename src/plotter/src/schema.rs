@@ -520,7 +520,7 @@ impl<'a> PlotElement<TextBoxElement<'a>> for SchemaPlot<'a> {
         let mut stroke = self.theme.get_stroke(item.item.into(), &[Style::Polyline, Style::from(filltype)]);
         if let Some(fill) = item.item.query("fill").next() {
             if let Some(color) = fill.query("color").next() {
-                let fillcolor = <Sexp as SexpValuesQuery<Vec<u16>>>::values(color);
+                let fillcolor = <Sexp as SexpValuesQuery<Vec<String>>>::values(color);
                 stroke.fillcolor = Color::from(fillcolor);
             }
         }
@@ -559,7 +559,7 @@ impl<'a> PlotElement<RectangleElement<'a>> for SchemaPlot<'a> {
         let mut stroke = self.theme.get_stroke(item.item.into(), &[Style::Polyline, Style::from(filltype)]);
         if let Some(fill) = item.item.query("fill").next() {
             if let Some(color) = fill.query("color").next() {
-                let fillcolor = <Sexp as SexpValuesQuery<Vec<u16>>>::values(color);
+                let fillcolor = <Sexp as SexpValuesQuery<Vec<String>>>::values(color);
                 stroke.fillcolor = Color::from(fillcolor);
             }
         }
@@ -707,7 +707,7 @@ impl<'a> PlotElement<CircleElement<'a>> for SchemaPlot<'a> {
         let mut stroke = self.theme.get_stroke(item.item.into(), &[Style::Polyline, Style::from(filltype)]);
         if let Some(fill) = item.item.query("fill").next() {
             if let Some(color) = fill.query("color").next() {
-                let fillcolor = <Sexp as SexpValuesQuery<Vec<u16>>>::values(color);
+                let fillcolor = <Sexp as SexpValuesQuery<Vec<String>>>::values(color);
                 stroke.fillcolor = Color::from(fillcolor);
             }
         }

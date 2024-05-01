@@ -1,26 +1,26 @@
 <svg height="26.799999999999997mm" viewBox="0 0 28.700000000000003 13.399999999999999" width="57.400000000000006mm" xmlns="http://www.w3.org/2000/svg">
 <g id="not_set" scale="2">
 <path d="M8.89,9.85 L3.81,9.85 L3.81,7.81 L8.89,7.81 L8.89,9.85 z" fill="none" stroke="rgb(132,0,0)" stroke-width="0.254"/>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(6.350000000000001,3.8099999999999987) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(6.350000000000001,3.8099999999999987) rotate(0)">
 R1
 </text>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(6.350000000000001,5.809999999999999) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(6.350000000000001,5.809999999999999) rotate(0)">
 100k
 </text>
 <path d="M2.54,8.83 L3.81,8.83" stroke="rgb(132,0,0)" stroke-width="0.35"/>
 <path d="M10.16,8.83 L8.89,8.83" stroke="rgb(132,0,0)" stroke-width="0.35"/>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(13.969999999999999,2.8000000000000007) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(13.969999999999999,2.8000000000000007) rotate(0)">
 C2
 </text>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(13.969999999999999,4.800000000000001) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(13.969999999999999,4.800000000000001) rotate(0)">
 100n
 </text>
 <path d="M10.16,8.83 L12.95,8.83" stroke="rgb(132,0,0)" stroke-width="0.35"/>
 <path d="M17.78,8.83 L14.99,8.83" stroke="rgb(132,0,0)" stroke-width="0.35"/>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(21.590000000000003,2.539999999999999) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(21.590000000000003,2.539999999999999) rotate(0)">
 D1
 </text>
-<text dominant-baseline="middle" fill-color="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(21.590000000000003,4.539999999999999) rotate(0)">
+<text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(21.590000000000003,4.539999999999999) rotate(0)">
 LED
 </text>
 <path d="M25.4,8.83 L22.86,8.83" stroke="rgb(132,0,0)" stroke-width="0.35"/>
