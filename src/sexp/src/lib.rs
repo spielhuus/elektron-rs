@@ -66,13 +66,24 @@ pub const KICAD_SCHEMA_GENERATOR: &str = "elektron";
 
 ///Constants for the element names.
 pub mod el {
+    pub const PAD: &str = "pad";
+    pub const FP_TEXT: &str = "fp_text";
+    pub const FP_LINE: &str = "fp_line";
+    pub const FP_POLY: &str = "fp_poly";
+    pub const FP_CIRCLE: &str = "fp_circle";
+    pub const DRILL: &str = "drill";
+    pub const OVAL: &str = "oval";
+    pub const OFFSET: &str = "offset";
+    pub const DIAMETER: &str = "diameter";
     pub const ARC: &str = "arc";
     pub const AT: &str = "at";
     pub const BUS: &str = "bus";
     pub const BUS_ENTRY: &str = "bus_entry";
+    pub const CENTER: &str = "center";
     pub const CIRCLE: &str = "circle";
     pub const EFFECTS: &str = "effects";
     pub const EFFECTS_JUSTIFY: &str = "justify";
+    pub const END: &str = "end";
     pub const GLOBAL_LABEL: &str = "global_label";
     pub const GRAPH_ARC: &str = "arc";
     pub const GRAPH_CIRCLE: &str = "circle";
@@ -86,6 +97,7 @@ pub mod el {
     pub const JUSTIFY_LEFT: &str = "left";
     pub const JUSTIFY_RIGHT: &str = "right";
     pub const LABEL: &str = "label";
+    pub const LAYER: &str = "layer";
     pub const LIB_ID: &str = "lib_id";
     pub const LIB_SYMBOLS: &str = "lib_symbols";
     pub const MIRROR: &str = "mirror";
@@ -103,6 +115,7 @@ pub mod el {
     pub const SHEET: &str = "sheet";
     pub const SHEET_INSTANCES: &str = "sheet_instances";
     pub const SHEET_PIN: &str = "hierarchical_label";
+    pub const START: &str = "start";
     pub const STROKE: &str = "stroke";
     pub const SYMBOL: &str = "symbol";
     pub const SYMBOL_UNIT: &str = "unit";
@@ -115,8 +128,18 @@ pub mod el {
     pub const TITLE_BLOCK_PAPER: &str = "paper";
     pub const TITLE_BLOCK_REV: &str = "rev";
     pub const TITLE_BLOCK_TITLE: &str = "title";
+    pub const WIDTH: &str = "width";
     pub const WIRE: &str = "wire";
     pub const XY: &str = "xy";
+    pub const SEGMENT: &str = "segment";
+    pub const GR_LINE: &str = "gr_line";
+    pub const GR_POLY: &str = "gr_poly";
+    pub const GR_CIRCLE: &str = "gr_circle";
+    pub const SIZE: &str = "size";
+    pub const VIA: &str = "via";
+    pub const GR_TEXT: &str = "gr_text";
+    pub const FOOTPRINT: &str = "footprint";
+    pub const ZONE: &str = "zone";
 }
 
 ///create an UUID.

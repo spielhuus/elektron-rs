@@ -1,5 +1,6 @@
 //! Theming for KiCad schematics and PCBs
 use simplecss::{AttributeOperator, PseudoClass, StyleSheet};
+use log::warn;
 
 use crate::{error::Error, Color, Effects, Stroke, Style, Theme};
 use sexp::el;
@@ -94,7 +95,7 @@ impl<'a> Themer<'a> {
                             if rule.selector.matches(&root) {
                                 for decl in &rule.declarations {
                                     if decl.name == "stroke" {
-                                        stroke.linecolor = self.parse_rgb(decl.value).unwrap().into();
+                                        stroke.linecolor = self.parse_rgb(decl.value).unwrap();
                                         break;
                                     }
                                 }
@@ -113,7 +114,7 @@ impl<'a> Themer<'a> {
                         if rule.selector.matches(&root) {
                             for decl in &rule.declarations {
                                 if decl.name == "fill" {
-                                    stroke.fillcolor = self.parse_rgb(decl.value).unwrap().into();
+                                    stroke.fillcolor = self.parse_rgb(decl.value).unwrap();
                                     break;
                                 }
                             }
@@ -151,12 +152,21 @@ impl<'a> Themer<'a> {
 
         let mut font_color = Color::Rgb(0, 0, 0);
         if let Some(color) = self.select(style, "fill") {
-            font_color = self.parse_rgb(color).unwrap().into();
+            font_color = self.parse_rgb(color).unwrap();
         }
 
         effects.font_color = font_color;
 
         effects
+    }
+
+    pub fn layer_color(&self, layer: &[Style]) -> Color {
+        if let Some(color) = self.select(layer, "stroke") {
+            self.parse_rgb(color).unwrap()
+        } else {
+            warn!("no color defined for layer {:?}", layer);
+            Color::Rgb(255, 0, 0)
+        }
     }
 
     fn select(&self, styles: &[Style], selector: &str) -> Option<&str> {
@@ -200,25 +210,35 @@ impl<'a> Themer<'a> {
         (1.0, 0.0, 0.0, 1.0)
     }
 
-    fn parse_rgb(&self, color: &str) -> Result<Vec<u16>, Error> {
-        let content = if color.starts_with("rgba") {
-            color
+    fn parse_rgb(&self, color: &str) -> Result<Color, Error> {
+        Ok(if color.starts_with("rgba") {
+            let color = color
                 .strip_prefix("rgba(")
                 .unwrap()
                 .strip_suffix(')')
-                .unwrap()
-        } else {
+                .unwrap();
+
             color
+                .split(',')
+                .map(|c| c.trim().to_string())
+                .collect::<Vec<String>>()
+
+        } else {
+            let color = color
                 .strip_prefix("rgb(")
                 .unwrap()
                 .strip_suffix(')')
-                .unwrap()
-        };
-        Ok(content
-            .split(',')
-            .map(|c| c.trim().parse::<u16>().unwrap())
-            .collect())
+                .unwrap();
+            
+            color
+                .split(',')
+                .map(|c| c.trim().to_string())
+                .collect::<Vec<String>>()
+
+        //TODO handle error
+        }.into())
     }
+
     fn parse_color(&self, color: &str) -> Result<(f64, f64, f64, f64), Error> {
         let content = if color.starts_with("rgba") {
             color
@@ -314,13 +334,11 @@ mod tests {
         );
     }
 
-    //TODO new tests
     #[test]
     fn test_parse_rgb() {
         let themer = Themer::new(Theme::Kicad2020);
-        assert_eq!(vec![0, 150, 0], themer.parse_rgb("rgb(0, 150, 0)").unwrap());
-
-
+        assert_eq!(Color::Rgb(0, 150, 0), themer.parse_rgb("rgb(0, 150, 0)").unwrap());
+        assert_eq!(Color::Rgba(0, 150, 0, 0.45), themer.parse_rgb("rgb(0, 150, 0, 0.45)").unwrap());
     }
     #[test]
     fn stroke_wire() {

@@ -1,658 +1,1058 @@
 //! Plot the PCB
-use crate::{error::Error, schema::Themer, Theme};
+use crate::{
+    border, error::Error, schema::Themer, Arc, Circle, Color, Effects, Line, Outline, PlotItem,
+    PlotterImpl, Polyline, Stroke, Style, Text, Theme,
+};
+use log::*;
 use log::{debug, error, warn};
-use pyo3::{prelude::*, types::PyDict};
-use rand::Rng;
-use std::fs;
-use svg::{
-    node::element::{Circle, Description, Group, Path, Symbol, Text, Title, Use},
-    parser::Event,
-    Document,
+use ndarray::{arr1, arr2, Array1, Array2, ArrayView};
+
+use regex::Regex;
+use sexp::{
+    el,
+    math::{Shape, Transform},
+    PaperSize, Sexp, SexpParser, SexpTree, SexpValueQuery, SexpValuesQuery,
 };
 
 pub const LAYERS: &[&str; 9] = &[
-    "F_Cu",
-    "B_Cu",
-    "F_Paste",
-    "B_Paste",
-    "F_SilkS",
-    "B_SilkS",
-    "F_Mask",
-    "B_Mask",
-    "Edge_Cuts",
+    "F.Cu",
+    "B.Cu",
+    "F.Paste",
+    "B.Paste",
+    "F.SilkS",
+    "B.SilkS",
+    "F.Mask",
+    "B.Mask",
+    "Edge.Cuts",
 ];
 
-macro_rules! end {
-    ( $group:expr, $stack:expr ) => {
-        if let Some(item) = $stack.end() {
-            match item {
-                SvgTypes::Group(g) => $group = $group.add(g),
-                SvgTypes::Path(p) => $group = $group.add(p),
-                SvgTypes::Circle(c) => $group = $group.add(c),
-                SvgTypes::Text(t) => $group = $group.add(t),
-                SvgTypes::Desc(d) => $group = $group.add(d),
-                SvgTypes::Title(d) => $group = $group.add(d),
-            }
-        }
-    };
+const SKIP_ELEMENTS: &[&str; 11] = &[
+    "general",
+    "setup",
+    "layers",
+    "layer",
+    "net",
+    "paper",
+    "title_block",
+    "generator",
+    "generator_version",
+    "version",
+    "dimension",
+];
+
+const SKIP_FP_ELEMENTS: &[&str; 11] = &[
+    "path",
+    "attr",
+    "uuid",
+    "descr",
+    "tags",
+    "at",
+    "model",
+    "layer",
+    "locked",
+    "sheetfile",
+    "sheetname",
+];
+
+#[derive(Debug, Eq, PartialEq)]
+enum PadType {
+    ThruHole,
+    Smd,
+    Connect,
+    NpThruHole,
 }
 
-macro_rules! arm {
-    ( $items:expr, $token:expr, $last:expr, $target_type:expr ) => {
-        match $token {
-            SvgTypes::Group(child_g) => {
-                $last = $last.add(child_g);
-                $items.push($target_type($last));
-            }
-            SvgTypes::Path(child_path) => {
-                $last = $last.add(child_path);
-                $items.push($target_type($last));
-            }
-            SvgTypes::Circle(child_circle) => {
-                $last = $last.add(child_circle);
-                $items.push($target_type($last));
-            }
-            SvgTypes::Text(child_circle) => {
-                $last = $last.add(child_circle);
-                $items.push($target_type($last));
-            }
-            SvgTypes::Desc(child_circle) => {
-                $last = $last.add(child_circle);
-                $items.push($target_type($last));
-            }
-            SvgTypes::Title(child) => {
-                $last = $last.add(child);
-                $items.push($target_type($last));
-            }
+///create a new PadType from String.
+impl From<String> for PadType {
+    fn from(pad_type: String) -> Self {
+        match pad_type.as_str() {
+            "thru_hole" => PadType::ThruHole,
+            "smd" => PadType::Smd,
+            "connect" => PadType::Connect,
+            "np_thru_hole" => PadType::NpThruHole,
+            _ => panic!("unknown pad type: {}", pad_type),
         }
-    };
-}
-
-fn check_directory(filename: &str) -> Result<(), Error> {
-    let path = std::path::Path::new(filename);
-    if path.to_str().unwrap() != "" && !path.exists() {
-        std::fs::create_dir_all(path)?;
     }
-    Ok(())
 }
 
-fn clean_style(input: &str, style: &super::Style, themer: &Themer) -> Result<String, Error> {
-    let mut res = String::new();
-    for token in input.split(';') {
-        let colon = token.rfind(':');
-        if let Some(colon) = colon {
-            let key = &token[0..colon].trim();
-            let value = &token[colon + 1..token.len()].trim();
-            if key == &"stroke" && value != &"#FFFFFF" && value != &"#000000" {
-                res += format!(
-                    "stroke:{}; ",
-                    themer.hex_color(themer.stroke(&vec![style.clone()]))
-                )
-                .as_str();
-            } else if key == &"fill" && value != &"#FFFFFF" && value != &"#000000" {
-                res += format!(
-                    "fill:{}; ",
-                    themer.hex_color(themer.stroke(&vec![style.clone()]))
-                )
-                .as_str();
+#[derive(Debug, Eq, PartialEq)]
+enum PadShape {
+    Circle,
+    Rect,
+    Oval,
+    Trapezoid,
+    RoundRect,
+    Custom,
+}
+
+///create a new PadShape from String.
+impl From<String> for PadShape {
+    fn from(pad_type: String) -> Self {
+        match pad_type.as_str() {
+            "circle" => PadShape::Circle,
+            "rect" => PadShape::Rect,
+            "oval" => PadShape::Oval,
+            "trapezoid" => PadShape::Trapezoid,
+            "roundrect" => PadShape::RoundRect,
+            "custom" => PadShape::Custom,
+            _ => panic!("unknown pad shape: {}", pad_type),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct DrillHole {
+    _oval: bool,
+    diameter: f64,
+    width: Option<f64>,
+    _offset: Option<Array1<f64>>,
+}
+
+///create a new DrillHole from Sexp.
+impl<'a> From<&'a Sexp> for DrillHole {
+    fn from(element: &'a Sexp) -> Self {
+        let mut oval = false;
+        let diameter: f64;
+        let width: Option<f64>;
+
+        let token: String = element.get(0).unwrap();
+        if token == "oval" {
+            oval = true;
+            diameter = element.get(1).unwrap();
+            width = element.get(2);
+        } else {
+            diameter = element.get(0).unwrap();
+            width = element.get(1);
+        }
+        let offset = <Sexp as SexpValueQuery<Array1<f64>>>::value(element, el::OFFSET);
+        DrillHole {
+            _oval: oval,
+            diameter,
+            width,
+            _offset: offset,
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------------------------------------
+// ---                             collect the plot model from the sexp tree                               ---
+// -----------------------------------------------------------------------------------------------------------
+
+pub struct PcbPlot<'a> {
+    theme: Themer<'a>,
+    border: bool,
+    scale: f64,
+    name: Option<String>,
+    path: String,
+    tree: Option<SexpTree>,
+    layers: Vec<String>,
+}
+
+impl Outline for PcbPlot<'_> {}
+
+//default trait implementations for PcbPlot
+impl Default for PcbPlot<'_> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// collect the plot model from the sexp tree
+impl<'a> PcbPlot<'a> {
+    /// Select the color theme.
+    pub fn theme(mut self, theme: Theme) -> Self {
+        self.theme = Themer::new(theme);
+        self
+    }
+    /// Draw a border around the plot, otherwise crop the plot.
+    pub fn border(mut self, border: bool) -> Self {
+        self.border = border;
+        self
+    }
+    /// Scale the plot
+    pub fn scale(mut self, scale: f64) -> Self {
+        self.scale = scale;
+        self
+    }
+    /// The name of the plot.
+    pub fn name(mut self, name: &str) -> Self {
+        self.name = Some(name.to_string());
+        self
+    }
+    /// create a new SchemaPlot with defalt values.
+    pub fn new() -> Self {
+        Self {
+            theme: Themer::new(Theme::default()),
+            border: true,
+            scale: 1.0,
+            name: None,
+            path: String::new(),
+            tree: None,
+            layers: Vec::new(),
+        }
+    }
+
+    fn get_layers(&mut self) {
+        if let Some(tree) = &self.tree {
+            for layer in tree
+                .root()
+                .expect("root expected")
+                .query("layers")
+                .next()
+                .expect("layers expected")
+                .iter()
+            {
+                if let sexp::SexpAtom::Node(node) = layer {
+                    let name: String = node.get(0).expect("layer name expected");
+                    self.layers.push(name);
+                }
+            }
+        }
+        trace!("layers: {:?}", self.layers);
+    }
+
+    pub fn open(&mut self, path: &str) -> Result<(), Error> {
+        debug!("open pcb: {}", path);
+        if let Some(dir) = std::path::Path::new(&path).parent() {
+            self.path = dir.to_str().unwrap().to_string();
+        }
+        let Ok(document) = SexpParser::load(path) else {
+            return Err(Error::Plotter(format!("could not load schema: {}", path)));
+        };
+        let tree = SexpTree::from(document.iter())?;
+        self.tree = Some(tree);
+        self.get_layers();
+        Ok(())
+    }
+
+    pub fn write(&self, plotter: &mut dyn PlotterImpl, layers: Vec<String>) -> Result<(), Error> {
+        trace!("write layer: {:?}", layers);
+        let tree = if let Some(tree) = &self.tree {
+            tree.clone()
+        } else {
+            return Err(Error::Plotter("no root schema loaded".into()));
+        };
+
+        let paper_size: (f64, f64) =
+            <Sexp as SexpValueQuery<PaperSize>>::value(tree.root().unwrap(), "paper").unwrap().into();
+
+        //TODO handle portraint and landscape
+
+        let mut plot_items = Vec::<PlotItem>::new();
+        for layer in layers {
+            //check if layer exists
+            if !self.layers.contains(&layer) {
+                return Err(Error::Plotter(format!("layer {} not found", layer)));
+            }
+            plot_items.append(&mut self.parse_items(&tree, &layer)?);
+        }
+
+        let size = if self.border {
+            arr2(&[[0.0, 0.0], [paper_size.0, paper_size.1]])
+        } else {
+            //when the border is not plotted, the plotter will just use the default bounds
+            let rect = self.bounds(&plot_items) + arr2(&[[-2.54, -2.54], [2.54, 2.54]]);
+            let x = rect[[0, 0]];
+            let y = rect[[0, 1]];
+            let offset = arr1(&[x, y]);
+            for item in plot_items.iter_mut() {
+                match item {
+                    PlotItem::Arc(_, arc) => {
+                        arc.start = arc.start.clone() - &offset;
+                        arc.end = arc.end.clone() - &offset;
+                        arc.center = arc.center.clone() - &offset;
+                    }
+                    PlotItem::Circle(_, circle) => circle.pos = circle.pos.clone() - &offset,
+                    PlotItem::Line(_, line) => line.pts = line.pts.clone() - &offset,
+                    PlotItem::Rectangle(_, rect) => rect.pts = rect.pts.clone() - &offset,
+                    PlotItem::Polyline(_, poly) => poly.pts = poly.pts.clone() - &offset,
+                    PlotItem::Text(_, text) => text.pos = text.pos.clone() - &offset,
+                }
+            }
+            arr2(&[
+                [0.0, 0.0],
+                [rect[[1, 0]] - rect[[0, 0]], rect[[1, 1]] - rect[[0, 1]]],
+            ])
+        };
+
+        plotter.plot(plot_items.as_slice(), size, self.scale, self.name.clone())?;
+
+        Ok(())
+    }
+
+    ///check if the item matches the layer, if layer is None, return true.
+    fn is_layer(item: &Sexp, layer: &str) -> bool {
+        if let Some(name) = <Sexp as SexpValueQuery<String>>::value(item, "layer") {
+            return name == layer || PcbPlot::is_layer_in(&name, layer);
+        } else {
+            warn!("no layer in item: {:?}", item);
+        }
+        true
+    }
+
+    ///check if the layer matches an item in the layers list, layer can also contain a wildcard.
+    fn is_layer_in(layer: &str, name: &str) -> bool {
+        if layer == name {
+            return true;
+        } else if name.contains('*') {
+            let name = name.replace('.', "\\.");
+            let mut name = name.replace('*', ".*");
+            name.push('$');
+            let regex = Regex::new(&name).unwrap();
+            if regex.is_match(layer) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn parse_items(&self, document: &SexpTree, layer: &str) -> Result<Vec<PlotItem>, Error> {
+        //plot the border
+        let mut plot_items: Vec<PlotItem> = Vec::new();
+        let title_block =
+            if let Some(title_block) = document.root().unwrap().query(el::TITLE_BLOCK).next() {
+                Some(title_block)
+            } else if let Some(tree) = &self.tree {
+                tree.root().unwrap().query(el::TITLE_BLOCK).next()
             } else {
-                res += format!("{}:{}; ", key, value).as_str();
-            }
-        }
-    }
-    Ok(res)
-}
-
-enum SvgTypes {
-    Group(Group),
-    Path(Path),
-    Circle(Circle),
-    Text(Text),
-    Desc(Description),
-    Title(Title),
-}
-
-struct SvgStack {
-    items: Vec<SvgTypes>,
-}
-
-impl SvgStack {
-    fn new() -> Self {
-        Self { items: Vec::new() }
-    }
-    ///End a Node, pop it from the stack and add it to the prior one.
-    fn end(&mut self) -> Option<SvgTypes> {
-        if self.items.is_empty() {
-            error!("empty stack");
-            None
-        } else if self.items.len() == 1 {
-            self.items.pop()
-        } else {
-            let g = self.items.pop().unwrap();
-            let last = self.items.pop().unwrap();
-            match last {
-                SvgTypes::Group(mut last_g) => {
-                    arm!(self.items, g, last_g, SvgTypes::Group);
-                }
-                SvgTypes::Path(mut last_path) => {
-                    arm!(self.items, g, last_path, SvgTypes::Path);
-                }
-                SvgTypes::Circle(mut last_c) => {
-                    arm!(self.items, g, last_c, SvgTypes::Circle);
-                }
-                SvgTypes::Text(mut last_c) => {
-                    arm!(self.items, g, last_c, SvgTypes::Text);
-                }
-                SvgTypes::Desc(mut last_c) => {
-                    arm!(self.items, g, last_c, SvgTypes::Desc);
-                }
-                SvgTypes::Title(mut last) => {
-                    arm!(self.items, g, last, SvgTypes::Title);
+                None
+            };
+        if self.border {
+            if let Some(title_block) = title_block {
+                if let Some(paper_size) = <Sexp as SexpValueQuery<PaperSize>>::value(
+                    document.root().unwrap(),
+                    el::TITLE_BLOCK_PAPER,
+                ) {
+                    plot_items.append(&mut border(title_block, paper_size, &self.theme).unwrap());
                 }
             }
-            None
         }
-    }
-}
 
-trait SvgType<E> {
-    ///Start a new Node, add it to the stack.
-    fn start(&mut self, item: E);
-}
-
-impl SvgType<Group> for SvgStack {
-    fn start(&mut self, item: Group) {
-        self.items.push(SvgTypes::Group(item));
-    }
-}
-
-impl SvgType<Path> for SvgStack {
-    fn start(&mut self, item: Path) {
-        self.items.push(SvgTypes::Path(item));
-    }
-}
-
-impl SvgType<Circle> for SvgStack {
-    fn start(&mut self, item: Circle) {
-        self.items.push(SvgTypes::Circle(item));
-    }
-}
-
-impl SvgType<Text> for SvgStack {
-    fn start(&mut self, item: Text) {
-        self.items.push(SvgTypes::Text(item));
-    }
-}
-
-impl SvgType<Description> for SvgStack {
-    fn start(&mut self, item: Description) {
-        self.items.push(SvgTypes::Desc(item));
-    }
-}
-
-impl SvgType<Title> for SvgStack {
-    fn start(&mut self, item: Title) {
-        self.items.push(SvgTypes::Title(item));
-    }
-}
-
-impl SvgType<String> for SvgStack {
-    fn start(&mut self, item: String) {
-        if !self.items.is_empty() {
-            let text = self.items.pop().unwrap();
-            match text {
-                SvgTypes::Group(mut text) => {
-                    text = text.add(svg::node::Text::new(item));
-                    self.items.push(SvgTypes::Group(text));
-                }
-                SvgTypes::Path(mut text) => {
-                    text = text.add(svg::node::Text::new(item));
-                    self.items.push(SvgTypes::Path(text));
-                }
-                SvgTypes::Circle(mut text) => {
-                    text = text.add(svg::node::Text::new(item));
-                    self.items.push(SvgTypes::Circle(text));
-                }
-                SvgTypes::Text(mut text) => {
-                    text = text.add(svg::node::Text::new(item));
-                    self.items.push(SvgTypes::Text(text));
-                }
-                SvgTypes::Desc(mut text) => {
-                    text = text.add(svg::node::Text::new(item));
-                    self.items.push(SvgTypes::Desc(text));
-                }
-                SvgTypes::Title(mut text) => {
-                    text = text.add(svg::node::Text::new(item));
-                    self.items.push(SvgTypes::Title(text));
-                }
-            }
-        } else {
-            warn!("start text: items is empty ({})", item);
-        }
-    }
-}
-
-pub fn plot_pcb(
-    input: String,
-    output: String,
-    layers: Option<&Vec<String>>,
-    theme: Option<Theme>,
-) -> Result<(f64, f64), Error> {
-    let themer = Themer::new(theme.unwrap_or_default());
-
-    let layers = if let Some(layers) = layers {
-        layers.clone()
-    } else {
-        LAYERS
-            .to_vec()
-            .iter()
-            .map(|i| i.to_string())
-            .collect::<Vec<String>>()
-    };
-
-    //prepare temp directory
-    let mut rng = rand::thread_rng();
-    let num: u32 = rng.gen();
-    let tmp_folder = num.to_string();
-    let last_slash = input.rfind('/').unwrap();
-    let basedir = &input[0..last_slash];
-    let last_dot = input.rfind('.').unwrap();
-    let name = &input[last_slash + 1..last_dot];
-
-    let mut document = Document::new();
-
-    let mut width = 0.0;
-    let mut height = 0.0;
-
-    for layer in &layers {
-        let style = crate::Style::from(layer.to_string());
-        Python::with_gil(|py| {
-            // let list = PyList::new(py, &[input.clone(), tmp_folder.clone(), layers]);
-            let locals = PyDict::new_bound(py);
-            locals.set_item("input", input.clone()).unwrap();
-            locals.set_item("tmp_folder", tmp_folder.clone()).unwrap();
-            locals.set_item("layer", layer).unwrap();
-            pyo3::py_run!(
-                py,
-                *locals,
-                r#"
-    import pcbnew 
-    layer_names = { 
-        "B_Cu": pcbnew.B_Cu,
-        "F_Cu": pcbnew.F_Cu,
-        "In1_Cu": pcbnew.In1_Cu,
-        "In2_Cu": pcbnew.In2_Cu,
-        "In3_Cu": pcbnew.In3_Cu,
-        "In4_Cu": pcbnew.In4_Cu,
-        "In5_Cu": pcbnew.In5_Cu,
-        "In6_Cu": pcbnew.In6_Cu,
-        "In7_Cu": pcbnew.In7_Cu,
-        "In8_Cu": pcbnew.In8_Cu,
-        "In9_Cu": pcbnew.In9_Cu,
-        "In10_Cu": pcbnew.In10_Cu,
-        "In11_Cu": pcbnew.In11_Cu,
-        "In12_Cu": pcbnew.In12_Cu,
-        "In13_Cu": pcbnew.In13_Cu,
-        "In14_Cu": pcbnew.In14_Cu,
-        "In15_Cu": pcbnew.In15_Cu,
-        "In16_Cu": pcbnew.In16_Cu,
-        "In17_Cu": pcbnew.In17_Cu,
-        "In18_Cu": pcbnew.In18_Cu,
-        "In19_Cu": pcbnew.In19_Cu,
-        "In20_Cu": pcbnew.In20_Cu,
-        "In21_Cu": pcbnew.In21_Cu,
-        "In22_Cu": pcbnew.In22_Cu,
-        "In23_Cu": pcbnew.In23_Cu,
-        "In24_Cu": pcbnew.In24_Cu,
-        "In25_Cu": pcbnew.In25_Cu,
-        "In26_Cu": pcbnew.In26_Cu,
-        "In27_Cu": pcbnew.In27_Cu,
-        "In28_Cu": pcbnew.In28_Cu,
-        "In29_Cu": pcbnew.In29_Cu,
-        "In30_Cu": pcbnew.In30_Cu,
-        "B_Cu": pcbnew.B_Cu,
-        "B_Adhes": pcbnew.B_Adhes,
-        "F_Adhes": pcbnew.F_Adhes,
-        "B_Paste": pcbnew.B_Paste,
-        "F_Paste": pcbnew.F_Paste,
-        "B_SilkS": pcbnew.B_SilkS,
-        "F_SilkS": pcbnew.F_SilkS,
-        "B_Mask": pcbnew.B_Mask,
-        "F_Mask": pcbnew.F_Mask,
-        "Dwgs_User": pcbnew.Dwgs_User,
-        "Cmts_User": pcbnew.Cmts_User,
-        "Eco1_User": pcbnew.Eco1_User,
-        "Eco2_User": pcbnew.Eco2_User,
-        "Edge_Cuts": pcbnew.Edge_Cuts,
-        "Margin": pcbnew.Margin,
-        "B_CrtYd": pcbnew.B_CrtYd,
-        "F_CrtYd": pcbnew.F_CrtYd,
-        "B_Fab": pcbnew.B_Fab,
-        "F_Fab": pcbnew.F_Fab,
-        "User_1": pcbnew.User_1,
-        "User_2": pcbnew.User_2,
-        "User_3": pcbnew.User_3,
-        "User_4": pcbnew.User_4,
-        "User_5": pcbnew.User_5,
-        "User_6": pcbnew.User_6,
-        "User_7": pcbnew.User_7,
-        "User_8": pcbnew.User_8,
-        "User_9": pcbnew.User_9,
-    }
-
-    print(f"Plot: {layer}")
-    board = pcbnew.LoadBoard(input)    
-    plot_controller = pcbnew.PLOT_CONTROLLER(board)
-    plot_options = plot_controller.GetPlotOptions()    
-
-    pcb_bounding_box = board.ComputeBoundingBox(True) 
-    print("origin", pcb_bounding_box.GetOrigin()) 
-    print("height", pcb_bounding_box.GetHeight()) 
-    print("width", pcb_bounding_box.GetWidth())
-    plot_options.SetUseAuxOrigin(True) 
-    board.GetDesignSettings().SetAuxOrigin(pcb_bounding_box.GetOrigin()) 
-
-    settings_manager = pcbnew.GetSettingsManager() 
-    color_settings = settings_manager.GetColorSettings() 
-    plot_options.SetColorSettings(color_settings) 
-
-    plot_options.SetOutputDirectory(tmp_folder)
-    plot_options.SetPlotFrameRef(False)
-    #plot_options.SetDrillMarksType(pcbnew.PCB_PLOT_PARAMS.FULL_DRILL_SHAPE)
-    plot_options.SetSkipPlotNPTH_Pads(False)
-    plot_options.SetMirror(False)
-    plot_options.SetFormat(pcbnew.PLOT_FORMAT_SVG)
-    plot_options.SetSvgPrecision(4)
-    plot_options.SetPlotViaOnMaskLayer(True)    
-    plot_controller.OpenPlotfile(layer, pcbnew.PLOT_FORMAT_SVG, "Top mask layer")
-    plot_controller.SetColorMode(True)
-    plot_controller.SetLayer(layer_names[layer])
-    plot_controller.PlotLayer()
-    plot_controller.ClosePlot()
-
-    width = pcbnew.pcbIUScale.IUTomm(pcb_bounding_box.GetWidth())
-    height = pcbnew.pcbIUScale.IUTomm(pcb_bounding_box.GetHeight())"#
-            );
-
-            width = locals
-                .get_item("width")
-                .unwrap()
-                .unwrap()
-                .extract::<f64>()
-                .unwrap();
-            height = locals
-                .get_item("height")
-                .unwrap()
-                .unwrap()
-                .extract::<f64>()
-                .unwrap();
-        });
-
-        document = document
-            .set("width", format!("{}mm", width))
-            .set("height", format!("{}mm", height))
-            .set("viewBox", (0, 0, width, height));
-
-        let path = format!(
-            "{}/{}/{}-{}.svg",
-            basedir,
-            tmp_folder.clone(),
-            name,
-            layer.clone()
-        );
-        debug!("convert pcb svg: {:?}", path);
-        let mut content = String::new();
-        let mut group = Symbol::new()
-            .set("class", layer.to_string())
-            .set("id", format!("{}-{}", name, layer));
-
-        let mut stack = SvgStack::new();
-        for event in svg::open(path, &mut content).unwrap() {
-            match event {
-                Event::Tag(path, t, attributes) => {
-                    if path == "g" {
-                        match t {
-                            svg::node::element::tag::Type::Start => {
-                                let mut my_group = Group::new().set("class", layer.to_string());
-                                for a in attributes {
-                                    if a.0 != "style" {
-                                        my_group = my_group.set(a.0, a.1);
-                                    } else {
-                                        my_group = my_group
-                                            .set(a.0, clean_style(&a.1, &style, &themer).unwrap());
-                                    }
-                                }
-                                stack.start(my_group);
-                            }
-                            svg::node::element::tag::Type::End => {
-                                end!(group, stack);
-                            }
-                            svg::node::element::tag::Type::Empty => {
-                                warn!("empty group: {:?}", path);
-                            }
-                        }
-                    } else if path == "path" {
-                        match t {
-                            svg::node::element::tag::Type::Start => {
-                                let mut my_group = Path::new().set("class", layer.to_string());
-                                for a in attributes {
-                                    if a.0 != "style" {
-                                        my_group = my_group.set(a.0, a.1);
-                                    } else {
-                                        my_group = my_group
-                                            .set(a.0, clean_style(&a.1, &style, &themer).unwrap());
-                                    }
-                                }
-                                stack.start(my_group);
-                            }
-                            svg::node::element::tag::Type::End => {
-                                end!(group, stack);
-                            }
-                            svg::node::element::tag::Type::Empty => {
-                                let mut my_path = Path::new().set("class", layer.to_string());
-                                for a in attributes {
-                                    if a.0 != "style" {
-                                        my_path = my_path.set(a.0, a.1);
-                                    } else {
-                                        my_path = my_path
-                                            .set(a.0, clean_style(&a.1, &style, &themer).unwrap());
-                                    }
-                                }
-                                stack.start(my_path);
-                                end!(group, stack);
-                            }
-                        }
-                    } else if path == "circle" {
-                        match t {
-                            svg::node::element::tag::Type::Start => {
-                                let mut my_circle = Circle::new().set("class", layer.to_string());
-                                for a in attributes {
-                                    if a.0 != "style" {
-                                        my_circle = my_circle.set(a.0, a.1);
-                                    } else {
-                                        my_circle = my_circle
-                                            .set(a.0, clean_style(&a.1, &style, &themer).unwrap());
-                                    }
-                                }
-                                stack.start(my_circle);
-                            }
-                            svg::node::element::tag::Type::End => {
-                                stack.end();
-                                end!(group, stack);
-                            }
-                            svg::node::element::tag::Type::Empty => {
-                                let mut my_circle = Circle::new().set("class", layer.to_string());
-                                for a in attributes {
-                                    if a.0 != "style" {
-                                        my_circle = my_circle.set(a.0, a.1);
-                                    } else {
-                                        my_circle = my_circle
-                                            .set(a.0, clean_style(&a.1, &style, &themer).unwrap());
-                                    }
-                                }
-                                stack.start(my_circle);
-                                end!(group, stack);
-                            }
-                        }
-                    } else if path == "text" {
-                        match t {
-                            svg::node::element::tag::Type::Start => {
-                                let mut my_text = Text::new().set("class", layer.to_string());
-                                for a in attributes {
-                                    if a.0 != "style" {
-                                        my_text = my_text.set(a.0, a.1);
-                                    } else {
-                                        my_text = my_text
-                                            .set(a.0, clean_style(&a.1, &style, &themer).unwrap());
-                                    }
-                                }
-                                stack.start(my_text);
-                            }
-                            svg::node::element::tag::Type::End => {
-                                end!(group, stack);
-                            }
-                            svg::node::element::tag::Type::Empty => {
-                                let mut my_text = Text::new().set("class", layer.to_string());
-                                for a in attributes {
-                                    if a.0 != "style" {
-                                        my_text = my_text.set(a.0, a.1);
-                                    } else {
-                                        my_text = my_text
-                                            .set(a.0, clean_style(&a.1, &style, &themer).unwrap());
-                                    }
-                                }
-                                stack.start(my_text);
-                                end!(group, stack);
-                            }
-                        }
-                    } else if path == "desc" {
-                        match t {
-                            svg::node::element::tag::Type::Start => {
-                                let mut my_desc =
-                                    Description::new().set("class", layer.to_string());
-                                for a in attributes {
-                                    if a.0 != "style" {
-                                        my_desc = my_desc.set(a.0, a.1);
-                                    } else {
-                                        my_desc = my_desc
-                                            .set(a.0, clean_style(&a.1, &style, &themer).unwrap());
-                                    }
-                                }
-                                stack.start(my_desc);
-                            }
-                            svg::node::element::tag::Type::End => {
-                                end!(group, stack);
-                            }
-                            svg::node::element::tag::Type::Empty => {
-                                let mut my_desc =
-                                    Description::new().set("class", layer.to_string());
-                                for a in attributes {
-                                    if a.0 != "style" {
-                                        my_desc = my_desc.set(a.0, a.1);
-                                    } else {
-                                        my_desc = my_desc
-                                            .set(a.0, clean_style(&a.1, &style, &themer).unwrap());
-                                    }
-                                }
-                                stack.start(my_desc);
-                                end!(group, stack);
-                            }
-                        }
-                    } else if path == "title" {
-                        match t {
-                            svg::node::element::tag::Type::Start => {
-                                let mut my_title = Title::new().set("class", layer.to_string());
-                                for a in attributes {
-                                    if a.0 != "style" {
-                                        my_title = my_title.set(a.0, a.1);
-                                    } else {
-                                        my_title = my_title
-                                            .set(a.0, clean_style(&a.1, &style, &themer).unwrap());
-                                    }
-                                }
-                                stack.start(my_title);
-                            }
-                            svg::node::element::tag::Type::End => {
-                                end!(group, stack);
-                            }
-                            _ => {}
-                        }
-                    } else if path != "svg" {
-                        warn!("O {:?}", path);
+        for item in document.root().unwrap().nodes() {
+            match item.name.as_str() {
+                el::SEGMENT => self.plot(SegmentElement { item }, layer, &mut plot_items)?,
+                el::GR_LINE => self.plot(GrLineElement { item }, layer, &mut plot_items)?,
+                el::GR_POLY => self.plot(GrPolyElement { item }, layer, &mut plot_items)?,
+                el::GR_CIRCLE => self.plot(GrCircleElement { item }, layer, &mut plot_items)?,
+                el::VIA => self.plot(ViaElement { item }, layer, &mut plot_items)?,
+                el::GR_TEXT => self.plot(GrTextElement { item }, layer, &mut plot_items)?,
+                el::FOOTPRINT => self.plot(FootprintElement { item }, layer, &mut plot_items)?,
+                el::ZONE => self.plot(ZoneElement { item }, layer, &mut plot_items)?,
+                _ => {
+                    if log_enabled!(Level::Error) && !SKIP_ELEMENTS.contains(&item.name.as_str()) {
+                        error!("unparsed node: {}", item.name);
                     }
                 }
-                Event::Text(text) => {
-                    stack.start(text.to_string());
-                }
-                Event::Error(error) => {
-                    error!("error: {}", error);
-                }
-                Event::Comment(_) | Event::Declaration(_) | Event::Instruction(_) => {}
             }
         }
-        document = document.add(group);
+        Ok(plot_items)
     }
+}
 
-    for layer in layers {
-        document = document.add(
-            Use::new()
-                .set("href", format!("#{}-{}", name, layer))
-                .set("x", 0)
-                .set("y", 0),
-        );
-    }
-
-    //save the target svg
-    match svg::save(output.clone(), &document) {
-        Ok(_) => {}
-        Err(err) => {
-            return Err(Error::IoError(format!(
-                "Can not open output File: {} ({})",
-                output, err
-            )));
+macro_rules! stroke {
+    ($sexp:expr) => {
+        if let Some(stroke) = $sexp.query(el::STROKE).next() {
+            stroke.value(el::WIDTH).unwrap()
+        } else {
+            1.0
         }
-    }
-
-    //move the target folder
-    let last_slash = output.rfind('/').unwrap(); //TODO fails when output is only file name without path
-    if let Err(err) = check_directory(&format!("{}/pcb", &output[0..last_slash])) {
-        return Err(Error::IoError(format!(
-            "{} can not create output directory: '{}'",
-            "Error:", //.red(),
-            err       //TODO .bold()
-        )));
     };
+}
 
-    let paths = fs::read_dir(format!("{}/{}", basedir, tmp_folder)).unwrap();
-    for path in paths {
-        let filename = path.as_ref().unwrap().file_name(); //[last_slash+1 .. path.len()];
-        let target = format!(
-            "{}/pcb/{}",
-            &output[0..last_slash],
-            filename.as_os_str().to_str().unwrap()
-        );
-        fs::copy(path.unwrap().path().to_str().unwrap(), target)?;
+trait PlotElement<T> {
+    fn plot(&self, item: T, layer: &str, plot_items: &mut Vec<PlotItem>) -> Result<(), Error>;
+}
+
+struct GrLineElement<'a> {
+    item: &'a Sexp,
+}
+
+impl<'a> PlotElement<GrLineElement<'a>> for PcbPlot<'a> {
+    fn plot(
+        &self,
+        item: GrLineElement,
+        layer: &str,
+        plot_items: &mut Vec<PlotItem>,
+    ) -> Result<(), Error> {
+        if PcbPlot::is_layer(item.item, layer) {
+            let start: Array1<f64> = item.item.value(el::START).unwrap();
+            let end: Array1<f64> = item.item.value(el::END).unwrap();
+            let width: f64 = stroke!(item.item);
+
+            let mut stroke = Stroke::new();
+            stroke.linewidth = width;
+            stroke.linecolor = Color::Rgb(0, 255, 0);
+
+            plot_items.push(PlotItem::Line(
+                10,
+                Line::new(
+                    arr2(&[[start[0], start[1]], [end[0], end[1]]]),
+                    stroke,
+                    None,
+                ),
+            ));
+        }
+        Ok(())
     }
-    fs::remove_dir_all(format!("{}/{}", basedir, tmp_folder))?;
-    Ok((width, height))
+}
+
+struct GrPolyElement<'a> {
+    item: &'a Sexp,
+}
+
+impl<'a> PlotElement<GrPolyElement<'a>> for PcbPlot<'a> {
+    fn plot(
+        &self,
+        item: GrPolyElement,
+        layer: &str,
+        plot_items: &mut Vec<PlotItem>,
+    ) -> Result<(), Error> {
+        let mut pts: Array2<f64> = Array2::zeros((0, 2));
+        if PcbPlot::is_layer(item.item, layer) {
+            for pt in item.item.query(el::PTS) {
+                for xy in pt.query(el::XY) {
+                    pts.push_row(ArrayView::from(&[xy.get(0).unwrap(), xy.get(1).unwrap()]))
+                        .unwrap();
+                }
+            }
+            let layer: String = item.item.value(el::LAYER).unwrap();
+            let mut stroke = Stroke::new();
+            stroke.linewidth = 0.0;
+            let color = self.theme.layer_color(&[Style::from(layer)]);
+            stroke.linecolor = color.clone();
+            stroke.fillcolor = color;
+
+            plot_items.push(PlotItem::Polyline(20, Polyline::new(pts, stroke)));
+        }
+        Ok(())
+    }
+}
+
+struct GrCircleElement<'a> {
+    item: &'a Sexp,
+}
+
+impl<'a> PlotElement<GrCircleElement<'a>> for PcbPlot<'a> {
+    fn plot(
+        &self,
+        item: GrCircleElement,
+        layer: &str,
+        plot_items: &mut Vec<PlotItem>,
+    ) -> Result<(), Error> {
+        let circle_layer: String = item.item.value(el::LAYER).unwrap();
+        if PcbPlot::is_layer_in(layer, &circle_layer) {
+            let center: Array1<f64> = item.item.value(el::CENTER).unwrap();
+            let end: Array1<f64> = item.item.value(el::END).unwrap();
+            let width = stroke!(item.item);
+
+            let mut stroke = Stroke::new();
+            stroke.linewidth = width;
+            stroke.linecolor = self.theme.layer_color(&[Style::from(circle_layer)]);
+            //TODO fill
+
+            let radius = Circle::radius(&center, &end);
+            plot_items.push(PlotItem::Circle(1, Circle::new(center, radius, stroke)));
+        }
+        Ok(())
+    }
+}
+
+struct ZoneElement<'a> {
+    item: &'a Sexp,
+}
+
+impl<'a> PlotElement<ZoneElement<'a>> for PcbPlot<'a> {
+    fn plot(
+        &self,
+        item: ZoneElement,
+        layer: &str,
+        plot_items: &mut Vec<PlotItem>,
+    ) -> Result<(), Error> {
+        for polygon in item.item.query("filled_polygon") {
+            let mut pts: Array2<f64> = Array2::zeros((0, 2));
+            if PcbPlot::is_layer(polygon, layer) {
+                for pt in polygon.query(el::PTS) {
+                    for xy in pt.query(el::XY) {
+                        pts.push_row(ArrayView::from(&[xy.get(0).unwrap(), xy.get(1).unwrap()]))
+                            .unwrap();
+                    }
+                }
+                let layer: String = polygon.value(el::LAYER).unwrap();
+                let mut stroke = Stroke::new();
+                stroke.linewidth = 0.0;
+                let color = self.theme.layer_color(&[Style::from(layer)]);
+                stroke.linecolor = color.clone();
+                stroke.fillcolor = color;
+
+                plot_items.push(PlotItem::Polyline(20, Polyline::new(pts, stroke)));
+            }
+        }
+        Ok(())
+    }
+}
+
+struct SegmentElement<'a> {
+    item: &'a Sexp,
+}
+
+impl<'a> PlotElement<SegmentElement<'a>> for PcbPlot<'a> {
+    fn plot(
+        &self,
+        item: SegmentElement,
+        layer: &str,
+        plot_items: &mut Vec<PlotItem>,
+    ) -> Result<(), Error> {
+        if PcbPlot::is_layer(item.item, layer) {
+            let start: Array1<f64> = item.item.value(el::START).unwrap();
+            let end: Array1<f64> = item.item.value(el::END).unwrap();
+            let width: f64 = item.item.value(el::WIDTH).unwrap();
+            let mut stroke = Stroke::new();
+            stroke.linewidth = width;
+            stroke.linecolor = self.theme.layer_color(&[Style::from(layer.to_string())]);
+
+            plot_items.push(PlotItem::Line(
+                10,
+                Line::new(
+                    arr2(&[[start[0], start[1]], [end[0], end[1]]]),
+                    stroke,
+                    None,
+                ),
+            ));
+        }
+        Ok(())
+    }
+}
+
+struct ViaElement<'a> {
+    item: &'a Sexp,
+}
+
+impl<'a> PlotElement<ViaElement<'a>> for PcbPlot<'a> {
+    fn plot(
+        &self,
+        item: ViaElement,
+        layer: &str,
+        plot_items: &mut Vec<PlotItem>,
+    ) -> Result<(), Error> {
+        let at = sexp::utils::at(item.item).unwrap();
+        let size: f64 = item.item.value(el::SIZE).unwrap();
+        let drill: f64 = item.item.value("drill").unwrap();
+        let layers_node: &Sexp = item.item.query("layers").next().expect("expect layers");
+        let layers: Vec<String> = layers_node.values();
+        let linewidth = size - drill;
+
+        for act_layer in layers {
+            if PcbPlot::is_layer_in(&act_layer, layer) {
+                let mut stroke = Stroke::new();
+                stroke.linewidth = linewidth;
+                stroke.linecolor = self.theme.layer_color(&[Style::ViaThrough]);
+                stroke.fillcolor = self.theme.layer_color(&[Style::ViaHole]);
+
+                plot_items.push(PlotItem::Circle(
+                    10,
+                    Circle::new(at.clone(), size - linewidth, stroke),
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
+//23092   │     (gr_text "summe"
+//23093   │         (locked yes)
+//23094   │         (at 68.9 158.06 0)
+//23095   │         (layer "B.SilkS")
+//23096   │         (uuid "9c8fdf06-c8c5-49d5-b787-6d9bada2d902")
+//23097   │         (effects
+//23098   │             (font
+//23099   │                 (size 0.8 1)
+//23100   │                 (thickness 0.15)
+//23101   │             )
+//23102   │             (justify left mirror)
+//23103   │         )
+//23104   │     )
+
+struct GrTextElement<'a> {
+    item: &'a Sexp,
+}
+
+impl<'a> PlotElement<GrTextElement<'a>> for PcbPlot<'a> {
+    fn plot(
+        &self,
+        item: GrTextElement,
+        layer: &str,
+        plot_items: &mut Vec<PlotItem>,
+    ) -> Result<(), Error> {
+        let at = sexp::utils::at(item.item).unwrap();
+        let text = item.item.get(0).unwrap();
+        let effects = Effects::from(item.item);
+        let text_layer: String = item.item.value(el::LAYER).unwrap();
+
+        if !PcbPlot::is_layer(item.item, layer) {
+            //TODO stroke is not used
+            let mut stroke = Stroke::new();
+            stroke.linewidth = 0.1;
+            stroke.linecolor = self.theme.layer_color(&[Style::from(text_layer)]);
+
+            plot_items.push(PlotItem::Text(
+                10,
+                Text::new(
+                    at, 0.0, text,
+                    //self.theme.get_stroke(item.item.into(), &[Style::Wire]),
+                    effects, false,
+                ),
+            ));
+        }
+        Ok(())
+    }
+}
+
+struct FootprintElement<'a> {
+    item: &'a Sexp,
+}
+
+impl FootprintElement<'_> {
+    fn is_flipped(&self) -> bool {
+        <Sexp as SexpValueQuery<String>>::value(self.item, el::LAYER).unwrap() == "B.Cu"
+    }
+}
+
+impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
+    fn plot(
+        &self,
+        item: FootprintElement,
+        layer: &str,
+        plot_items: &mut Vec<PlotItem>,
+    ) -> Result<(), Error> {
+        //create a tmp element to fix the angle and mirror
+
+        for element in item.item.nodes() {
+            let name: &String = &element.name;
+            if name == "fp_arc" {
+                //(fp_arc
+                //	(start -0.29 -1.235516)
+                //	(mid 1.366487 -1.987659)
+                //	(end 2.942335 -1.078608)
+                //	(stroke
+                //		(width 0.12)
+                //		(type solid)
+                //	)
+                //	(layer "F.SilkS")
+                //	(uuid "52502052-4743-4caa-863e-91187c15e848")
+                //)
+                let arc_start: Array1<f64> = element.value(el::GRAPH_START).unwrap();
+                let arc_mid: Array1<f64> = element.value("mid").unwrap();
+                let arc_end: Array1<f64> = element.value(el::GRAPH_END).unwrap();
+                let width: f64 = stroke!(element);
+                let act_layer: String = element.value(el::LAYER).unwrap();
+
+                if PcbPlot::is_layer_in(layer, &act_layer) {
+                    let mut stroke = Stroke::new();
+                    stroke.linewidth = width;
+                    stroke.linecolor = self.theme.layer_color(&[Style::from(act_layer)]);
+                    plot_items.push(PlotItem::Arc(
+                        100,
+                        Arc::new(
+                            Shape::transform(item.item, &arc_start),
+                            Shape::transform(item.item, &arc_mid),
+                            Shape::transform(item.item, &arc_end),
+                            0.0,
+                            None,
+                            stroke,
+                        ),
+                    ));
+                }
+            } else if name == el::FP_LINE {
+                let line_layer: String = element.value(el::LAYER).unwrap();
+
+                if PcbPlot::is_layer_in(layer, &line_layer) {
+                    let line_start: Array1<f64> = element.value(el::START).unwrap();
+                    let line_end: Array1<f64> = element.value(el::END).unwrap();
+                    let line_width = stroke!(element);
+
+                    let mut stroke = Stroke::new();
+                    stroke.linewidth = line_width;
+                    stroke.linecolor = self.theme.layer_color(&[Style::from(line_layer)]);
+
+                    plot_items.push(PlotItem::Line(
+                        10,
+                        Line::new(
+                            Shape::transform_pad(
+                                item.item,
+                                item.is_flipped(),
+                                0.0,
+                                &arr2(&[
+                                    [line_start[0], line_start[1]],
+                                    [line_end[0], line_end[1]],
+                                ]),
+                            ),
+                            stroke,
+                            None,
+                        ),
+                    ));
+                }
+            } else if name == el::FP_POLY {
+                let poly_layer: String = element.value(el::LAYER).unwrap();
+
+                if PcbPlot::is_layer_in(layer, &poly_layer) {
+                    let mut pts: Array2<f64> = Array2::zeros((0, 2));
+                    for pt in element.query(el::PTS) {
+                        for xy in pt.query(el::XY) {
+                            pts.push_row(ArrayView::from(&[
+                                xy.get(0).unwrap(),
+                                xy.get(1).unwrap(),
+                            ]))
+                            .unwrap();
+                        }
+                    }
+                    let line_width: f64 = stroke!(element);
+
+                    let mut stroke = Stroke::new();
+                    stroke.linewidth = line_width;
+                    stroke.linecolor = self.theme.layer_color(&[Style::from(poly_layer)]);
+
+                    plot_items.push(PlotItem::Polyline(
+                        20,
+                        Polyline::new(
+                            Shape::transform_pad(item.item, item.is_flipped(), 0.0, &pts),
+                            stroke,
+                        ),
+                    ));
+                }
+            } else if name == el::FP_CIRCLE {
+                let center: Array1<f64> = element.value(el::CENTER).unwrap();
+                let end: Array1<f64> = element.value(el::END).unwrap();
+                let line_width = stroke!(element);
+                let circle_layer: String = element.value(el::LAYER).unwrap();
+
+                if PcbPlot::is_layer_in(layer, &circle_layer) {
+                    let mut stroke = Stroke::new();
+                    stroke.linewidth = line_width;
+                    stroke.linecolor = self.theme.layer_color(&[Style::from(circle_layer)]);
+
+                    let radius = Circle::radius(&center, &end);
+                    plot_items.push(PlotItem::Circle(
+                        1,
+                        Circle::new(
+                            Shape::transform_pad(item.item, item.is_flipped(), 0.0, &center),
+                            radius,
+                            stroke,
+                        ),
+                    ));
+                }
+            } else if name == el::FP_TEXT {
+                //(fp_text user "KEEPOUT"
+                //	(at 0 0 -90)
+                //	(layer "Cmts.User")
+                //	(uuid "76715af0-64ec-4e97-b724-005a93bf8b23")
+                //	(effects
+                //		(font
+                //			(size 0.4 0.4)
+                //			(thickness 0.051)
+                //		)
+                //	)
+                //)
+
+                let at = sexp::utils::at(item.item).unwrap();
+                let angle = sexp::utils::angle(item.item).unwrap_or(0.0);
+                let act_layer: String = element.value(el::LAYER).unwrap();
+
+                if PcbPlot::is_layer_in(layer, &act_layer) {
+                    let effects = Effects::from(item.item);
+                    let text: String = element.get(1).unwrap();
+
+                    plot_items.push(PlotItem::Text(
+                        10,
+                        Text::new(
+                            Shape::transform(item.item, &at),
+                            angle,
+                            text,
+                            effects,
+                            false,
+                        ),
+                    ));
+                }
+            } else if name == el::PROPERTY {
+                //(property "Reference" "J4"
+                //	(at -4.13 -5.63 90)
+                //	(layer "F.SilkS")
+                //	(uuid "34c2fb4d-c21d-4d83-98dd-b5ff38696392")
+                //	(effects
+                //		(font
+                //			(size 1 1)
+                //			(thickness 0.15)
+                //		)
+                //	)
+                //)
+
+                //there are properties without a position
+                if element.query(el::AT).next().is_none() {
+                    continue;
+                }
+                let text: String = element.get(1).unwrap();
+
+                let at = sexp::utils::at(element).unwrap();
+                let angle = sexp::utils::angle(element).unwrap_or(0.0);
+                let act_layer: String = element.value(el::LAYER).unwrap();
+
+                if PcbPlot::is_layer_in(layer, &act_layer) {
+                    let mut effects = Effects::from(item.item);
+                    effects.font_color = self.theme.layer_color(&[Style::from(act_layer)]);
+
+                    plot_items.push(PlotItem::Text(
+                        10,
+                        Text::new(
+                            Shape::transform(item.item, &at),
+                            angle,
+                            text,
+                            effects,
+                            false,
+                        ),
+                    ));
+                }
+            } else if name == el::PAD {
+                //(pad "TN" thru_hole circle
+                //	(at 0 -3.38 180)
+                //	(size 2.13 2.13)
+                //	(drill 1.42)
+                //	(layers "*.Cu" "*.Mask")
+                //	(remove_unused_layers no)
+                //	(net 28 "unconnected-(J5-PadTN)")
+                //	(pintype "passive+no_connect")
+                //	(uuid "e935c61c-e7a7-4f98-90a3-eede5998165e")
+                //)
+
+                let at = sexp::utils::at(element).unwrap();
+                let angle = sexp::utils::angle(element).unwrap_or(0.0);
+
+                let pad_type =
+                    PadType::from(<Sexp as SexpValueQuery<String>>::get(element, 1).unwrap());
+                let pad_shape =
+                    PadShape::from(<Sexp as SexpValueQuery<String>>::get(element, 2).unwrap());
+
+                let layers_node: &Sexp = element.query("layers").next().expect("expect layers");
+                let layers: Vec<String> = layers_node.values();
+                let pad_size: Array1<f64> = element.value(el::SIZE).unwrap();
+
+                for act_layer in layers {
+                    if PcbPlot::is_layer_in(layer, &act_layer) {
+                        match pad_shape {
+                        //match PadType::from(<Sexp as SexpValueQuery<String>>::get(element, 1).unwrap()) {
+                            PadShape::Circle => {
+                                let front = act_layer.starts_with("F."); //this should be set per footprint
+                                if let PadType::ThruHole = pad_type {
+                                    let sexp_drill = element.query(el::DRILL).next().unwrap();
+                                    let drill = DrillHole::from(sexp_drill);
+
+                                    let linewidth = pad_size[0] - drill.diameter;
+                                    let mut stroke = Stroke::new();
+                                    stroke.linewidth = linewidth;
+                                    if layer.starts_with("F.") {
+                                        stroke.fillcolor =
+                                            self.theme.layer_color(&[Style::PadThroughHole]);
+                                    } else {
+                                        stroke.linecolor = self.theme.layer_color(&[Style::PadBack]);
+                                    }
+
+                                    plot_items.push(PlotItem::Circle(
+                                        10,
+                                        Circle::new(
+                                            Shape::transform_pad(item.item, front, angle, &at),
+                                            (pad_size[0] / 2.0) - linewidth / 2.0,
+                                            stroke,
+                                        ),
+                                    ));
+                                } else {
+                                    warn!("unknown circle pad type {:?}", pad_type);
+                                }
+                            }
+                            PadShape::Oval => {
+                                //} else if pad_type == "thru_hole" && pad_sub_type == "oval" {
+                                //(pad "" thru_hole oval
+                                //	(at 0 -4.84 180)
+                                //	(size 2.72 3.24)
+                                //	(drill oval 1.1 1.8)
+                                //	(layers "*.Cu" "*.Mask")
+                                //	(remove_unused_layers no)
+                                //	(uuid "a6691f96-af2b-47d4-b2be-bba45e234131")
+                                //)
+                                let at = sexp::utils::at(element).unwrap();
+                                let sexp_drill = element.query(el::DRILL).next().unwrap();
+                                let drill = DrillHole::from(sexp_drill);
+                                let size: f64 = drill.diameter;
+                                let drill: f64 = drill.width.unwrap_or(0.0);
+
+                                let linewidth = size - drill;
+                                let mut stroke = Stroke::new();
+                                stroke.linewidth = linewidth;
+                                if layer.starts_with("F.") {
+                                    stroke.fillcolor = self.theme.layer_color(&[Style::PadThroughHole]);
+                                } else {
+                                    stroke.linecolor = self.theme.layer_color(&[Style::PadBack]);
+                                }
+
+                                plot_items.push(PlotItem::Circle(
+                                    10,
+                                    Circle::new(
+                                        Shape::transform_pad(item.item, item.is_flipped(), angle, &at),
+                                        size - 2.0 * linewidth,
+                                        stroke,
+                                    ),
+                                ));
+                            }
+                            PadShape::Rect => {
+                                //} else if pad_type == "thru_hole" && pad_sub_type == "rect" {
+                                //(pad "1" thru_hole rect
+                                //	(at 0 0 180)
+                                //	(size 1.8 1.8)
+                                //	(drill 0.9)
+                                //	(layers "*.Cu" "*.Mask")
+                                //	(remove_unused_layers no)
+                                //	(net 2 "GND")
+                                //	(pinfunction "K")
+                                //	(pintype "passive")
+                                //	(uuid "1978304b-f521-4fe8-bb5e-3f65076a5c96")
+                                //)
+                                let at = sexp::utils::at(element).unwrap();
+                                let size: Array1<f64> = element.value("size").unwrap();
+
+                                let mut stroke = Stroke::new();
+                                stroke.linewidth = 0.1;
+                                if layer.starts_with("F.") {
+                                    stroke.linecolor = self.theme.layer_color(&[Style::PadFront]);
+                                } else {
+                                    stroke.linecolor = self.theme.layer_color(&[Style::PadBack]);
+                                }
+                                stroke.fillcolor = self.theme.layer_color(&[Style::PadThroughHole]);
+
+                                let pts: Array2<f64> =
+                                    arr2(&[[at[0], at[1]], [at[0] - size[0], at[1] - size[1]]]);
+                                let pts = pts + arr1(&[size[0] / 2.0, size[1] / 2.0]);
+                                plot_items.push(PlotItem::Rectangle(
+                                    1,
+                                    crate::Rectangle::new(
+                                        Shape::transform_pad(item.item, item.is_flipped(), angle, &pts),
+                                        stroke.clone(),
+                                    ),
+                                ));
+                                let sexp_drill = element.query(el::DRILL).next().unwrap();
+                                let drill = DrillHole::from(sexp_drill);
+                                plot_items.push(PlotItem::Circle(
+                                    10,
+                                    Circle::new(
+                                        Shape::transform(item.item, &at),
+                                        drill.width.unwrap_or(0.0),
+                                        stroke,
+                                    ),
+                                ));
+                            }
+                            PadShape::RoundRect => {
+                                //} else if pad_sub_type == "roundrect" {
+                                let at = sexp::utils::at(element).unwrap();
+                                let size: Array1<f64> = element.value("size").unwrap();
+
+                                let mut stroke = Stroke::new();
+                                stroke.linewidth = 0.1;
+                                if layer.starts_with("F.") {
+                                    stroke.linecolor = self.theme.layer_color(&[Style::PadFront]);
+                                } else {
+                                    stroke.linecolor = self.theme.layer_color(&[Style::PadBack]);
+                                }
+                                stroke.fillcolor = self.theme.layer_color(&[Style::PadThroughHole]);
+
+                                let pts: Array2<f64> =
+                                    arr2(&[[at[0], at[1]], [at[0] - size[0], at[1] - size[1]]]);
+                                let pts = pts + arr1(&[size[0] / 2.0, size[1] / 2.0]);
+                                plot_items.push(PlotItem::Rectangle(
+                                    1,
+                                    crate::Rectangle::new(
+                                        Shape::transform_pad(item.item, item.is_flipped(), angle, &pts),
+                                        stroke.clone(),
+                                    ),
+                                ));
+
+                                if let PadType::ThruHole = pad_type {
+                                    let sexp_drill = element.query(el::DRILL).next().unwrap();
+                                    let drill = DrillHole::from(sexp_drill);
+                                    plot_items.push(PlotItem::Circle(
+                                        10,
+                                        Circle::new(
+                                            Shape::transform_pad(
+                                                item.item,
+                                                item.is_flipped(),
+                                                angle,
+                                                &at,
+                                            ),
+                                            drill.diameter / 2.0,
+                                            stroke,
+                                        ),
+                                    ));
+                                } else if !matches!(PadType::Smd, pad_type) {
+                                    warn!("unknown roundrect pad type {:?}", pad_type);
+                                }
+                            }
+                            _ => {
+                                debug!("unknown pad shape {:?}", pad_shape);
+                            }
+                        }
+                    }
+                }
+            } else if !SKIP_FP_ELEMENTS.contains(&name.as_str()) {
+                log::trace!("Unknown footprint element: {:?}", name);
+            }
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod test {
-    use super::clean_style;
+    use ndarray::arr1;
+    use sexp::{SexpParser, SexpTree};
+
+    // parse drillhome
+    #[test]
+    fn test_parse_drill() {
+        let drill_text = "(drill 2.2)";
+        let sexp = SexpParser::from(drill_text.to_string());
+        let tree = SexpTree::from(sexp.iter()).unwrap();
+        let drill: super::DrillHole = super::DrillHole::from(tree.root().unwrap());
+        assert!(!drill._oval);
+        assert_eq!(drill.diameter, 2.2);
+        assert_eq!(drill.width, None);
+        assert_eq!(drill._offset, None);
+    }
+    #[test]
+    fn test_parse_drill_oval() {
+        let drill_text = "(drill oval 1.1 1.8)";
+        let sexp = SexpParser::from(drill_text.to_string());
+        let tree = SexpTree::from(sexp.iter()).unwrap();
+        let drill: super::DrillHole = super::DrillHole::from(tree.root().unwrap());
+        assert!(drill._oval);
+        assert_eq!(drill.diameter, 1.1);
+        assert_eq!(drill.width, Some(1.8));
+        assert_eq!(drill._offset, None);
+    }
+    #[test]
+    fn test_parse_drill_() {
+        let drill_text = "(drill oval 1.1 1.8 (offset 1.0 2.0))";
+        let sexp = SexpParser::from(drill_text.to_string());
+        let tree = SexpTree::from(sexp.iter()).unwrap();
+        let drill: super::DrillHole = super::DrillHole::from(tree.root().unwrap());
+        assert!(drill._oval);
+        assert_eq!(drill.diameter, 1.1);
+        assert_eq!(drill.width, Some(1.8));
+        assert_eq!(drill._offset, Some(arr1(&[1.0, 2.0])));
+    }
 
     #[test]
-    fn iterate() {
-        let style = crate::Style::FCu;
-        let themer = crate::Themer::new(crate::Theme::Kicad2020);
-        let res = clean_style("fill:#000000; fill-opacity:0.0; stroke:#000000; stroke-width:0.0000; stroke-opacity:1; stroke-linecap:round; stroke-linejoin:round;", &style, &themer);
-        assert_eq!("fill:#000000; fill-opacity:0.0; stroke:#000000; stroke-width:0.0000; stroke-opacity:1; stroke-linecap:round; stroke-linejoin:round; ", res.unwrap());
+    fn test_is_layer_in() {
+        assert!(super::PcbPlot::is_layer_in("F.Cu", "F.Cu"));
+        assert!(!super::PcbPlot::is_layer_in("F.Cu", "B.Cu"));
+        assert!(super::PcbPlot::is_layer_in("F.Cu", "*.Cu"));
+        assert!(!super::PcbPlot::is_layer_in("F.Cu", "*.SilkS"));
+        assert!(!super::PcbPlot::is_layer_in("Edge.Cuts", "*.Cu"));
     }
     #[test]
-    fn iterate_with_color() {
-        let style = crate::Style::FCu;
-        let themer = crate::Themer::new(crate::Theme::Kicad2020);
-        let res = clean_style("fill:#4D7FC4; fill-opacity:0.0; stroke:#4D7FC4; stroke-width:0.2500; stroke-opacity:1; stroke-linecap:round; stroke-linejoin:round;", &style, &themer);
-        assert_eq!("fill:#c83434; fill-opacity:0.0; stroke:#c83434; stroke-width:0.2500; stroke-opacity:1; stroke-linecap:round; stroke-linejoin:round; ", res.unwrap());
-    }
+    fn iterate_with_color() {}
 }

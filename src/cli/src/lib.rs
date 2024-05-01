@@ -44,7 +44,7 @@ mod python;
 
 use crate::error::Error;
 
-use plotter::Theme;
+use plotter::{pcb::LAYERS, Theme};
 
 use sexp::{el, SexpParser, SexpTree, State};
 
@@ -564,9 +564,12 @@ enum Commands {
         /// scale the plot
         #[arg(short, long, default_value_t = 1.0)]
         scale: f64,
-        /// select the pages to plot
+        /// select the schema pages to plot
         #[arg(short, long)]
         pages: Option<Vec<usize>>,
+        /// select the PCB layers to plot
+        #[arg(short, long)]
+        layers: Option<Vec<String>>,
     },
     /// search for a symbol in the kicad library.
     Search {
@@ -614,8 +617,8 @@ pub fn main() -> PyResult<()> {
         Some(Commands::Erc { input, output }) => {
             erc(&input, output)
         },
-        Some(Commands::Plot { input, output, border, theme, scale, pages}) => {
-            Ok(plotter::plot(&input, &output, border, theme, scale, pages)?)
+        Some(Commands::Plot { input, output, border, theme, scale, pages, layers}) => {
+            Ok(plotter::plot(&input, &output, border, theme, scale, pages, layers)?)
         },
         Some(Commands::Convert { input, output }) => {
             convert(&input, &output)
