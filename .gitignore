@@ -20,4 +20,4 @@ elektron.egg-info/
 _files
 samples/notebook/public/
 samples/notebook/resources/
-
+src/plotter/out.svg
