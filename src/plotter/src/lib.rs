@@ -33,6 +33,12 @@ const DEFAULT_FONT: &str = "osifont";
 // ---                                             main funtion                                            ---
 // -----------------------------------------------------------------------------------------------------------
 
+///extract the filename from a path and remove the extension
+fn name_from_path(path: &str) -> String {
+    path.split('/').last().unwrap().split('.').next().unwrap().to_string()
+}
+
+
 /// plot the document
 ///
 /// The filetype is selected by the output file extension. When no output filename is given the
@@ -112,7 +118,7 @@ pub fn plot(input: &str, output: &str, border: bool, theme: Theme, scale: f64, p
 
             let mut plotter = pcb::PcbPlot::new()
                 .border(border).theme(theme).scale(scale)
-                .name(input);
+                .name(&name_from_path(input));
 
             plotter.open(input)?;
             debug!("write first page to {}", output);
@@ -437,7 +443,7 @@ pub trait PlotterImpl<'a> {
         plot_items: &[PlotItem],
         size: Array2<f64>,
         scale: f64,
-        name: Option<String>,
+        name: String,
     ) -> Result<(), Error>;
 }
 
@@ -866,6 +872,7 @@ pub struct Line {
     pub pts: Array2<f64>,
     pub stroke: Stroke,
     pub linecap: Option<LineCap>,
+    pub class: Option<String>,
 }
 impl Line {
     ///Line from absolute points with style.
@@ -873,11 +880,13 @@ impl Line {
         pts: Array2<f64>,
         stroke: Stroke,
         linecap: Option<LineCap>,
+        class: Option<String>,
     ) -> Line {
         Line {
             pts,
             stroke,
             linecap,
+            class,
         }
     }
 }
@@ -885,22 +894,24 @@ impl Line {
 pub struct Polyline {
     pub pts: Array2<f64>,
     pub stroke: Stroke,
+    pub class: Option<String>,
 }
 
 impl Polyline {
-    pub fn new(pts: Array2<f64>, stroke: Stroke) -> Polyline {
-        Polyline { pts, stroke }
+    pub fn new(pts: Array2<f64>, stroke: Stroke, class: Option<String>) -> Polyline {
+        Polyline { pts, stroke, class }
     }
 }
 
 pub struct Rectangle {
     pub pts: Array2<f64>,
     pub stroke: Stroke,
+    pub class: Option<String>,
 }
 
 impl Rectangle {
-    pub fn new(pts: Array2<f64>, stroke: Stroke) -> Rectangle {
-        Rectangle { pts, stroke }
+    pub fn new(pts: Array2<f64>, stroke: Stroke, class: Option<String>) -> Rectangle {
+        Rectangle { pts, stroke, class  }
     }
 }
 
@@ -909,14 +920,16 @@ pub struct Circle {
     pub pos: Array1<f64>,
     pub radius: f64,
     pub stroke: Stroke,
+    pub class: Option<String>,
 }
 
 impl Circle {
-    pub fn new(pos: Array1<f64>, radius: f64, stroke: Stroke) -> Circle {
+    pub fn new(pos: Array1<f64>, radius: f64, stroke: Stroke, class: Option<String>) -> Circle {
         Circle {
             pos,
             radius,
             stroke,
+            class,
         }
     }
     pub fn radius(center: &Array1<f64>, end: &Array1<f64>) -> f64 {
@@ -934,6 +947,7 @@ pub struct Arc {
     pub mirror: Option<String>,
     pub center: Array1<f64>,
     pub stroke: Stroke,
+    pub class: Option<String>,
 }
 impl Arc {
     #[allow(clippy::too_many_arguments)]
@@ -944,6 +958,7 @@ impl Arc {
         angle: f64,
         mirror: Option<String>,
         stroke: Stroke,
+        class: Option<String>,
     ) -> Arc {
 
         let d = 2.0 * (start[0] * (mid[1] - end[1]) + mid[0] * (end[1] - start[1]) + end[0] * (start[1] - mid[1]));
@@ -967,6 +982,7 @@ impl Arc {
             angle,
             mirror,
             stroke,
+            class,
         }
     }
 }
@@ -978,6 +994,7 @@ pub struct Text {
     pub text: String,
     pub effects: Effects,
     pub label: bool,
+    pub class: Option<String>,
 }
 
 impl Text {
@@ -987,6 +1004,7 @@ impl Text {
         text: String,
         effects: Effects,
         label: bool,
+        class: Option<String>,
     ) -> Text {
         Text {
             pos,
@@ -994,6 +1012,7 @@ impl Text {
             text,
             effects,
             label,
+            class,
         }
     }
 }
@@ -1045,6 +1064,7 @@ pub trait Outline {
                 text,
                 themer.get_effects(effects.clone(), &[Style::Property]),
                 false,
+                None,
             ),
         );
 
@@ -1152,7 +1172,7 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
     let pts: Array2<f64> = arr2(&[[5.0, 5.0], [paper_dimension.0 - 5.0, paper_dimension.1 - 5.0]]);
     plotter.push(PlotItem::Rectangle(
         99,
-        Rectangle::new(pts, themer.get_stroke(Stroke::new(), &[Style::Border])),
+        Rectangle::new(pts, themer.get_stroke(Stroke::new(), &[Style::Border]), None),
     ));
 
     //horizontal raster
@@ -1164,7 +1184,7 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
             ]);
             plotter.push(PlotItem::Rectangle(
                 99,
-                Rectangle::new(pts, themer.get_stroke(Stroke::new(), &[Style::Border])),
+                Rectangle::new(pts, themer.get_stroke(Stroke::new(), &[Style::Border]), None),
             ));
         }
         for i in 0..(paper_dimension.0 as i32 / BORDER_RASTER + 1) {
@@ -1179,6 +1199,7 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
                     (i + 1).to_string(),
                     themer.get_effects(Effects::new(), &[Style::TextSheet]),
                     false,
+                    None,
                 ),
             ));
         }
@@ -1198,7 +1219,7 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
             ]);
             plotter.push(PlotItem::Rectangle(
                 99,
-                Rectangle::new(pts, themer.get_stroke(Stroke::new(), &[Style::Border])),
+                Rectangle::new(pts, themer.get_stroke(Stroke::new(), &[Style::Border]), None),
             ));
         }
         for i in 0..(paper_dimension.0 as i32 / BORDER_RASTER + 1) {
@@ -1213,6 +1234,7 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
                     letters[i as usize].to_string(),
                     themer.get_effects(Effects::new(),&[Style::TextSheet]),
                     false,
+                    None,
                 ),
             ));
         }
@@ -1225,7 +1247,7 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
     ]);
     plotter.push(PlotItem::Rectangle(
         99,
-        Rectangle::new(pts, themer.get_stroke(Stroke::new(), &[Style::Border])),
+        Rectangle::new(pts, themer.get_stroke(Stroke::new(), &[Style::Border]), None),
     ));
     plotter.push(PlotItem::Line(
         99,
@@ -1236,6 +1258,7 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
             ]),
             themer.get_stroke(Stroke::new(), &[Style::Border]),
             None,
+            Some(String::from("border")),
         ),
     ));
     plotter.push(PlotItem::Line(
@@ -1247,6 +1270,7 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
             ]),
             themer.get_stroke(Stroke::new(), &[Style::Border]),
             None,
+            Some(String::from("border")),
         ),
     ));
 
@@ -1266,6 +1290,7 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
                     comment.get(1).unwrap(),
                     themer.get_effects(effects.clone(), &[Style::TextHeader]),
                     false,
+                    None,
                 ),
             ));
         } else if key == 2 {
@@ -1277,6 +1302,7 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
                     comment.get(1).unwrap(),
                     themer.get_effects(effects.clone(), &[Style::TextHeader]),
                     false,
+                    None,
                 ),
             ));
         } else if key == 3 {
@@ -1288,6 +1314,7 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
                     comment.get(1).unwrap(),
                     themer.get_effects(effects.clone(), &[Style::TextHeader]),
                     false,
+                    None,
                 ),
             ));
         } else if key == 4 {
@@ -1299,6 +1326,7 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
                     comment.get(1).unwrap(),
                     themer.get_effects(effects.clone(), &[Style::TextHeader]),
                     false,
+                    None,
                 ),
             ));
         }
@@ -1312,6 +1340,7 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
                 company.get(0).unwrap(),
                 themer.get_effects(effects.clone(), &[Style::TextHeader]),
                 false,
+                None,
             ),
         ));
     }
@@ -1324,6 +1353,7 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
                 title.get(0).unwrap(),
                 themer.get_effects(effects.clone(), &[Style::TextHeader]),
                 false,
+                None,
             ),
         ));
     }
@@ -1336,6 +1366,7 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
             paper_size.to_string(),
             themer.get_effects(effects.clone(), &[Style::TextHeader]),
             false,
+            None,
         ),
     ));
 
@@ -1348,6 +1379,7 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
                 date.get(0).unwrap(),
                 themer.get_effects(effects.clone(), &[Style::TextHeader]),
                 false,
+                None,
             ),
         ));
     }
@@ -1363,6 +1395,7 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
                 ),
                 themer.get_effects(effects.clone(), &[Style::TextHeader]),
                 false,
+                None,
             ),
         ));
     }
@@ -1393,6 +1426,7 @@ mod tests {
             String::from("teststring"),
             themer.get_effects(Effects::new(), &[Style::TextPinName]),
             false,
+            None,
         );
         struct TestOutline;
         impl Outline for TestOutline {}
@@ -1403,7 +1437,7 @@ mod tests {
     }
     #[test]
     fn test_bounds_circle() {
-        let circle = Circle::new(arr1(&[100.0, 100.0]), 0.45, Stroke::new());
+        let circle = Circle::new(arr1(&[100.0, 100.0]), 0.45, Stroke::new(), None);
         struct TestOutline;
         impl Outline for TestOutline {}
 
@@ -1421,7 +1455,7 @@ mod tests {
     fn test_bounds_rect() {
         let rect = Rectangle::new(
             arr2(&[[100.0, 100.0], [150.0, 150.0]]),
-            Stroke::new(),
+            Stroke::new(), None,
         );
         struct TestOutline;
         impl Outline for TestOutline {}
@@ -1439,6 +1473,7 @@ mod tests {
             arr2(&[[100.0, 100.0], [150.0, 150.0]]),
             Stroke::new(),
             None,
+            None,
         );
         struct TestOutline;
         impl Outline for TestOutline {}
@@ -1452,7 +1487,7 @@ mod tests {
     fn test_bounds_polyline() {
         let line = Polyline::new(
             arr2(&[[100.0, 100.0], [150.0, 150.0], [75.0, 75.0]]),
-            Stroke::new(),
+            Stroke::new(), None,
         );
         struct TestOutline;
         impl Outline for TestOutline {}
@@ -1495,6 +1530,7 @@ mod tests {
             String::from("teststring"),
             themer.get_effects(effects, &[Style::TextPinName]),
             false,
+            None,
         );
         struct TestOutline;
         impl Outline for TestOutline {}

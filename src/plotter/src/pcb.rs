@@ -142,7 +142,7 @@ pub struct PcbPlot<'a> {
     theme: Themer<'a>,
     border: bool,
     scale: f64,
-    name: Option<String>,
+    name: String,
     path: String,
     tree: Option<SexpTree>,
     layers: Vec<String>,
@@ -176,7 +176,7 @@ impl<'a> PcbPlot<'a> {
     }
     /// The name of the plot.
     pub fn name(mut self, name: &str) -> Self {
-        self.name = Some(name.to_string());
+        self.name = name.to_string();
         self
     }
     /// create a new SchemaPlot with defalt values.
@@ -185,7 +185,7 @@ impl<'a> PcbPlot<'a> {
             theme: Themer::new(Theme::default()),
             border: true,
             scale: 1.0,
-            name: None,
+            name: String::from("none"),
             path: String::new(),
             tree: None,
             layers: Vec::new(),
@@ -439,7 +439,7 @@ impl<'a> PlotElement<GrLineElement<'a>> for PcbPlot<'a> {
             let line_layer: String = item.item.value(el::LAYER).unwrap();
             let mut stroke = Stroke::new();
             stroke.linewidth = width;
-            stroke.linecolor = self.theme.layer_color(&[Style::from(line_layer)]);
+            stroke.linecolor = self.theme.layer_color(&[Style::from(line_layer.clone())]);
 
             plot_items.push(PlotItem::Line(
                 10,
@@ -447,6 +447,7 @@ impl<'a> PlotElement<GrLineElement<'a>> for PcbPlot<'a> {
                     arr2(&[[start[0], start[1]], [end[0], end[1]]]),
                     stroke,
                     None,
+                    Some(format!("{}_{}", self.name, line_layer.replace('.', "_"))),
                 ),
             ));
         }
@@ -476,11 +477,14 @@ impl<'a> PlotElement<GrPolyElement<'a>> for PcbPlot<'a> {
             let layer: String = item.item.value(el::LAYER).unwrap();
             let mut stroke = Stroke::new();
             stroke.linewidth = 0.0;
-            let color = self.theme.layer_color(&[Style::from(layer)]);
+            let color = self.theme.layer_color(&[Style::from(layer.clone())]);
             stroke.linecolor = color.clone();
             stroke.fillcolor = color;
 
-            plot_items.push(PlotItem::Polyline(20, Polyline::new(pts, stroke)));
+            plot_items.push(PlotItem::Polyline(
+                20,
+                Polyline::new(pts, stroke, Some(format!("{}_{}", self.name, layer.replace('.', "_")))),
+            ));
         }
         Ok(())
     }
@@ -509,7 +513,15 @@ impl<'a> PlotElement<GrCircleElement<'a>> for PcbPlot<'a> {
             //TODO fill
 
             let radius = Circle::radius(&center, &end);
-            plot_items.push(PlotItem::Circle(1, Circle::new(center, radius, stroke)));
+            plot_items.push(PlotItem::Circle(
+                1,
+                Circle::new(
+                    center,
+                    radius,
+                    stroke,
+                    Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
+                ),
+            ));
         }
         Ok(())
     }
@@ -538,11 +550,14 @@ impl<'a> PlotElement<ZoneElement<'a>> for PcbPlot<'a> {
                 let layer: String = polygon.value(el::LAYER).unwrap();
                 let mut stroke = Stroke::new();
                 stroke.linewidth = 0.0;
-                let color = self.theme.layer_color(&[Style::from(layer)]);
+                let color = self.theme.layer_color(&[Style::from(layer.clone())]);
                 stroke.linecolor = color.clone();
                 stroke.fillcolor = color;
 
-                plot_items.push(PlotItem::Polyline(20, Polyline::new(pts, stroke)));
+                plot_items.push(PlotItem::Polyline(
+                    20,
+                    Polyline::new(pts, stroke, Some(format!("{}_{}", self.name, layer.replace('.', "_")))),
+                ));
             }
         }
         Ok(())
@@ -574,6 +589,7 @@ impl<'a> PlotElement<SegmentElement<'a>> for PcbPlot<'a> {
                     arr2(&[[start[0], start[1]], [end[0], end[1]]]),
                     stroke,
                     None,
+                    Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
                 ),
             ));
         }
@@ -608,7 +624,12 @@ impl<'a> PlotElement<ViaElement<'a>> for PcbPlot<'a> {
 
                 plot_items.push(PlotItem::Circle(
                     10,
-                    Circle::new(at.clone(), size - linewidth, stroke),
+                    Circle::new(
+                        at.clone(),
+                        size - linewidth,
+                        stroke,
+                        Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
+                    ),
                 ));
             }
         }
@@ -655,9 +676,13 @@ impl<'a> PlotElement<GrTextElement<'a>> for PcbPlot<'a> {
             plot_items.push(PlotItem::Text(
                 10,
                 Text::new(
-                    at, 0.0, text,
+                    at,
+                    0.0,
+                    text,
                     //self.theme.get_stroke(item.item.into(), &[Style::Wire]),
-                    effects, false,
+                    effects,
+                    false,
+                    Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
                 ),
             ));
         }
@@ -717,6 +742,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                             0.0,
                             None,
                             stroke,
+                            Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
                         ),
                     ));
                 }
@@ -746,6 +772,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                             ),
                             stroke,
                             None,
+                            Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
                         ),
                     ));
                 }
@@ -774,6 +801,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                         Polyline::new(
                             Shape::transform_pad(item.item, item.is_flipped(), 0.0, &pts),
                             stroke,
+                            Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
                         ),
                     ));
                 }
@@ -795,6 +823,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                             Shape::transform_pad(item.item, item.is_flipped(), 0.0, &center),
                             radius,
                             stroke,
+                            Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
                         ),
                     ));
                 }
@@ -815,6 +844,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                             text,
                             effects,
                             false,
+                            Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
                         ),
                     ));
                 }
@@ -853,6 +883,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                             text,
                             effects,
                             false,
+                            Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
                         ),
                     ));
                 }
@@ -899,6 +930,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                                             ),
                                             (pad_size[0] / 2.0) - linewidth / 2.0,
                                             stroke,
+                                            Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
                                         ),
                                     ));
                                 } else if let PadType::Connect = pad_type {
@@ -918,6 +950,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                                             ),
                                             pad_size[0] / 2.0,
                                             stroke,
+                                            Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
                                         ),
                                     ));
                                 } else {
@@ -961,6 +994,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                                         ),
                                         size - 2.0 * linewidth,
                                         stroke,
+                                        Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
                                     ),
                                 ));
                             }
@@ -1002,6 +1036,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                                             &pts,
                                         ),
                                         stroke.clone(),
+                                        Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
                                     ),
                                 ));
                                 if let PadType::ThruHole = pad_type {
@@ -1013,6 +1048,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                                             Shape::transform(item.item, &at),
                                             drill.width.unwrap_or(0.0),
                                             stroke,
+                                            Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
                                         ),
                                     ));
                                 } else if !matches!(pad_type, PadType::Smd) {
@@ -1046,6 +1082,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                                             &pts,
                                         ),
                                         stroke.clone(),
+                                        Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
                                     ),
                                 ));
 
@@ -1063,6 +1100,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                                             ),
                                             drill.diameter / 2.0,
                                             stroke,
+                                            Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
                                         ),
                                     ));
                                 } else if !matches!(pad_type, PadType::Smd) {

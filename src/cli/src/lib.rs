@@ -18,7 +18,7 @@ extern crate simulation;
 extern crate tempfile;
 extern crate thiserror;
 
-use log::{debug, info, error};
+use log::{info, error};
 
 use pyo3::prelude::*;
 
@@ -44,7 +44,7 @@ mod python;
 
 use crate::error::Error;
 
-use plotter::{pcb::LAYERS, Theme};
+use plotter::Theme;
 
 use sexp::{el, SexpParser, SexpTree, State};
 

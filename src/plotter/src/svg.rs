@@ -9,13 +9,20 @@ use ndarray::Array2;
 use std::io::Write;
 
 use svg::{
-    node,
-    node::{
-        element::{self, path::Data, Path},
-        Node,
-    },
-    Document,
+    Node, Document, node,
+    node::element::{self, path::Data, Path, Group},
 };
+
+mod c {
+    pub const START: &str = "start";
+    pub const END: &str = "end";
+    pub const MIDDLE: &str = "middle";
+    pub const LEFT: &str = "left";
+    pub const RIGHT: &str = "right";
+    pub const CENTER: &str = "center";
+    pub const HEIGHT: &str = "height";
+    pub const WIDTH: &str = "width";
+}
 
 /// Plotter implemntation for SVG files.
 pub struct SvgPlotter<'a> {
@@ -34,24 +41,22 @@ impl<'a> PlotterImpl<'a> for SvgPlotter<'a> {
         plot_items: &[PlotItem],
         size: Array2<f64>,
         scale: f64,
-        name: Option<String>,
+        name: String,
     ) -> Result<(), Error> {
         let mut document = Document::new()
             .set(
                 "viewBox",
                 (size[[0, 0]], size[[0, 1]], size[[1, 0]], size[[1, 1]]),
             )
-            .set("width", format!("{}mm", (size[[1, 0]]) * scale))
-            .set("height", format!("{}mm", (size[[1, 1]]) * scale));
+            .set(c::WIDTH, format!("{}mm", (size[[1, 0]]) * scale))
+            .set(c::HEIGHT, format!("{}mm", (size[[1, 1]]) * scale));
 
-        let mut g = if let Some(name) = name {
-            element::Group::new().set("id", name.to_string())
-        } else {
-            element::Group::new()
-        };
+        let mut g = Group::new().set("id", name.to_string());
+
         if scale != 1.0 {
             g = g.set("scale", scale);
         }
+
         self.draw(plot_items, &mut g);
         document.append(g);
         self.out.write_all(document.to_string().as_bytes())?;
@@ -59,8 +64,8 @@ impl<'a> PlotterImpl<'a> for SvgPlotter<'a> {
     }
 }
 
-impl<'a> Draw<element::Group> for SvgPlotter<'a> {
-    fn draw(&self, items: &[PlotItem], document: &mut element::Group) {
+impl<'a> Draw<Group> for SvgPlotter<'a> {
+    fn draw(&self, items: &[PlotItem], document: &mut Group) {
         items
             .iter()
             .sorted_by(|a, b| {
@@ -94,24 +99,26 @@ impl<'a> Draw<element::Group> for SvgPlotter<'a> {
     }
 }
 
-impl<'a> Drawer<Text, element::Group> for SvgPlotter<'a> {
-    fn item(&self, text: &Text, document: &mut element::Group) {
-        let align = if text.effects.justify.contains(&String::from("left")) {
-            "start"
-        } else if text.effects.justify.contains(&String::from("right")) {
-            "end"
-        } else if text.effects.justify.contains(&String::from("center")) {
-            "middle"
+impl<'a> Drawer<Text, Group> for SvgPlotter<'a> {
+    fn item(&self, text: &Text, document: &mut Group) {
+        let align = if text.effects.justify.contains(&String::from(c::LEFT)) {
+            c::START
+        } else if text.effects.justify.contains(&String::from(c::RIGHT)) {
+            c::END
+        } else if text.effects.justify.contains(&String::from(c::CENTER)) {
+            c::MIDDLE
         } else if !text.effects.justify.is_empty() {
-            "start"
+            c::START
         } else {
-            "middle"
+            c::MIDDLE
         };
+
         let angle = if text.angle >= 180.0 {
             text.angle - 180.0
         } else {
             text.angle
         };
+
         //svg rotates are reversed
         let angle = if angle == 90.0 {
             -90.0
@@ -139,11 +146,15 @@ impl<'a> Drawer<Text, element::Group> for SvgPlotter<'a> {
                 )
                 .set("fill", text.effects.font_color.to_string())
                 .add(node::Text::new(line));
-        
+
             if text.effects.justify.contains(&"top".to_string()) {
                 t = t.set("dominant-baseline", "hanging");
             } else if !text.effects.justify.contains(&"bottom".to_string()) {
                 t = t.set("dominant-baseline", "middle");
+            }
+
+            if let Some(cls) = &text.class {
+                t = t.set("class", cls.as_str());
             }
             document.append(t);
             offset += text.effects.font_size.first().unwrap() + 0.3;
@@ -151,16 +162,19 @@ impl<'a> Drawer<Text, element::Group> for SvgPlotter<'a> {
     }
 }
 
-impl<'a> Drawer<Line, element::Group> for SvgPlotter<'a> {
-    fn item(&self, line: &Line, document: &mut element::Group) {
+impl<'a> Drawer<Line, Group> for SvgPlotter<'a> {
+    fn item(&self, line: &Line, document: &mut Group) {
         let data = Data::new()
             .move_to((line.pts[[0, 0]], line.pts[[0, 1]]))
             .line_to((line.pts[[1, 0]], line.pts[[1, 1]]));
-        let path = Path::new()
+        let mut path = Path::new()
             .set("stroke", line.stroke.linecolor.to_string())
             .set("stroke-width", line.stroke.linewidth)
             .set("d", data);
 
+        if let Some(cls) = &line.class {
+            path = path.set("class", cls.as_str());
+        }
         /*TODO if let Some(linecap) = &line.linecap {
             style.push(format!("stroke-linecap:{};", linecap));
         } */
@@ -168,8 +182,8 @@ impl<'a> Drawer<Line, element::Group> for SvgPlotter<'a> {
     }
 }
 
-impl<'a> Drawer<Polyline, element::Group> for SvgPlotter<'a> {
-    fn item(&self, line: &Polyline, document: &mut element::Group) {
+impl<'a> Drawer<Polyline, Group> for SvgPlotter<'a> {
+    fn item(&self, line: &Polyline, document: &mut Group) {
         let mut data = Data::new();
         let mut first: bool = true;
         for pos in line.pts.rows() {
@@ -191,12 +205,16 @@ impl<'a> Drawer<Polyline, element::Group> for SvgPlotter<'a> {
         } else {
             path = path.set("fill", line.stroke.fillcolor.to_string());
         }
+
+        if let Some(cls) = &line.class {
+            path = path.set("class", cls.as_str());
+        }
         document.append(path);
     }
 }
 
-impl<'a> Drawer<Rectangle, element::Group> for SvgPlotter<'a> {
-    fn item(&self, rectangle: &Rectangle, document: &mut element::Group) {
+impl<'a> Drawer<Rectangle, Group> for SvgPlotter<'a> {
+    fn item(&self, rectangle: &Rectangle, document: &mut Group) {
         let data = Data::new()
             .move_to((rectangle.pts[[0, 0]], rectangle.pts[[0, 1]]))
             .line_to((rectangle.pts[[1, 0]], rectangle.pts[[0, 1]]))
@@ -211,17 +229,21 @@ impl<'a> Drawer<Rectangle, element::Group> for SvgPlotter<'a> {
             rectangle.stroke.fillcolor.to_string()
         };
 
-        let path = Path::new()
+        let mut path = Path::new()
             .set("fill", fill)
             .set("stroke", rectangle.stroke.linecolor.to_string())
             .set("stroke-width", rectangle.stroke.linewidth)
             .set("d", data);
+
+        if let Some(cls) = &rectangle.class {
+            path = path.set("class", cls.as_str());
+        }
         document.append(path);
     }
 }
 
-impl<'a> Drawer<Circle, element::Group> for SvgPlotter<'a> {
-    fn item(&self, circle: &Circle, document: &mut element::Group) {
+impl<'a> Drawer<Circle, Group> for SvgPlotter<'a> {
+    fn item(&self, circle: &Circle, document: &mut Group) {
         let mut c = element::Circle::new()
             .set("cx", circle.pos[0])
             .set("cy", circle.pos[1])
@@ -234,12 +256,15 @@ impl<'a> Drawer<Circle, element::Group> for SvgPlotter<'a> {
         } else {
             c = c.set("fill", circle.stroke.fillcolor.to_string());
         }
+        if let Some(cls) = &circle.class {
+            c = c.set("class", cls.as_str());
+        }
         document.append(c);
     }
 }
 
-impl<'a> Drawer<Arc, element::Group> for SvgPlotter<'a> {
-    fn item(&self, arc: &Arc, document: &mut element::Group) {
+impl<'a> Drawer<Arc, Group> for SvgPlotter<'a> {
+    fn item(&self, arc: &Arc, document: &mut Group) {
         let radius = ((arc.start[0] - arc.center[0]).powi(2)
             + (arc.start[1] - arc.center[1]).powi(2))
         .sqrt();
@@ -268,7 +293,7 @@ impl<'a> Drawer<Arc, element::Group> for SvgPlotter<'a> {
             1
         };
         if !matches!(arc.stroke.fillcolor, Color::None) {
-            let c = element::Path::new()
+            let mut c = Path::new()
                 .set(
                     "d",
                     format!(
@@ -286,10 +311,14 @@ impl<'a> Drawer<Arc, element::Group> for SvgPlotter<'a> {
                     ),
                 )
                 .set("fill", arc.stroke.fillcolor.to_string());
+
+            if let Some(cls) = &arc.class {
+                c = c.set("class", cls.as_str());
+            }
             document.append(c);
         }
 
-        let c = element::Path::new()
+        let mut c = Path::new()
             .set(
                 "d",
                 format!(
@@ -307,6 +336,10 @@ impl<'a> Drawer<Arc, element::Group> for SvgPlotter<'a> {
             .set("fill", "none")
             .set("stroke", arc.stroke.linecolor.to_string())
             .set("stroke-width", arc.stroke.linewidth);
+
+        if let Some(cls) = &arc.class {
+            c = c.set("class", cls.as_str());
+        }
         document.append(c);
     }
 }

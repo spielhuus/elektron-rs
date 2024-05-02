@@ -33,7 +33,7 @@ pub struct SchemaPlot<'a> {
     border: bool,
     netlist: bool,
     scale: f64,
-    name: Option<String>,
+    name: String,
     path: String,
     tree: Option<SexpTree>,
 }
@@ -76,7 +76,7 @@ impl<'a> SchemaPlot<'a> {
     }
     /// The name of the plot.
     pub fn name(mut self, name: &str) -> Self {
-        self.name = Some(name.to_string());
+        self.name = name.to_string();
         self
     }
     /// create a new SchemaPlot with defalt values.
@@ -88,7 +88,7 @@ impl<'a> SchemaPlot<'a> {
             border: true,
             netlist: false,
             scale: 1.0,
-            name: None,
+            name: String::from("none"),
             path: String::new(),
             tree: None,
         }
@@ -123,7 +123,7 @@ impl<'a> SchemaPlot<'a> {
     pub fn open(&mut self, path: &str) -> Result<(), Error> {
         debug!("open schema: {}", path);
         if let Some(dir) = Path::new(&path).parent() {
-            self.path = dir.to_str().unwrap().to_string();       
+            self.path = dir.to_str().unwrap().to_string();
         }
         let Ok(document) = SexpParser::load(path) else {
             return Err(Error::Plotter(format!("could not load schema: {}", path)));
@@ -164,7 +164,7 @@ impl<'a> SchemaPlot<'a> {
                 .into();
 
         //TODO handle portraint and landscape
-        
+
         let mut plot_items = self.parse_items(&tree, netlist);
         let size = if self.border {
             arr2(&[[0.0, 0.0], [paper_size.0, paper_size.1]])
@@ -205,7 +205,7 @@ impl<'a> SchemaPlot<'a> {
         netlist: Option<Netlist>,
     ) -> Vec<PlotItem> {
 
-        //plot the border 
+        //plot the border
         let mut plot_items: Vec<PlotItem> = Vec::new();
         let title_block = if let Some(title_block) = document.root().unwrap().query(el::TITLE_BLOCK).next() {
             Some(title_block)
@@ -240,7 +240,7 @@ impl<'a> SchemaPlot<'a> {
                 el::WIRE => self.plot(WireElement{ item }, &mut plot_items),
                 el::TEXT => self.plot(TextElement{ item }, &mut plot_items),
                 el::TEXT_BOX => self.plot(TextBoxElement{ item }, &mut plot_items),
-                _ => { 
+                _ => {
                     if log_enabled!(Level::Error) {
                         let items = [
                             "generator_version",
@@ -311,6 +311,7 @@ impl<'a> PlotElement<LabelElement<'a>> for SchemaPlot<'a> {
             text,
             self.theme.get_effects(item.item.into(), &[Style::Label]),
             false,
+            None,
         );
         let size = self.text_size(&gtext);
         plot_items.push(PlotItem::Text(12, gtext));
@@ -331,10 +332,11 @@ impl<'a> PlotElement<LabelElement<'a>> for SchemaPlot<'a> {
                         Stroke::new(),
                         &[Style::GlobalLabel, Style::Fill(FillType::Background)],
                     ),
+                    None,
                 ),
             ));
         }
-    } 
+    }
 }
 
 struct TextElement<'a> {
@@ -362,9 +364,10 @@ impl<'a> PlotElement<TextElement<'a>> for SchemaPlot<'a> {
             text,
             self.theme.get_effects(item.item.into(), &[Style::Text]),
             false,
+            None,
         );
         plot_items.push(PlotItem::Text(12, gtext));
-    } 
+    }
 }
 
 struct WireElement<'a> {
@@ -383,6 +386,7 @@ impl<'a> PlotElement<WireElement<'a>> for SchemaPlot<'a> {
                 arr2(&[[xy1[0], xy1[1]], [xy2[0], xy2[1]]]),
                 self.theme.get_stroke(item.item.into(), &[Style::Wire]),
                 None,
+                None,
             ),
         ));
     }
@@ -400,7 +404,7 @@ impl<'a> PlotElement<JunctionElement<'a>> for SchemaPlot<'a> {
         stroke.fillcolor = stroke.linecolor.clone();
         plot_items.push(PlotItem::Circle(
             100,
-            Circle::new(utils::at(item.item).unwrap(), 0.4, stroke),
+            Circle::new(utils::at(item.item).unwrap(), 0.4, stroke, None),
         ));
     }
 }
@@ -420,6 +424,7 @@ impl<'a> PlotElement<NoConnectElement<'a>> for SchemaPlot<'a> {
                 lines1,
                 self.theme.get_stroke(Stroke::new(), &[Style::NoConnect]),
                 None,
+                None,
             ),
         ));
         plot_items.push(PlotItem::Line(
@@ -427,6 +432,7 @@ impl<'a> PlotElement<NoConnectElement<'a>> for SchemaPlot<'a> {
             Line::new(
                 lines2,
                 self.theme.get_stroke(Stroke::new(), &[Style::NoConnect]),
+                None,
                 None,
             ),
         ));
@@ -455,6 +461,7 @@ impl<'a> PlotElement<BusElement<'a>> for SchemaPlot<'a> {
             Polyline::new(
                 pts,
                 self.theme.get_stroke(Stroke::new(), &[Style::Bus]),
+                None,
             ),
         ));
     }
@@ -474,6 +481,7 @@ impl<'a> PlotElement<BusEntryElement<'a>> for SchemaPlot<'a> {
             Polyline::new(
                 arr2(&[[at[0], at[1]], [at[0] + size[0], at[1] + size[1]]]),
                 self.theme.get_stroke(stroke, &[Style::BusEntry]),
+                None,
             ),
         ));
     }
@@ -502,6 +510,7 @@ impl<'a> PlotElement<PolylineElement<'a>> for SchemaPlot<'a> {
             Polyline::new(
                 pts,
                 self.theme.get_stroke(stroke, &[Style::Bus]),
+                None,
             ),
         ));
     }
@@ -529,6 +538,7 @@ impl<'a> PlotElement<TextBoxElement<'a>> for SchemaPlot<'a> {
             Rectangle::new(
                 pts,
                 stroke,
+                None,
             ),
         ));
         let text: String = item.item.get(0).unwrap();
@@ -540,7 +550,8 @@ impl<'a> PlotElement<TextBoxElement<'a>> for SchemaPlot<'a> {
                 text,
                 self.theme
                     .get_effects(Effects::from(item.item), &[Style::Text]),
-                false
+                false,
+                None,
         )));
     }
 }
@@ -568,6 +579,7 @@ impl<'a> PlotElement<RectangleElement<'a>> for SchemaPlot<'a> {
             Rectangle::new(
                 pts,
                 stroke,
+                None,
             ),
         ));
     }
@@ -598,6 +610,7 @@ impl<'a> PlotElement<SheetElement<'a>> for SchemaPlot<'a> {
             Rectangle::new(
                 pts,
                 stroke,
+                None,
             ),
         ));
 
@@ -611,7 +624,8 @@ impl<'a> PlotElement<SheetElement<'a>> for SchemaPlot<'a> {
                 sheetname.get(1).unwrap(),
                 self.theme
                     .get_effects(Effects::from(&sheetname), &[Style::TextSheet]),
-                false
+                false,
+                None,
         )));
 
         let sheetfile: Sexp = item.item.property("Sheetfile").unwrap();
@@ -624,7 +638,8 @@ impl<'a> PlotElement<SheetElement<'a>> for SchemaPlot<'a> {
                 format!("File: {}", <Sexp as SexpValueQuery<String>>::get(&sheetfile, 1).unwrap()),
                 self.theme
                     .get_effects(Effects::from(&sheetfile), &[Style::TextSheet]),
-                false
+                false,
+                None,
         )));
 
 
@@ -647,7 +662,7 @@ impl<'a> PlotElement<SheetElement<'a>> for SchemaPlot<'a> {
             } else if shape == "tri_state" {
                 SHEET_PIN_3STATE.dot(&rot)
             } else { SHEET_PIN_UNSPC.dot(&rot) };
-            
+
             // draw pin on the inside of the sheet
             let dist = if angle == 0.0 {
                 arr1(&[-2.0, 0.0])
@@ -666,6 +681,7 @@ impl<'a> PlotElement<SheetElement<'a>> for SchemaPlot<'a> {
                 Polyline::new(
                     verts + at.clone() + dist,
                     self.theme.get_stroke(Stroke::new(), &[Style::Bus]),
+                    None,
                 ),
             ));
 
@@ -689,6 +705,7 @@ impl<'a> PlotElement<SheetElement<'a>> for SchemaPlot<'a> {
                     label.to_string(),
                     self.theme.get_effects(effects.clone(), &[Style::Property]),
                     false,
+                    None,
                 ),
             ));
         }
@@ -717,6 +734,7 @@ impl<'a> PlotElement<CircleElement<'a>> for SchemaPlot<'a> {
                 center,
                 radius,
                 stroke,
+                None,
             ),
         ));
     }
@@ -739,9 +757,10 @@ impl<'a> PlotElement<ArcElement<'a>> for SchemaPlot<'a> {
                 arc_start,
                 arc_mid,
                 arc_end,
-                0.0, 
+                0.0,
                 None,
                 self.theme.get_stroke(item.item.into(), classes.as_slice()),
+                None,
             ),
         ));
     }
@@ -784,6 +803,7 @@ impl<'a> PlotElement<SheetPinElement<'a>> for SchemaPlot<'a> {
             Polyline::new(
                 verts + at.clone(),
                 self.theme.get_stroke(Stroke::new(), &[Style::Bus]),
+                None,
             ),
         ));
 
@@ -808,6 +828,7 @@ impl<'a> PlotElement<SheetPinElement<'a>> for SchemaPlot<'a> {
                 text.to_string(),
                 self.theme.get_effects(effects.clone(), &[Style::Property]),
                 false,
+                None,
             ),
         ));
 
@@ -878,6 +899,7 @@ impl<'a> PlotElement<SymbolElement<'a>> for SchemaPlot<'a> {
                             text.to_string(),
                             self.theme.get_effects(effects.clone(), &[Style::Property]),
                             false,
+                            None,
                         ),
                     ));
                 }
@@ -914,6 +936,7 @@ impl<'a> PlotElement<SymbolElement<'a>> for SchemaPlot<'a> {
                                             Polyline::new(
                                                 Shape::transform(item.item, &pts),
                                                 self.theme.get_stroke(Stroke::new(), classes.as_slice()),
+                                                None,
                                             ),
                                         ));
                                     } else if graph.name == el::GRAPH_RECTANGLE {
@@ -934,6 +957,7 @@ impl<'a> PlotElement<SymbolElement<'a>> for SchemaPlot<'a> {
                                             Rectangle::new(
                                                 Shape::transform(item.item, &pts),
                                                 self.theme.get_stroke(graph.into(), classes.as_slice()),
+                                                None,
                                             ),
                                         ));
 
@@ -955,6 +979,7 @@ impl<'a> PlotElement<SymbolElement<'a>> for SchemaPlot<'a> {
                                                 radius,
                                                 self.theme
                                                     .get_stroke(Stroke::from(graph), &[Style::Outline]),
+                                                None,
                                             ),
                                         ));
 
@@ -977,6 +1002,7 @@ impl<'a> PlotElement<SymbolElement<'a>> for SchemaPlot<'a> {
                                                 utils::angle(item.item).unwrap(),
                                                 mirror.clone(), //TODO remove clone
                                                 self.theme.get_stroke(graph.into(), classes.as_slice()),
+                                                None,
                                             ),
                                         ));
                                     } else if graph.name == el::GRAPH_TEXT {
@@ -993,6 +1019,7 @@ impl<'a> PlotElement<SymbolElement<'a>> for SchemaPlot<'a> {
                                                 text.first().unwrap().to_string(),
                                                 self.theme.get_effects(effects, &[Style::Property]),
                                                 false,
+                                                None,
                                             ),
                                         ));
 
@@ -1041,6 +1068,7 @@ impl<'a> PlotElement<SymbolElement<'a>> for SchemaPlot<'a> {
                     Rectangle::new(
                         Shape::transform(item.item, &pts),
                         self.theme.get_stroke(Stroke::new(), &[Style::NotFound]),
+                        None,
                     ),
                 ));
             }
@@ -1111,6 +1139,7 @@ impl<'a> PlotElement<PinElement<'a>> for SchemaPlot<'a> {
                         Shape::transform(item.symbol, &pin_line),
                         self.theme.get_stroke(stroke, &[Style::Pin]),
                         None,
+                        None,
                     ),
                 ));
             }
@@ -1120,6 +1149,7 @@ impl<'a> PlotElement<PinElement<'a>> for SchemaPlot<'a> {
                     Line::new(
                         Shape::transform(item.symbol, &pin_line),
                         self.theme.get_stroke(stroke.clone(), &[Style::Pin]),
+                        None,
                         None,
                     ),
                 ));
@@ -1135,6 +1165,7 @@ impl<'a> PlotElement<PinElement<'a>> for SchemaPlot<'a> {
                             Stroke::from(item.item),
                             &[Style::PinDecoration],
                         ),
+                        None,
                     ),
                 ));
             }
@@ -1144,6 +1175,7 @@ impl<'a> PlotElement<PinElement<'a>> for SchemaPlot<'a> {
                     Line::new(
                         Shape::transform(item.symbol, &pin_line),
                         self.theme.get_stroke(stroke, &[Style::Pin]),
+                        None,
                         None,
                     ),
                 ));
@@ -1160,6 +1192,7 @@ impl<'a> PlotElement<PinElement<'a>> for SchemaPlot<'a> {
                         ),
                         self.theme
                             .get_stroke(Stroke::new(), &[Style::PinDecoration]),
+                        None,
                     ),
                 ));
             }
@@ -1199,6 +1232,7 @@ impl<'a> PlotElement<PinElement<'a>> for SchemaPlot<'a> {
                     self.theme
                         .get_effects(Effects::new(), &[Style::TextPinNumber]),
                     false,
+                    None,
                 ),
             ));
         }
@@ -1227,6 +1261,7 @@ impl<'a> PlotElement<PinElement<'a>> for SchemaPlot<'a> {
                         pin_name.clone(),
                         self.theme.get_effects(effects, &[Style::TextPinName]),
                         false,
+                        None,
                     ),
                 ));
             } else {
@@ -1248,6 +1283,7 @@ impl<'a> PlotElement<PinElement<'a>> for SchemaPlot<'a> {
                         pin_name.clone(),
                         self.theme.get_effects(effects, &[Style::TextPinName]),
                         false,
+                        None,
                     ),
                 ));
             }
@@ -1308,6 +1344,7 @@ impl<'a> PlotElement<PinElement<'a>> for SchemaPlot<'a> {
                             .unwrap_or_else(|| String::from("NaN")),
                         self.theme.get_effects(effects, &[Style::TextNetname]),
                         false,
+                        None,
                     ),
                 ));
             }
