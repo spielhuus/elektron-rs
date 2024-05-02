@@ -280,7 +280,6 @@ impl<'a> PcbPlot<'a> {
     }
 
     pub fn write(&self, plotter: &mut dyn PlotterImpl, layers: Vec<String>) -> Result<(), Error> {
-        trace!("write layer: {:?}", layers);
         let tree = if let Some(tree) = &self.tree {
             tree.clone()
         } else {
@@ -709,6 +708,11 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
     ) -> Result<(), Error> {
         //create a tmp element to fix the angle and mirror
 
+        let footprint: String = item.item.get(0).unwrap();
+        let at: Array1<f64> = sexp::utils::at(item.item).unwrap();
+        let angle = sexp::utils::angle(item.item).unwrap_or(0.0);
+        let fp_layer: String = item.item.value(el::LAYER).unwrap();
+
         for element in item.item.nodes() {
             let name: &String = &element.name;
             if name == "fp_arc" {
@@ -764,7 +768,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                             Shape::transform_pad(
                                 item.item,
                                 item.is_flipped(),
-                                0.0,
+                                None,
                                 &arr2(&[
                                     [line_start[0], line_start[1]],
                                     [line_end[0], line_end[1]],
@@ -799,7 +803,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                     plot_items.push(PlotItem::Polyline(
                         20,
                         Polyline::new(
-                            Shape::transform_pad(item.item, item.is_flipped(), 0.0, &pts),
+                            Shape::transform_pad(item.item, item.is_flipped(), None, &pts),
                             stroke,
                             Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
                         ),
@@ -820,7 +824,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                     plot_items.push(PlotItem::Circle(
                         1,
                         Circle::new(
-                            Shape::transform_pad(item.item, item.is_flipped(), 0.0, &center),
+                            Shape::transform_pad(item.item, item.is_flipped(), None, &center),
                             radius,
                             stroke,
                             Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
@@ -831,7 +835,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                 let text_layer: String = element.value(el::LAYER).unwrap();
                 if PcbPlot::is_layer_in(layer, &text_layer) {
                     let at = sexp::utils::at(element).unwrap();
-                    let angle = sexp::utils::angle(element).unwrap_or(0.0);
+                    let angle = sexp::utils::angle(element).unwrap();
                     let mut effects = Effects::from(element);
                     effects.font_color = self.theme.layer_color(&[Style::from(text_layer)]);
                     let text: String = element.get(1).unwrap();
@@ -839,7 +843,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                     plot_items.push(PlotItem::Text(
                         10,
                         Text::new(
-                            Shape::transform_pad(item.item, item.is_flipped(), angle, &at),
+                            Shape::transform_pad(item.item, item.is_flipped(), None, &at),
                             angle,
                             text,
                             effects,
@@ -878,7 +882,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                     plot_items.push(PlotItem::Text(
                         10,
                         Text::new(
-                            Shape::transform_pad(item.item, item.is_flipped(), angle, &at),
+                            Shape::transform_pad(item.item, item.is_flipped(), None, &at),
                             angle,
                             text,
                             effects,
@@ -888,13 +892,16 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                     ));
                 }
             } else if name == el::PAD {
-                let at = sexp::utils::at(element).unwrap();
-                let angle = sexp::utils::angle(element).unwrap_or(0.0);
+
 
                 let pad_type =
                     PadType::from(<Sexp as SexpValueQuery<String>>::get(element, 1).unwrap());
                 let pad_shape =
                     PadShape::from(<Sexp as SexpValueQuery<String>>::get(element, 2).unwrap());
+
+                let at = sexp::utils::at(element).unwrap();
+                let angle = sexp::utils::angle(element);
+
 
                 let layers_node: &Sexp = element.query("layers").next().expect("expect layers");
                 let layers: Vec<String> = layers_node.values();
@@ -1045,7 +1052,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                                     plot_items.push(PlotItem::Circle(
                                         10,
                                         Circle::new(
-                                            Shape::transform(item.item, &at),
+                                            Shape::transform_pad(item.item,item.is_flipped(), angle, &at),
                                             drill.width.unwrap_or(0.0),
                                             stroke,
                                             Some(format!("{}_{}", self.name, layer.replace('.', "_"))),

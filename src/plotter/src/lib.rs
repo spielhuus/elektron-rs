@@ -108,7 +108,7 @@ pub fn plot(input: &str, output: &str, border: bool, theme: Theme, scale: f64, p
         //}
 
     } else if input.ends_with(".kicad_pcb") {
-        debug!("Write PCB: input:{}, output:{:?}", input, output);
+        debug!("Write PCB: input:{}, output:{:?}, border: {} theme: {:?}", input, output, border, theme);
         let layers = if let Some(layers) = layers {
             layers
         } else {

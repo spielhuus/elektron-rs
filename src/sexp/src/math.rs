@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use lazy_static::lazy_static;
 use ndarray::{arr1, arr2, s, Array, Array1, Array2};
-use log::error;
+use log::{trace, error};
 
 use crate::{el, utils, Error, Sexp, SexpValueQuery, SexpValuesQuery};
 
@@ -61,7 +61,7 @@ impl Shape {
 /// transform the coordinates to absolute values.
 pub trait Transform<U, T> {
     fn transform(node: &U, pts: &T) -> T;
-    fn transform_pad(node: &U, front: bool, angle: f64, pts: &T) -> T;
+    fn transform_pad(node: &U, front: bool, angle: Option<f64>, pts: &T) -> T;
 }
 impl Transform<Sexp, Array2<f64>> for Shape {
     fn transform(symbol: &Sexp, pts: &Array2<f64>) -> Array2<f64> {
@@ -84,21 +84,19 @@ impl Transform<Sexp, Array2<f64>> for Shape {
         let verts = &symbol_pos + verts;
         verts.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap())
     }
-    fn transform_pad(symbol: &Sexp, flip: bool, angle: f64, pts: &Array2<f64>) -> Array2<f64> {
+    fn transform_pad(symbol: &Sexp, flip: bool, angle: Option<f64>, pts: &Array2<f64>) -> Array2<f64> {
         let symbol_pos = utils::at(symbol).unwrap();
-        let mut angle = utils::angle(symbol).unwrap_or(0.0); // + angle;
 
-        let mut mirror: Option<String> = if let Some(mirror) = symbol.query(el::MIRROR).next() {
-            error!("footprint has a mirror {:?}", mirror);
-            mirror.get(0)
+        let angle = if let Some(angle) = angle {
+            angle
         } else {
-            None
+            symbol.query(el::AT).next().unwrap().get(2).unwrap_or(0.0)
         };
 
-        if flip {
-            angle += 180.0;
-            mirror = Some("y".to_string());
-        }
+        let mirror = if flip {
+            //angle += 180.0;
+            Some("y".to_string())
+        } else { None };
 
         let theta = -angle.to_radians();
         let rot = arr2(&[[theta.cos(), -theta.sin()], [theta.sin(), theta.cos()]]);
@@ -122,12 +120,6 @@ impl Transform<Sexp, Array1<f64>> for Shape {
         let angle: f64 = symbol.query(el::AT).next().unwrap().get(2).unwrap_or(0.0);
         let mirror: Option<String> = if let Some(mirror) = symbol.query(el::MIRROR).next() {
             mirror.get(0)
-        } else if let Some(layer) = <Sexp as SexpValueQuery<String>>::value(symbol, el::LAYER) {
-            if layer.starts_with("B.") {
-                Some("y".to_string())
-            } else {
-                None
-            }
         } else {
             None
         };
@@ -150,24 +142,24 @@ impl Transform<Sexp, Array1<f64>> for Shape {
             }
         })
     }
-    fn transform_pad(symbol: &Sexp, front: bool, angle: f64, pts: &Array1<f64>) -> Array1<f64> {
+    fn transform_pad(symbol: &Sexp, flip: bool, angle: Option<f64>, pts: &Array1<f64>) -> Array1<f64> {
         let symbol_at = symbol.query(el::AT).next().unwrap();
         let symbol_x: f64 = symbol_at.get(0).unwrap();
         let symbol_y: f64 = symbol_at.get(1).unwrap();
         let symbol_pos = arr1(&[symbol_x, symbol_y]);
 
-        let angle: f64 = symbol.query(el::AT).next().unwrap().get(2).unwrap_or(0.0); // + angle;
-        let mirror: Option<String> = if let Some(layer) = <Sexp as SexpValueQuery<String>>::value(symbol, el::LAYER) {
-            if layer.starts_with("B.") {
+        let angle = if let Some(angle) = angle {
+            angle
+        } else {
+            symbol.query(el::AT).next().unwrap().get(2).unwrap_or(0.0)
+        };
+
+        let mirror = if flip {
+                //angle += 180.0;
                 Some("y".to_string())
             } else {
                 None
-            }
-        //let mirror: Option<String> = if !front {
-        //    Some("y".to_string())
-        } else {
-            None
-        };
+            };
 
         let theta = -angle.to_radians();
         let rot = arr2(&[[theta.cos(), -theta.sin()], [theta.sin(), theta.cos()]]);
