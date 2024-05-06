@@ -3,13 +3,12 @@ use crate::Color;
 use crate::{
     error::Error, Arc, Circle, Draw, Drawer, Line, PlotItem, PlotterImpl, Polyline, Rectangle, Text,
 };
-
 use itertools::Itertools;
 use ndarray::Array2;
 use std::io::Write;
 
 use svg::{
-    Node, Document, node,
+    Node, Document,
     node::element::{self, path::Data, Path, Group},
 };
 
@@ -130,7 +129,7 @@ impl<'a> Drawer<Text, Group> for SvgPlotter<'a> {
 
         let mut offset = 0.0;
         for line in text.text.split("\\n") {
-            let mut t = element::Text::new()
+            let mut t = element::Text::new(line)
                 .set(
                     "transform",
                     format!(
@@ -144,8 +143,8 @@ impl<'a> Drawer<Text, Group> for SvgPlotter<'a> {
                     "font-size",
                     format!("{}pt", text.effects.font_size.first().unwrap()),
                 )
-                .set("fill", text.effects.font_color.to_string())
-                .add(node::Text::new(line));
+                .set("fill", text.effects.font_color.to_string());
+                //.add(node::Text::new(line));
 
             if text.effects.justify.contains(&"top".to_string()) {
                 t = t.set("dominant-baseline", "hanging");
@@ -215,13 +214,18 @@ impl<'a> Drawer<Polyline, Group> for SvgPlotter<'a> {
 
 impl<'a> Drawer<Rectangle, Group> for SvgPlotter<'a> {
     fn item(&self, rectangle: &Rectangle, document: &mut Group) {
-        let data = Data::new()
-            .move_to((rectangle.pts[[0, 0]], rectangle.pts[[0, 1]]))
-            .line_to((rectangle.pts[[1, 0]], rectangle.pts[[0, 1]]))
-            .line_to((rectangle.pts[[1, 0]], rectangle.pts[[1, 1]]))
-            .line_to((rectangle.pts[[0, 0]], rectangle.pts[[1, 1]]))
-            .line_to((rectangle.pts[[0, 0]], rectangle.pts[[0, 1]]))
-            .close();
+
+        let mut x0 = rectangle.pts[[0, 0]];
+        let mut y0 = rectangle.pts[[0, 1]];
+        let mut x1 = rectangle.pts[[1, 0]];
+        let mut y1 = rectangle.pts[[1, 1]];
+
+        if x0 > x1 {
+            std::mem::swap(&mut x0, &mut x1);
+        }
+        if y0 > y1 {
+            std::mem::swap(&mut y0, &mut y1);
+        }
 
         let fill = if matches!(rectangle.stroke.fillcolor, Color::None) {
             "none".to_string()
@@ -229,16 +233,24 @@ impl<'a> Drawer<Rectangle, Group> for SvgPlotter<'a> {
             rectangle.stroke.fillcolor.to_string()
         };
 
-        let mut path = Path::new()
+        let mut rect = element::Rectangle::new()
+            .set("x", x0)
+            .set("y", y0)
+            .set("width", x1 - x0)
+            .set("height", y1 - y0)
             .set("fill", fill)
             .set("stroke", rectangle.stroke.linecolor.to_string())
-            .set("stroke-width", rectangle.stroke.linewidth)
-            .set("d", data);
+            .set("stroke-width", rectangle.stroke.linewidth);
+
+        if let Some(rx) = &rectangle.rx {
+            rect = rect.set("rx", rx.to_string());
+        }
 
         if let Some(cls) = &rectangle.class {
-            path = path.set("class", cls.as_str());
+            rect = rect.set("class", cls.as_str());
         }
-        document.append(path);
+
+        document.append(rect);
     }
 }
 

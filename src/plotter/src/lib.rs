@@ -1,10 +1,13 @@
 use std::{collections::HashMap, fmt, fs::File, io::Read, sync::Mutex};
 
-use fontdue::{layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle}, Font};
+use fontdue::{
+    layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle},
+    Font,
+};
 
-use ndarray::{arr1, arr2, Array1, Array2};
 use clap::ValueEnum;
 use log::{debug, info, warn};
+use ndarray::{arr1, arr2, Array1, Array2};
 
 //pub mod cairo_plotter;
 pub mod error;
@@ -25,7 +28,8 @@ use sexp::{el, PaperSize, Sexp, SexpValueQuery, SexpValuesQuery};
 
 use lazy_static::lazy_static;
 
-const BORDER_RASTER: i32 = 60;
+const BORDER_RASTER: i32 = 40;
+
 const BORDER_HEADER_3: f64 = 7.5;
 const DEFAULT_FONT: &str = "osifont";
 
@@ -35,9 +39,14 @@ const DEFAULT_FONT: &str = "osifont";
 
 ///extract the filename from a path and remove the extension
 fn name_from_path(path: &str) -> String {
-    path.split('/').last().unwrap().split('.').next().unwrap().to_string()
+    path.split('/')
+        .last()
+        .unwrap()
+        .split('.')
+        .next()
+        .unwrap()
+        .to_string()
 }
-
 
 /// plot the document
 ///
@@ -48,15 +57,27 @@ fn name_from_path(path: &str) -> String {
 ///
 /// * `input`    - A Schema filename.
 /// * `output`   - The filename of the target image.
-pub fn plot(input: &str, output: &str, border: bool, theme: Theme, scale: f64, pages: Option<Vec<usize>>, layers: Option<Vec<String>>) -> Result<(), Error> {
+pub fn plot(
+    input: &str,
+    output: &str,
+    border: bool,
+    theme: Theme,
+    scale: f64,
+    pages: Option<Vec<usize>>,
+    layers: Option<Vec<String>>,
+) -> Result<(), Error> {
     if input.ends_with(".kicad_sch") {
-        info!("Write schema: input:{}, output:{:?}, border: {} theme: {:?}", input, output, border, theme);
+        info!(
+            "Write schema: input:{}, output:{:?}, border: {} theme: {:?}",
+            input, output, border, theme
+        );
         //load the sexp file.
         //if let Some(output) = output {
         if output.ends_with(".svg") {
-
             let mut plotter = schema::SchemaPlot::new()
-                .border(border).theme(theme).scale(scale)
+                .border(border)
+                .theme(theme)
+                .scale(scale)
                 .name(input);
 
             if let Some(pages) = pages {
@@ -99,30 +120,32 @@ pub fn plot(input: &str, output: &str, border: bool, theme: Theme, scale: f64, p
         } else {
             return Err(Error::Plotter(format!(
                 "{} Image type not supported for schema plot: '{}'",
-                "Error:",
-                output
+                "Error:", output
             )));
         }
         //} else {
         //    println!("no output file");
         //}
-
     } else if input.ends_with(".kicad_pcb") {
-        debug!("Write PCB: input:{}, output:{:?}, border: {} theme: {:?}", input, output, border, theme);
+        debug!(
+            "Write PCB: input:{}, output:{:?}, border: {} theme: {:?}",
+            input, output, border, theme
+        );
         let layers = if let Some(layers) = layers {
             layers
         } else {
             LAYERS.iter().map(|s| s.to_string()).collect()
         };
         if output.ends_with(".svg") {
-
             let mut plotter = pcb::PcbPlot::new()
-                .border(border).theme(theme).scale(scale)
+                .border(border)
+                .theme(theme)
+                .scale(scale)
                 .name(&name_from_path(input));
 
             plotter.open(input)?;
             debug!("write first page to {}", output);
-            let mut file =File::create(output)?;
+            let mut file = File::create(output)?;
             let mut svg_plotter = svg::SvgPlotter::new(&mut file);
             plotter.write(&mut svg_plotter, layers)?;
 
@@ -149,13 +172,9 @@ pub fn plot(input: &str, output: &str, border: bool, theme: Theme, scale: f64, p
         } else {
             return Err(Error::Plotter(format!(
                 "{} Image type not supported for file: '{}'",
-                "Error:",
-                output
+                "Error:", output
             )));
         }
-
-
-
 
         //pcb::plot_pcb(
         //    input.to_string(),
@@ -166,14 +185,11 @@ pub fn plot(input: &str, output: &str, border: bool, theme: Theme, scale: f64, p
     } else {
         return Err(Error::FileNotFound(format!(
             "{} Input file format not supported: {}",
-            "Error:",
-            input
+            "Error:", input
         )));
     }
     Ok(())
 }
-
-
 
 // -----------------------------------------------------------------------------------------------------------
 // ---                                           plotter model                                             ---
@@ -264,7 +280,6 @@ impl From<&Sexp> for Effects {
     }
 }
 
-
 #[derive(Debug, Clone, Default, PartialEq)]
 pub enum Color {
     #[default]
@@ -273,8 +288,7 @@ pub enum Color {
     Rgba(u16, u16, u16, f64),
 }
 
-
-
+#[allow(clippy::get_first)]
 impl From<Vec<String>> for Color {
     fn from(value: Vec<String>) -> Self {
         if value.len() == 3 {
@@ -288,7 +302,7 @@ impl From<Vec<String>> for Color {
                 value.get(0).unwrap().parse::<u16>().unwrap(),
                 value.get(1).unwrap().parse::<u16>().unwrap(),
                 value.get(2).unwrap().parse::<u16>().unwrap(),
-                value.get(3).unwrap().parse::<f64>().unwrap()
+                value.get(3).unwrap().parse::<f64>().unwrap(),
             )
         } else {
             panic!("can not parse color {:?}", value);
@@ -314,10 +328,10 @@ impl From<&str> for Color {
         content
             .split(',')
             .map(|c| c.trim().to_string())
-            .collect::<Vec<String>>().into()
+            .collect::<Vec<String>>()
+            .into()
     }
 }
-
 
 ///implement the rust format trait for Color
 impl fmt::Display for Color {
@@ -364,7 +378,6 @@ impl From<&Sexp> for Stroke {
         //(stroke (width 2) (type dash_dot_dot) (color 0 255 0 1))
         let mut stroke = Stroke::new();
         if let Some(s) = element.query(el::STROKE).next() {
-
             let linewidth = s.query("width").next();
             if let Some(width) = linewidth {
                 stroke.linewidth = width.get(0).unwrap()
@@ -374,7 +387,7 @@ impl From<&Sexp> for Stroke {
                 stroke.linetype = linetype.get(0).unwrap()
             }
             if let Some(color) = s.query("color").next() {
-                let colors: Vec<String> =  color.values();
+                let colors: Vec<String> = color.values();
                 stroke.linecolor = colors.into()
             }
         }
@@ -435,7 +448,6 @@ impl From<&str> for Theme {
 
 ///Plotter trait
 pub trait PlotterImpl<'a> {
-
     ///Plot the data.
     //fn plot<W: Write + 'static>(
     fn plot(
@@ -605,7 +617,6 @@ pub enum Style {
     ViaThrough,
 
     None,
-
 }
 
 impl fmt::Display for Style {
@@ -905,13 +916,24 @@ impl Polyline {
 
 pub struct Rectangle {
     pub pts: Array2<f64>,
+    pub rx: Option<f64>,
     pub stroke: Stroke,
     pub class: Option<String>,
 }
 
 impl Rectangle {
-    pub fn new(pts: Array2<f64>, stroke: Stroke, class: Option<String>) -> Rectangle {
-        Rectangle { pts, stroke, class  }
+    pub fn new(
+        pts: Array2<f64>,
+        rx: Option<f64>,
+        stroke: Stroke,
+        class: Option<String>,
+    ) -> Rectangle {
+        Rectangle {
+            pts,
+            rx,
+            stroke,
+            class,
+        }
     }
 }
 
@@ -933,7 +955,9 @@ impl Circle {
         }
     }
     pub fn radius(center: &Array1<f64>, end: &Array1<f64>) -> f64 {
-        let r = ((center[0] - end[0]) * (center[0] - end[0]) + (center[1] - end[1]) * (center[1] - end[1])).sqrt();
+        let r = ((center[0] - end[0]) * (center[0] - end[0])
+            + (center[1] - end[1]) * (center[1] - end[1]))
+            .sqrt();
         format!("{:.2}", r).parse::<f64>().unwrap()
     }
 }
@@ -960,8 +984,10 @@ impl Arc {
         stroke: Stroke,
         class: Option<String>,
     ) -> Arc {
-
-        let d = 2.0 * (start[0] * (mid[1] - end[1]) + mid[0] * (end[1] - start[1]) + end[0] * (start[1] - mid[1]));
+        let d = 2.0
+            * (start[0] * (mid[1] - end[1])
+                + mid[0] * (end[1] - start[1])
+                + end[0] * (start[1] - mid[1]));
         //if d == 0.0 { TODO
         //    return None; // Points are collinear
         //}
@@ -993,7 +1019,6 @@ pub struct Text {
     pub angle: f64,
     pub text: String,
     pub effects: Effects,
-    pub label: bool,
     pub class: Option<String>,
 }
 
@@ -1003,7 +1028,6 @@ impl Text {
         angle: f64,
         text: String,
         effects: Effects,
-        label: bool,
         class: Option<String>,
     ) -> Text {
         Text {
@@ -1011,7 +1035,6 @@ impl Text {
             angle,
             text,
             effects,
-            label,
             class,
         }
     }
@@ -1022,7 +1045,6 @@ impl Text {
 // -----------------------------------------------------------------------------------------------------------
 
 fn cached_font(text: &str, effects: &Effects) -> Array1<f64> {
-
     lazy_static! {
         static ref FONT_CACHE: FcFontCache = FcFontCache::build();
         static ref FONTS: Mutex<HashMap<String, Font>> = Mutex::new(HashMap::new());
@@ -1031,8 +1053,8 @@ fn cached_font(text: &str, effects: &Effects) -> Array1<f64> {
     let mut last = FONTS.lock().unwrap();
     if !last.contains_key(&effects.font_face) {
         let result = FONT_CACHE.query(&FcPattern {
-          name: Some(String::from(&effects.font_face)),
-          .. Default::default()
+            name: Some(String::from(&effects.font_face)),
+            ..Default::default()
         });
 
         let result = result.unwrap().path.to_string();
@@ -1040,7 +1062,10 @@ fn cached_font(text: &str, effects: &Effects) -> Array1<f64> {
         let mut font = Vec::new();
         f.read_to_end(&mut font).unwrap();
 
-        last.insert(effects.font_face.to_string(), Font::from_bytes(font, fontdue::FontSettings::default()).unwrap());
+        last.insert(
+            effects.font_face.to_string(),
+            Font::from_bytes(font, fontdue::FontSettings::default()).unwrap(),
+        );
     }
 
     let fonts = &[last.get(&effects.font_face).unwrap()];
@@ -1048,25 +1073,32 @@ fn cached_font(text: &str, effects: &Effects) -> Array1<f64> {
     layout.reset(&LayoutSettings {
         ..LayoutSettings::default()
     });
-    layout.append(fonts, &TextStyle::new(text, (*effects.font_size.first().unwrap() * 1.33333333) as f32, 0));
+    layout.append(
+        fonts,
+        &TextStyle::new(
+            text,
+            (*effects.font_size.first().unwrap() * 1.33333333) as f32,
+            0,
+        ),
+    );
     let width: usize = layout.glyphs().iter().map(|g| g.width).sum();
 
-    arr1(&[width as f64, *effects.font_size.first().unwrap() * 1.33333333])
+    arr1(&[
+        width as f64,
+        *effects.font_size.first().unwrap() * 1.33333333,
+    ])
 }
 
 pub trait Outline {
     fn text_pos(&self, at: Array1<f64>, text: String, angle: f64, effects: Effects) -> Array2<f64> {
         let themer = Themer::new(Theme::default()); //TODO should we pass a theme here?
-        let size = self.text_size(
-            &Text::new(
-                arr1(&[0.0, 0.0]),
-                angle,
-                text,
-                themer.get_effects(effects.clone(), &[Style::Property]),
-                false,
-                None,
-            ),
-        );
+        let size = self.text_size(&Text::new(
+            arr1(&[0.0, 0.0]),
+            angle,
+            text,
+            themer.get_effects(effects.clone(), &[Style::Property]),
+            None,
+        ));
 
         let mut x = at[0];
         let mut y = at[1];
@@ -1169,22 +1201,38 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
     let paper_dimension: (f64, f64) = paper_size.clone().into();
 
     //outline
-    let pts: Array2<f64> = arr2(&[[5.0, 5.0], [paper_dimension.0 - 5.0, paper_dimension.1 - 5.0]]);
+    let pts: Array2<f64> = arr2(&[
+        [5.0, 5.0],
+        [paper_dimension.0 - 5.0, paper_dimension.1 - 5.0],
+    ]);
     plotter.push(PlotItem::Rectangle(
         99,
-        Rectangle::new(pts, themer.get_stroke(Stroke::new(), &[Style::Border]), None),
+        Rectangle::new(
+            pts,
+            None,
+            themer.get_stroke(Stroke::new(), &[Style::Border]),
+            None,
+        ),
     ));
 
     //horizontal raster
-    for j in &[(0.0_f64, 5.0_f64), (paper_dimension.1 - 5.0, paper_dimension.1)] {
+    for j in &[
+        (0.0_f64, 5.0_f64),
+        (paper_dimension.1 - 5.0, paper_dimension.1),
+    ] {
         for i in 0..(paper_dimension.0 as i32 / BORDER_RASTER) {
             let pts: Array2<f64> = arr2(&[
                 [(i as f64 + 1.0) * BORDER_RASTER as f64, j.0],
                 [(i as f64 + 1.0) * BORDER_RASTER as f64, j.1],
             ]);
-            plotter.push(PlotItem::Rectangle(
+            plotter.push(PlotItem::Line(
                 99,
-                Rectangle::new(pts, themer.get_stroke(Stroke::new(), &[Style::Border]), None),
+                Line::new(
+                    pts,
+                    themer.get_stroke(Stroke::new(), &[Style::Border]),
+                    None,
+                    None,
+                ),
             ));
         }
         for i in 0..(paper_dimension.0 as i32 / BORDER_RASTER + 1) {
@@ -1198,7 +1246,6 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
                     0.0,
                     (i + 1).to_string(),
                     themer.get_effects(Effects::new(), &[Style::TextSheet]),
-                    false,
                     None,
                 ),
             ));
@@ -1211,15 +1258,23 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
         's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
     ];
 
-    for j in &[(0.0_f64, 5.0_f64), (paper_dimension.0 - 5.0, paper_dimension.0)] {
+    for j in &[
+        (0.0_f64, 5.0_f64),
+        (paper_dimension.0 - 5.0, paper_dimension.0),
+    ] {
         for i in 0..(paper_dimension.1 as i32 / BORDER_RASTER) {
             let pts: Array2<f64> = arr2(&[
                 [j.0, (i as f64 + 1.0) * BORDER_RASTER as f64],
                 [j.1, (i as f64 + 1.0) * BORDER_RASTER as f64],
             ]);
-            plotter.push(PlotItem::Rectangle(
+            plotter.push(PlotItem::Line(
                 99,
-                Rectangle::new(pts, themer.get_stroke(Stroke::new(), &[Style::Border]), None),
+                Line::new(
+                    pts,
+                    themer.get_stroke(Stroke::new(), &[Style::Border]),
+                    None,
+                    None,
+                ),
             ));
         }
         for i in 0..(paper_dimension.0 as i32 / BORDER_RASTER + 1) {
@@ -1232,8 +1287,7 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
                     ]),
                     0.0,
                     letters[i as usize].to_string(),
-                    themer.get_effects(Effects::new(),&[Style::TextSheet]),
-                    false,
+                    themer.get_effects(Effects::new(), &[Style::TextSheet]),
                     None,
                 ),
             ));
@@ -1247,7 +1301,12 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
     ]);
     plotter.push(PlotItem::Rectangle(
         99,
-        Rectangle::new(pts, themer.get_stroke(Stroke::new(), &[Style::Border]), None),
+        Rectangle::new(
+            pts,
+            None,
+            themer.get_stroke(Stroke::new(), &[Style::Border]),
+            None,
+        ),
     ));
     plotter.push(PlotItem::Line(
         99,
@@ -1289,7 +1348,6 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
                     0.0,
                     comment.get(1).unwrap(),
                     themer.get_effects(effects.clone(), &[Style::TextHeader]),
-                    false,
                     None,
                 ),
             ));
@@ -1301,7 +1359,6 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
                     0.0,
                     comment.get(1).unwrap(),
                     themer.get_effects(effects.clone(), &[Style::TextHeader]),
-                    false,
                     None,
                 ),
             ));
@@ -1313,7 +1370,6 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
                     0.0,
                     comment.get(1).unwrap(),
                     themer.get_effects(effects.clone(), &[Style::TextHeader]),
-                    false,
                     None,
                 ),
             ));
@@ -1325,7 +1381,6 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
                     0.0,
                     comment.get(1).unwrap(),
                     themer.get_effects(effects.clone(), &[Style::TextHeader]),
-                    false,
                     None,
                 ),
             ));
@@ -1339,7 +1394,6 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
                 0.0,
                 company.get(0).unwrap(),
                 themer.get_effects(effects.clone(), &[Style::TextHeader]),
-                false,
                 None,
             ),
         ));
@@ -1352,7 +1406,6 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
                 0.0,
                 title.get(0).unwrap(),
                 themer.get_effects(effects.clone(), &[Style::TextHeader]),
-                false,
                 None,
             ),
         ));
@@ -1365,7 +1418,6 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
             0.0,
             paper_size.to_string(),
             themer.get_effects(effects.clone(), &[Style::TextHeader]),
-            false,
             None,
         ),
     ));
@@ -1374,11 +1426,13 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
         plotter.push(PlotItem::Text(
             99,
             Text::new(
-                arr1(&[paper_dimension.0 - 90.0, paper_dimension.1 - BORDER_HEADER_3]),
+                arr1(&[
+                    paper_dimension.0 - 90.0,
+                    paper_dimension.1 - BORDER_HEADER_3,
+                ]),
                 0.0,
                 date.get(0).unwrap(),
                 themer.get_effects(effects.clone(), &[Style::TextHeader]),
-                false,
                 None,
             ),
         ));
@@ -1387,14 +1441,16 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
         plotter.push(PlotItem::Text(
             99,
             Text::new(
-                arr1(&[paper_dimension.0 - 20.0, paper_dimension.1 - BORDER_HEADER_3]),
+                arr1(&[
+                    paper_dimension.0 - 20.0,
+                    paper_dimension.1 - BORDER_HEADER_3,
+                ]),
                 0.0,
                 format!(
                     "Rev: {}",
                     <Sexp as SexpValueQuery::<String>>::get(rev, 0).unwrap()
                 ),
                 themer.get_effects(effects.clone(), &[Style::TextHeader]),
-                false,
                 None,
             ),
         ));
@@ -1404,10 +1460,11 @@ pub fn border(title_block: &Sexp, paper_size: PaperSize, themer: &Themer) -> Opt
 
 #[cfg(test)]
 mod tests {
-    use ndarray::{arr1, arr2};
     use crate::{
-        schema::Themer, Circle, Effects, Line, Outline, PlotItem, Polyline, Rectangle, Stroke, Style, Text, Theme
+        schema::Themer, Circle, Effects, Line, Outline, PlotItem, Polyline, Rectangle, Stroke,
+        Style, Text, Theme,
     };
+    use ndarray::{arr1, arr2};
 
     #[test]
     fn from_style() {
@@ -1425,7 +1482,6 @@ mod tests {
             0.0,
             String::from("teststring"),
             themer.get_effects(Effects::new(), &[Style::TextPinName]),
-            false,
             None,
         );
         struct TestOutline;
@@ -1442,9 +1498,7 @@ mod tests {
         impl Outline for TestOutline {}
 
         let outline = TestOutline;
-        let bounds = outline.bounds(
-            &[PlotItem::Circle(0, circle)],
-        );
+        let bounds = outline.bounds(&[PlotItem::Circle(0, circle)]);
 
         assert_eq!(
             arr2(&[[100.0 - 0.45, 100.0 - 0.45], [100.0 + 0.45, 100.0 + 0.45]]),
@@ -1455,15 +1509,15 @@ mod tests {
     fn test_bounds_rect() {
         let rect = Rectangle::new(
             arr2(&[[100.0, 100.0], [150.0, 150.0]]),
-            Stroke::new(), None,
+            None,
+            Stroke::new(),
+            None,
         );
         struct TestOutline;
         impl Outline for TestOutline {}
 
         let outline = TestOutline;
-        let bounds = outline.bounds(
-            &[PlotItem::Rectangle(0, rect)],
-        );
+        let bounds = outline.bounds(&[PlotItem::Rectangle(0, rect)]);
 
         assert_eq!(arr2(&[[100.0, 100.0], [150.0, 150.0]]), bounds);
     }
@@ -1487,15 +1541,14 @@ mod tests {
     fn test_bounds_polyline() {
         let line = Polyline::new(
             arr2(&[[100.0, 100.0], [150.0, 150.0], [75.0, 75.0]]),
-            Stroke::new(), None,
+            Stroke::new(),
+            None,
         );
         struct TestOutline;
         impl Outline for TestOutline {}
 
         let outline = TestOutline;
-        let bounds = outline.bounds(
-            &[PlotItem::Polyline(0, line)],
-        );
+        let bounds = outline.bounds(&[PlotItem::Polyline(0, line)]);
         assert_eq!(arr2(&[[75.0, 75.0], [150.0, 150.0]]), bounds);
     }
     //TODO
@@ -1529,7 +1582,6 @@ mod tests {
             0.0,
             String::from("teststring"),
             themer.get_effects(effects, &[Style::TextPinName]),
-            false,
             None,
         );
         struct TestOutline;
@@ -1568,6 +1620,23 @@ mod tests {
     } */
     #[test]
     fn test_circle_from_points() {
-        assert_eq!(0.1, Circle::radius(&arr1(&[103.378, 85.09]), &arr1(&[103.478, 85.09])));
+        assert_eq!(
+            0.1,
+            Circle::radius(&arr1(&[103.378, 85.09]), &arr1(&[103.478, 85.09]))
+        );
+    }
+
+    #[test]
+    fn test_debugging() {
+        super::plot(
+            "/home/etienne/github/elektrophon/src/cp3/main/main.kicad_pcb",
+            "pcb.svg",
+            true,
+            Theme::Nord,
+            1.0,
+            None,
+            Some(vec![String::from("B.SilkS")]),
+        )
+        .unwrap()
     }
 }

@@ -3,7 +3,6 @@ use std::collections::HashMap;
 
 use lazy_static::lazy_static;
 use ndarray::{arr1, arr2, s, Array, Array1, Array2};
-use log::{trace, error};
 
 use crate::{el, utils, Error, Sexp, SexpValueQuery, SexpValuesQuery};
 
@@ -62,6 +61,7 @@ impl Shape {
 pub trait Transform<U, T> {
     fn transform(node: &U, pts: &T) -> T;
     fn transform_pad(node: &U, front: bool, angle: Option<f64>, pts: &T) -> T;
+
 }
 impl Transform<Sexp, Array2<f64>> for Shape {
     fn transform(symbol: &Sexp, pts: &Array2<f64>) -> Array2<f64> {
@@ -84,28 +84,21 @@ impl Transform<Sexp, Array2<f64>> for Shape {
         let verts = &symbol_pos + verts;
         verts.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap())
     }
-    fn transform_pad(symbol: &Sexp, flip: bool, angle: Option<f64>, pts: &Array2<f64>) -> Array2<f64> {
+    fn transform_pad(symbol: &Sexp, flip: bool, _pad_angle: Option<f64>, pts: &Array2<f64>) -> Array2<f64> {
+
         let symbol_pos = utils::at(symbol).unwrap();
-
-        let angle = if let Some(angle) = angle {
-            angle
-        } else {
-            symbol.query(el::AT).next().unwrap().get(2).unwrap_or(0.0)
-        };
-
+        let mut angle = crate::utils::angle(symbol).unwrap_or(0.0);
         let mirror = if flip {
-            //angle += 180.0;
+           angle += 180.0;
             Some("y".to_string())
         } else { None };
 
-        let theta = -angle.to_radians();
+        let theta = angle.to_radians();
         let rot = arr2(&[[theta.cos(), -theta.sin()], [theta.sin(), theta.cos()]]);
         let mut verts: Array2<f64> = pts.dot(&rot);
-        verts = if let Some(mirror) = &mirror {
-            verts.dot(MIRROR.get(mirror).unwrap())
-        } else {
-            verts.dot(MIRROR.get(&String::new()).unwrap())
-        };
+        if let Some(mirror) = &mirror {
+            verts = verts.dot(MIRROR.get(mirror).unwrap());
+        }
         let verts = &symbol_pos + verts;
         verts.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap())
     }
@@ -142,33 +135,27 @@ impl Transform<Sexp, Array1<f64>> for Shape {
             }
         })
     }
-    fn transform_pad(symbol: &Sexp, flip: bool, angle: Option<f64>, pts: &Array1<f64>) -> Array1<f64> {
+    fn transform_pad(symbol: &Sexp, flip: bool, _pad_angle: Option<f64>, pts: &Array1<f64>) -> Array1<f64> {
         let symbol_at = symbol.query(el::AT).next().unwrap();
         let symbol_x: f64 = symbol_at.get(0).unwrap();
         let symbol_y: f64 = symbol_at.get(1).unwrap();
         let symbol_pos = arr1(&[symbol_x, symbol_y]);
 
-        let angle = if let Some(angle) = angle {
-            angle
-        } else {
-            symbol.query(el::AT).next().unwrap().get(2).unwrap_or(0.0)
-        };
+        let mut angle = crate::utils::angle(symbol).unwrap_or(0.0);
 
         let mirror = if flip {
-                //angle += 180.0;
+               angle += 180.0;
                 Some("y".to_string())
             } else {
                 None
             };
 
-        let theta = -angle.to_radians();
+        let theta = angle.to_radians();
         let rot = arr2(&[[theta.cos(), -theta.sin()], [theta.sin(), theta.cos()]]);
         let mut verts: Array1<f64> = pts.dot(&rot);
-        verts = if let Some(mirror) = mirror {
-            verts.dot(MIRROR.get(&mirror).unwrap())
-        } else {
-            verts.dot(MIRROR.get(&String::new()).unwrap())
-        };
+        if let Some(mirror) = mirror {
+            verts = verts.dot(MIRROR.get(&mirror).unwrap());
+        }
         let verts = &symbol_pos + verts;
         verts.mapv_into(|v| {
             let res = format!("{:.3}", v).parse::<f64>().unwrap(); //TODO: use global round macro!

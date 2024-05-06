@@ -415,6 +415,13 @@ macro_rules! stroke {
     };
 }
 
+macro_rules! class {
+    ($name:expr, $layer:expr) => {
+        Some(format!("{}_{}", $name, $layer.replace('.', "_")))
+    };
+}
+
+
 trait PlotElement<T> {
     fn plot(&self, item: T, layer: &str, plot_items: &mut Vec<PlotItem>) -> Result<(), Error>;
 }
@@ -446,7 +453,7 @@ impl<'a> PlotElement<GrLineElement<'a>> for PcbPlot<'a> {
                     arr2(&[[start[0], start[1]], [end[0], end[1]]]),
                     stroke,
                     None,
-                    Some(format!("{}_{}", self.name, line_layer.replace('.', "_"))),
+                    class!(self.name, line_layer),
                 ),
             ));
         }
@@ -482,7 +489,7 @@ impl<'a> PlotElement<GrPolyElement<'a>> for PcbPlot<'a> {
 
             plot_items.push(PlotItem::Polyline(
                 20,
-                Polyline::new(pts, stroke, Some(format!("{}_{}", self.name, layer.replace('.', "_")))),
+                Polyline::new(pts, stroke, class!(self.name, layer)),
             ));
         }
         Ok(())
@@ -518,7 +525,7 @@ impl<'a> PlotElement<GrCircleElement<'a>> for PcbPlot<'a> {
                     center,
                     radius,
                     stroke,
-                    Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
+                    class!(self.name, layer),
                 ),
             ));
         }
@@ -555,7 +562,7 @@ impl<'a> PlotElement<ZoneElement<'a>> for PcbPlot<'a> {
 
                 plot_items.push(PlotItem::Polyline(
                     20,
-                    Polyline::new(pts, stroke, Some(format!("{}_{}", self.name, layer.replace('.', "_")))),
+                    Polyline::new(pts, stroke, class!(self.name, layer)),
                 ));
             }
         }
@@ -588,7 +595,7 @@ impl<'a> PlotElement<SegmentElement<'a>> for PcbPlot<'a> {
                     arr2(&[[start[0], start[1]], [end[0], end[1]]]),
                     stroke,
                     None,
-                    Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
+                    class!(self.name, layer),
                 ),
             ));
         }
@@ -627,7 +634,7 @@ impl<'a> PlotElement<ViaElement<'a>> for PcbPlot<'a> {
                         at.clone(),
                         size - linewidth,
                         stroke,
-                        Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
+                        class!(self.name, layer),
                     ),
                 ));
             }
@@ -635,20 +642,6 @@ impl<'a> PlotElement<ViaElement<'a>> for PcbPlot<'a> {
         Ok(())
     }
 }
-
-//23092   │     (gr_text "summe"
-//23093   │         (locked yes)
-//23094   │         (at 68.9 158.06 0)
-//23095   │         (layer "B.SilkS")
-//23096   │         (uuid "9c8fdf06-c8c5-49d5-b787-6d9bada2d902")
-//23097   │         (effects
-//23098   │             (font
-//23099   │                 (size 0.8 1)
-//23100   │                 (thickness 0.15)
-//23101   │             )
-//23102   │             (justify left mirror)
-//23103   │         )
-//23104   │     )
 
 struct GrTextElement<'a> {
     item: &'a Sexp,
@@ -678,10 +671,8 @@ impl<'a> PlotElement<GrTextElement<'a>> for PcbPlot<'a> {
                     at,
                     0.0,
                     text,
-                    //self.theme.get_stroke(item.item.into(), &[Style::Wire]),
                     effects,
-                    false,
-                    Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
+                    class!(self.name, layer),
                 ),
             ));
         }
@@ -706,27 +697,10 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
         layer: &str,
         plot_items: &mut Vec<PlotItem>,
     ) -> Result<(), Error> {
-        //create a tmp element to fix the angle and mirror
-
-        let footprint: String = item.item.get(0).unwrap();
-        let at: Array1<f64> = sexp::utils::at(item.item).unwrap();
-        let angle = sexp::utils::angle(item.item).unwrap_or(0.0);
-        let fp_layer: String = item.item.value(el::LAYER).unwrap();
 
         for element in item.item.nodes() {
             let name: &String = &element.name;
             if name == "fp_arc" {
-                //(fp_arc
-                //	(start -0.29 -1.235516)
-                //	(mid 1.366487 -1.987659)
-                //	(end 2.942335 -1.078608)
-                //	(stroke
-                //		(width 0.12)
-                //		(type solid)
-                //	)
-                //	(layer "F.SilkS")
-                //	(uuid "52502052-4743-4caa-863e-91187c15e848")
-                //)
                 let arc_start: Array1<f64> = element.value(el::GRAPH_START).unwrap();
                 let arc_mid: Array1<f64> = element.value("mid").unwrap();
                 let arc_end: Array1<f64> = element.value(el::GRAPH_END).unwrap();
@@ -746,7 +720,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                             0.0,
                             None,
                             stroke,
-                            Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
+                            class!(self.name, layer),
                         ),
                     ));
                 }
@@ -776,7 +750,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                             ),
                             stroke,
                             None,
-                            Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
+                            class!(self.name, layer),
                         ),
                     ));
                 }
@@ -805,7 +779,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                         Polyline::new(
                             Shape::transform_pad(item.item, item.is_flipped(), None, &pts),
                             stroke,
-                            Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
+                            class!(self.name, layer),
                         ),
                     ));
                 }
@@ -827,7 +801,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                             Shape::transform_pad(item.item, item.is_flipped(), None, &center),
                             radius,
                             stroke,
-                            Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
+                            class!(self.name, layer),
                         ),
                     ));
                 }
@@ -835,7 +809,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                 let text_layer: String = element.value(el::LAYER).unwrap();
                 if PcbPlot::is_layer_in(layer, &text_layer) {
                     let at = sexp::utils::at(element).unwrap();
-                    let angle = sexp::utils::angle(element).unwrap();
+                    let angle = sexp::utils::angle(element).unwrap_or(0.0);
                     let mut effects = Effects::from(element);
                     effects.font_color = self.theme.layer_color(&[Style::from(text_layer)]);
                     let text: String = element.get(1).unwrap();
@@ -847,8 +821,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                             angle,
                             text,
                             effects,
-                            false,
-                            Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
+                            class!(self.name, layer),
                         ),
                     ));
                 }
@@ -886,13 +859,11 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                             angle,
                             text,
                             effects,
-                            false,
-                            Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
+                            class!(self.name, layer),
                         ),
                     ));
                 }
             } else if name == el::PAD {
-
 
                 let pad_type =
                     PadType::from(<Sexp as SexpValueQuery<String>>::get(element, 1).unwrap());
@@ -901,7 +872,6 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
 
                 let at = sexp::utils::at(element).unwrap();
                 let angle = sexp::utils::angle(element);
-
 
                 let layers_node: &Sexp = element.query("layers").next().expect("expect layers");
                 let layers: Vec<String> = layers_node.values();
@@ -937,7 +907,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                                             ),
                                             (pad_size[0] / 2.0) - linewidth / 2.0,
                                             stroke,
-                                            Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
+                                            class!(self.name, layer),
                                         ),
                                     ));
                                 } else if let PadType::Connect = pad_type {
@@ -957,7 +927,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                                             ),
                                             pad_size[0] / 2.0,
                                             stroke,
-                                            Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
+                                            class!(self.name, layer),
                                         ),
                                     ));
                                 } else {
@@ -965,24 +935,8 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                                 }
                             }
                             PadShape::Oval => {
-                                //} else if pad_type == "thru_hole" && pad_sub_type == "oval" {
-                                //(pad "" thru_hole oval
-                                //	(at 0 -4.84 180)
-                                //	(size 2.72 3.24)
-                                //	(drill oval 1.1 1.8)
-                                //	(layers "*.Cu" "*.Mask")
-                                //	(remove_unused_layers no)
-                                //	(uuid "a6691f96-af2b-47d4-b2be-bba45e234131")
-                                //)
-                                let at = sexp::utils::at(element).unwrap();
-                                let sexp_drill = element.query(el::DRILL).next().unwrap();
-                                let drill = DrillHole::from(sexp_drill);
-                                let size: f64 = drill.diameter;
-                                let drill: f64 = drill.width.unwrap_or(0.0);
-
-                                let linewidth = size - drill;
                                 let mut stroke = Stroke::new();
-                                stroke.linewidth = linewidth;
+                                stroke.linewidth = 0.1;
                                 if layer.starts_with("F.") {
                                     stroke.fillcolor =
                                         self.theme.layer_color(&[Style::PadThroughHole]);
@@ -990,35 +944,79 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                                     stroke.linecolor = self.theme.layer_color(&[Style::PadBack]);
                                 }
 
-                                plot_items.push(PlotItem::Circle(
-                                    10,
-                                    Circle::new(
+                                let at = sexp::utils::at(element).unwrap();
+                                let size: Array1<f64> = element.value("size").unwrap();
+
+                                let deltaxy = size[1] - size[0];       /* distance between centers of the oval */
+                                let radius  = size[0] / 2.0;
+                                let half_height = deltaxy / 2.0;
+
+                                let points = arr2(&[
+                                    [[-half_height, radius], [-half_height, -radius]], // the line
+                                    [[-size[1] / 2.0, 0.0], [size[1] / 2.0, 0.0]],
+                                    [[half_height, radius], [half_height, -radius]], // the line
+                                ]);
+                                let mut fill_stroke = stroke.clone();
+                                fill_stroke.linecolor = fill_stroke.fillcolor.clone();
+                                plot_items.push(PlotItem::Rectangle(
+                                    1,
+                                    crate::Rectangle::new(
                                         Shape::transform_pad(
                                             item.item,
                                             item.is_flipped(),
                                             angle,
-                                            &at,
+                                            &(arr2(&[points[[0, 0]], points[[2, 1]]])+&at),
                                         ),
-                                        size - 2.0 * linewidth,
+                                        None,
+                                        fill_stroke,
+                                        class!(self.name, layer),
+                                    ),
+                                ));
+                                plot_items.push(PlotItem::Line(
+                                    90,
+                                    Line::new(
+                                        Shape::transform_pad(item.item, item.is_flipped(), None, &(arr2(&[points[[0, 0]], points[[2, 0]]])+&at)),
+                                        stroke.clone(),
+                                        None,
+                                        class!(self.name, layer),
+                                    ),
+                                ));
+                                plot_items.push(PlotItem::Line(
+                                    90,
+                                    Line::new(
+                                        Shape::transform_pad(item.item, item.is_flipped(), None, &(arr2(&[points[[0, 1]], points[[2, 1]]])+&at)),
+                                        stroke.clone(),
+                                        None,
+                                        class!(self.name, layer),
+                                    ),
+                                ));
+                                plot_items.push(PlotItem::Arc(
+                                    100,
+                                    Arc::new(
+                                        Shape::transform_pad(item.item, item.is_flipped(), None, &(arr1(&points[[0, 0]])+&at)),
+                                        Shape::transform_pad(item.item, item.is_flipped(), None, &(arr1(&points[[1, 0]])+&at)),
+                                        Shape::transform_pad(item.item, item.is_flipped(), None, &(arr1(&points[[0, 1]])+&at)),
+                                        0.0,
+                                        None,
+                                        stroke.clone(),
+                                        class!(self.name, layer),
+                                    ),
+                                ));
+
+                                plot_items.push(PlotItem::Arc(
+                                    100,
+                                    Arc::new(
+                                        Shape::transform_pad(item.item, item.is_flipped(), None, &(arr1(&points[[2, 0]])+&at)),
+                                        Shape::transform_pad(item.item, item.is_flipped(), None, &(arr1(&points[[1, 1]])+&at)),
+                                        Shape::transform_pad(item.item, item.is_flipped(), None, &(arr1(&points[[2, 1]])+&at)),
+                                        0.0,
+                                        None,
                                         stroke,
-                                        Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
+                                        class!(self.name, layer),
                                     ),
                                 ));
                             }
                             PadShape::Rect => {
-                                //} else if pad_type == "thru_hole" && pad_sub_type == "rect" {
-                                //(pad "1" thru_hole rect
-                                //	(at 0 0 180)
-                                //	(size 1.8 1.8)
-                                //	(drill 0.9)
-                                //	(layers "*.Cu" "*.Mask")
-                                //	(remove_unused_layers no)
-                                //	(net 2 "GND")
-                                //	(pinfunction "K")
-                                //	(pintype "passive")
-                                //	(uuid "1978304b-f521-4fe8-bb5e-3f65076a5c96")
-                                //)
-                                let at = sexp::utils::at(element).unwrap();
                                 let size: Array1<f64> = element.value("size").unwrap();
 
                                 let mut stroke = Stroke::new();
@@ -1042,8 +1040,9 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                                             angle,
                                             &pts,
                                         ),
+                                        None,
                                         stroke.clone(),
-                                        Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
+                                        class!(self.name, layer),
                                     ),
                                 ));
                                 if let PadType::ThruHole = pad_type {
@@ -1055,7 +1054,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                                             Shape::transform_pad(item.item,item.is_flipped(), angle, &at),
                                             drill.width.unwrap_or(0.0),
                                             stroke,
-                                            Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
+                                            class!(self.name, layer),
                                         ),
                                     ));
                                 } else if !matches!(pad_type, PadType::Smd) {
@@ -1063,9 +1062,9 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                                 }
                             }
                             PadShape::RoundRect => {
-                                //} else if pad_sub_type == "roundrect" {
                                 let at = sexp::utils::at(element).unwrap();
                                 let size: Array1<f64> = element.value("size").unwrap();
+                                let rx: f64 = element.value("roundrect_rratio").unwrap();
 
                                 let mut stroke = Stroke::new();
                                 stroke.linewidth = 0.1;
@@ -1077,8 +1076,8 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                                 stroke.fillcolor = self.theme.layer_color(&[Style::PadThroughHole]);
 
                                 let pts: Array2<f64> =
-                                    arr2(&[[at[0], at[1]], [at[0] - size[0], at[1] - size[1]]]);
-                                let pts = pts + arr1(&[size[0] / 2.0, size[1] / 2.0]);
+                                    arr2(&[[at[0], at[1]], [at[0] + size[0], at[1] + size[1]]]);
+                                let pts = pts - arr1(&[size[0] / 2.0, size[1] / 2.0]); //TODO Reealy?
                                 plot_items.push(PlotItem::Rectangle(
                                     1,
                                     crate::Rectangle::new(
@@ -1088,8 +1087,9 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                                             angle,
                                             &pts,
                                         ),
+                                        Some(size[0] * rx),
                                         stroke.clone(),
-                                        Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
+                                        class!(self.name, layer),
                                     ),
                                 ));
 
@@ -1107,7 +1107,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                                             ),
                                             drill.diameter / 2.0,
                                             stroke,
-                                            Some(format!("{}_{}", self.name, layer.replace('.', "_"))),
+                                            class!(self.name, layer),
                                         ),
                                     ));
                                 } else if !matches!(pad_type, PadType::Smd) {
@@ -1115,7 +1115,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                                 }
                             }
                             _ => {
-                                debug!("unknown pad shape {:?}", pad_shape);
+                                warn!("unknown pad shape {:?}", pad_shape);
                             }
                         }
                     }

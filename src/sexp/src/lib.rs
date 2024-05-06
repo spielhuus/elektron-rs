@@ -66,25 +66,24 @@ pub const KICAD_SCHEMA_GENERATOR: &str = "elektron";
 
 ///Constants for the element names.
 pub mod el {
-    pub const FILLED_POLYGON: &str = "filled_polygon";
-    pub const PAD: &str = "pad";
-    pub const FP_TEXT: &str = "fp_text";
-    pub const FP_LINE: &str = "fp_line";
-    pub const FP_POLY: &str = "fp_poly";
-    pub const FP_CIRCLE: &str = "fp_circle";
-    pub const DRILL: &str = "drill";
-    pub const OVAL: &str = "oval";
-    pub const OFFSET: &str = "offset";
-    pub const DIAMETER: &str = "diameter";
     pub const ARC: &str = "arc";
     pub const AT: &str = "at";
     pub const BUS: &str = "bus";
     pub const BUS_ENTRY: &str = "bus_entry";
     pub const CENTER: &str = "center";
     pub const CIRCLE: &str = "circle";
+    pub const DIAMETER: &str = "diameter";
+    pub const DRILL: &str = "drill";
     pub const EFFECTS: &str = "effects";
     pub const EFFECTS_JUSTIFY: &str = "justify";
     pub const END: &str = "end";
+    pub const FILLED_POLYGON: &str = "filled_polygon";
+    pub const FOOTPRINT: &str = "footprint";
+    pub const FP_ARC: &str = "fp_arc";
+    pub const FP_CIRCLE: &str = "fp_circle";
+    pub const FP_LINE: &str = "fp_line";
+    pub const FP_POLY: &str = "fp_poly";
+    pub const FP_TEXT: &str = "fp_text";
     pub const GLOBAL_LABEL: &str = "global_label";
     pub const GRAPH_ARC: &str = "arc";
     pub const GRAPH_CIRCLE: &str = "circle";
@@ -93,6 +92,10 @@ pub mod el {
     pub const GRAPH_RECTANGLE: &str = "rectangle";
     pub const GRAPH_START: &str = "start";
     pub const GRAPH_TEXT: &str = "text";
+    pub const GR_CIRCLE: &str = "gr_circle";
+    pub const GR_LINE: &str = "gr_line";
+    pub const GR_POLY: &str = "gr_poly";
+    pub const GR_TEXT: &str = "gr_text";
     pub const JUNCTION: &str = "junction";
     pub const JUSTIFY: &str = "justify";
     pub const JUSTIFY_LEFT: &str = "left";
@@ -103,6 +106,9 @@ pub mod el {
     pub const LIB_SYMBOLS: &str = "lib_symbols";
     pub const MIRROR: &str = "mirror";
     pub const NO_CONNECT: &str = "no_connect";
+    pub const OFFSET: &str = "offset";
+    pub const OVAL: &str = "oval";
+    pub const PAD: &str = "pad";
     pub const PIN: &str = "pin";
     pub const PIN_NAME: &str = "name";
     pub const PIN_NAMES: &str = "pin_names";
@@ -113,9 +119,11 @@ pub mod el {
     pub const PROPERTY_VALUE: &str = "Value";
     pub const PTS: &str = "pts";
     pub const RECTANGLE: &str = "rectangle";
+    pub const SEGMENT: &str = "segment";
     pub const SHEET: &str = "sheet";
     pub const SHEET_INSTANCES: &str = "sheet_instances";
     pub const SHEET_PIN: &str = "hierarchical_label";
+    pub const SIZE: &str = "size";
     pub const START: &str = "start";
     pub const STROKE: &str = "stroke";
     pub const SYMBOL: &str = "symbol";
@@ -129,17 +137,10 @@ pub mod el {
     pub const TITLE_BLOCK_PAPER: &str = "paper";
     pub const TITLE_BLOCK_REV: &str = "rev";
     pub const TITLE_BLOCK_TITLE: &str = "title";
+    pub const VIA: &str = "via";
     pub const WIDTH: &str = "width";
     pub const WIRE: &str = "wire";
     pub const XY: &str = "xy";
-    pub const SEGMENT: &str = "segment";
-    pub const GR_LINE: &str = "gr_line";
-    pub const GR_POLY: &str = "gr_poly";
-    pub const GR_CIRCLE: &str = "gr_circle";
-    pub const SIZE: &str = "size";
-    pub const VIA: &str = "via";
-    pub const GR_TEXT: &str = "gr_text";
-    pub const FOOTPRINT: &str = "footprint";
     pub const ZONE: &str = "zone";
 }
 

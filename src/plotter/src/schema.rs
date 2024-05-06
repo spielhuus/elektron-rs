@@ -310,7 +310,6 @@ impl<'a> PlotElement<LabelElement<'a>> for SchemaPlot<'a> {
             text_angle,
             text,
             self.theme.get_effects(item.item.into(), &[Style::Label]),
-            false,
             None,
         );
         let size = self.text_size(&gtext);
@@ -363,7 +362,6 @@ impl<'a> PlotElement<TextElement<'a>> for SchemaPlot<'a> {
             0.0,
             text,
             self.theme.get_effects(item.item.into(), &[Style::Text]),
-            false,
             None,
         );
         plot_items.push(PlotItem::Text(12, gtext));
@@ -537,6 +535,7 @@ impl<'a> PlotElement<TextBoxElement<'a>> for SchemaPlot<'a> {
             1,
             Rectangle::new(
                 pts,
+                None,
                 stroke,
                 None,
             ),
@@ -550,7 +549,6 @@ impl<'a> PlotElement<TextBoxElement<'a>> for SchemaPlot<'a> {
                 text,
                 self.theme
                     .get_effects(Effects::from(item.item), &[Style::Text]),
-                false,
                 None,
         )));
     }
@@ -578,6 +576,7 @@ impl<'a> PlotElement<RectangleElement<'a>> for SchemaPlot<'a> {
             1,
             Rectangle::new(
                 pts,
+                None,
                 stroke,
                 None,
             ),
@@ -609,6 +608,7 @@ impl<'a> PlotElement<SheetElement<'a>> for SchemaPlot<'a> {
             1,
             Rectangle::new(
                 pts,
+                None,
                 stroke,
                 None,
             ),
@@ -624,7 +624,6 @@ impl<'a> PlotElement<SheetElement<'a>> for SchemaPlot<'a> {
                 sheetname.get(1).unwrap(),
                 self.theme
                     .get_effects(Effects::from(&sheetname), &[Style::TextSheet]),
-                false,
                 None,
         )));
 
@@ -638,7 +637,6 @@ impl<'a> PlotElement<SheetElement<'a>> for SchemaPlot<'a> {
                 format!("File: {}", <Sexp as SexpValueQuery<String>>::get(&sheetfile, 1).unwrap()),
                 self.theme
                     .get_effects(Effects::from(&sheetfile), &[Style::TextSheet]),
-                false,
                 None,
         )));
 
@@ -704,7 +702,6 @@ impl<'a> PlotElement<SheetElement<'a>> for SchemaPlot<'a> {
                     angle,
                     label.to_string(),
                     self.theme.get_effects(effects.clone(), &[Style::Property]),
-                    false,
                     None,
                 ),
             ));
@@ -827,7 +824,6 @@ impl<'a> PlotElement<SheetPinElement<'a>> for SchemaPlot<'a> {
                 angle,
                 text.to_string(),
                 self.theme.get_effects(effects.clone(), &[Style::Property]),
-                false,
                 None,
             ),
         ));
@@ -898,7 +894,6 @@ impl<'a> PlotElement<SymbolElement<'a>> for SchemaPlot<'a> {
                             prop_angle,
                             text.to_string(),
                             self.theme.get_effects(effects.clone(), &[Style::Property]),
-                            false,
                             None,
                         ),
                     ));
@@ -956,6 +951,7 @@ impl<'a> PlotElement<SymbolElement<'a>> for SchemaPlot<'a> {
                                             1,
                                             Rectangle::new(
                                                 Shape::transform(item.item, &pts),
+                                                None,
                                                 self.theme.get_stroke(graph.into(), classes.as_slice()),
                                                 None,
                                             ),
@@ -1018,7 +1014,6 @@ impl<'a> PlotElement<SymbolElement<'a>> for SchemaPlot<'a> {
                                                 angle,
                                                 text.first().unwrap().to_string(),
                                                 self.theme.get_effects(effects, &[Style::Property]),
-                                                false,
                                                 None,
                                             ),
                                         ));
@@ -1067,6 +1062,7 @@ impl<'a> PlotElement<SymbolElement<'a>> for SchemaPlot<'a> {
                     10,
                     Rectangle::new(
                         Shape::transform(item.item, &pts),
+                        None,
                         self.theme.get_stroke(Stroke::new(), &[Style::NotFound]),
                         None,
                     ),
@@ -1231,7 +1227,6 @@ impl<'a> PlotElement<PinElement<'a>> for SchemaPlot<'a> {
                     pin_number,
                     self.theme
                         .get_effects(Effects::new(), &[Style::TextPinNumber]),
-                    false,
                     None,
                 ),
             ));
@@ -1260,7 +1255,6 @@ impl<'a> PlotElement<PinElement<'a>> for SchemaPlot<'a> {
                         utils::angle(item.item).unwrap(),
                         pin_name.clone(),
                         self.theme.get_effects(effects, &[Style::TextPinName]),
-                        false,
                         None,
                     ),
                 ));
@@ -1282,7 +1276,6 @@ impl<'a> PlotElement<PinElement<'a>> for SchemaPlot<'a> {
                         pin_angle,
                         pin_name.clone(),
                         self.theme.get_effects(effects, &[Style::TextPinName]),
-                        false,
                         None,
                     ),
                 ));
@@ -1343,7 +1336,6 @@ impl<'a> PlotElement<PinElement<'a>> for SchemaPlot<'a> {
                             .node_name(&Point::new(pin_pos[0], pin_pos[1]))
                             .unwrap_or_else(|| String::from("NaN")),
                         self.theme.get_effects(effects, &[Style::TextNetname]),
-                        false,
                         None,
                     ),
                 ));

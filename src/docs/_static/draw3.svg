@@ -1,11 +1,11 @@
 <svg height="153.57333332500002mm" viewBox="0 0 46.099999999999994 76.78666666250001" width="92.19999999999999mm" xmlns="http://www.w3.org/2000/svg">
 <g id="not_set" scale="2">
 <circle cx="11.349999999999998" cy="35.019999999999996" fill="none" r="2.8194" stroke="rgb(132,0,0)" stroke-width="0.254"/>
-<path d="M13.64,13.43 L11.6,13.43 L11.6,18.51 L13.64,18.51 L13.64,13.43 z" fill="none" stroke="rgb(132,0,0)" stroke-width="0.254"/>
+<rect fill="none" height="5.08" stroke="rgb(132,0,0)" stroke-width="0.254" width="2.039999999999999" x="11.599999999999998" y="13.430000000000001"/>
 <circle cx="34.209999999999994" cy="35.019999999999996" fill="none" r="2.8194" stroke="rgb(132,0,0)" stroke-width="0.254"/>
-<path d="M33.96,13.43 L31.92,13.43 L31.92,18.51 L33.96,18.51 L33.96,13.43 z" fill="none" stroke="rgb(132,0,0)" stroke-width="0.254"/>
-<path d="M21.76,51.53 L23.8,51.53 L23.8,46.45 L21.76,46.45 L21.76,51.53 z" fill="none" stroke="rgb(132,0,0)" stroke-width="0.254"/>
-<path d="M21.76,64.23 L23.8,64.23 L23.8,59.15 L21.76,59.15 L21.76,64.23 z" fill="none" stroke="rgb(132,0,0)" stroke-width="0.254"/>
+<rect fill="none" height="5.08" stroke="rgb(132,0,0)" stroke-width="0.254" width="2.0399999999999956" x="31.919999999999998" y="13.430000000000001"/>
+<rect fill="none" height="5.079999999999998" stroke="rgb(132,0,0)" stroke-width="0.254" width="2.0400000000000063" x="21.759999999999994" y="46.45"/>
+<rect fill="none" height="5.079999999999998" stroke="rgb(132,0,0)" stroke-width="0.254" width="2.0400000000000063" x="21.759999999999994" y="59.150000000000006"/>
 <circle cx="11.349999999999998" cy="62.96000000000001" fill="none" r="2.8194" stroke="rgb(132,0,0)" stroke-width="0.254"/>
 <text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="start" transform="translate(15.169999999999998,34.019999999999996) rotate(0)">
 Q1
