@@ -130,6 +130,8 @@ mod reports {
             }
         }
         mod erc {
+            use std::path::Path;
+
             use itertools::Itertools;
             use reports::{erc, erc::symbols};
             use sexp::{SexpParser, SexpTree};
@@ -155,22 +157,22 @@ mod reports {
             }
             #[test]
             fn check_no_errors() {
-                let erc = erc::erc("tests/summe.kicad_sch").unwrap();
+                let erc = erc::erc(Path::new("tests/summe.kicad_sch")).unwrap();
                 assert!(erc.is_empty());
             }
             #[test]
             fn check_with_mounting_holes() {
-                let erc = erc::erc("tests/produkt.kicad_sch").unwrap();
+                let erc = erc::erc(Path::new("tests/produkt.kicad_sch")).unwrap();
                 assert!(erc.is_empty());
             }
             #[test]
             fn check_unconnected_pin() {
-                let erc = erc::erc("tests/low_pass_filter_unconnected.kicad_sch").unwrap();
+                let erc = erc::erc(Path::new("tests/low_pass_filter_unconnected.kicad_sch")).unwrap();
                 assert_eq!(10, erc.len());
             }
             #[test]
             fn all_units() {
-                let erc = erc::erc("tests/3280.kicad_sch").unwrap();
+                let erc = erc::erc(Path::new("tests/3280.kicad_sch")).unwrap();
                 assert_eq!(0, erc.len());
             }
         }

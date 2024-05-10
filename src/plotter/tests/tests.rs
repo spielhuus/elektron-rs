@@ -1,6 +1,6 @@
 mod test {
     mod plot_svg {
-        use std::fs::File;
+        use std::{fs::File, path::Path};
 
         use plotter::{schema::SchemaPlot, svg::SvgPlotter, Theme};
 
@@ -10,7 +10,7 @@ mod test {
                 .border(false).theme(Theme::Kicad2020).scale(2.0);
 
             //plotter.open("tests/dco.kicad_sch");
-            plotter.open("tests/hall.kicad_sch").unwrap();
+            plotter.open(Path::new("tests/hall.kicad_sch")).unwrap();
             //plotter.open("/home/etienne/github/elektrophon/src/resonanz/main/main.kicad_sch");
             for page in plotter.iter() {
                 println!("{:?}", page);

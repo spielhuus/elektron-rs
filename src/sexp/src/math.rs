@@ -6,6 +6,29 @@ use ndarray::{arr1, arr2, s, Array, Array1, Array2};
 
 use crate::{el, utils, Error, Sexp, SexpValueQuery, SexpValuesQuery};
 
+
+pub trait Round<T> {
+    fn rnd(&self) -> T;
+}
+//TODO do not clone the ndarray elements
+impl Round<Array1<f64>> for Array1<f64> {
+    fn rnd(&self) -> Array1<f64> {
+        self.clone().mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap())
+    }
+}
+
+impl Round<Array2<f64>> for Array2<f64> {
+    fn rnd(&self) -> Array2<f64> {
+        self.clone().mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap())
+    }
+}
+
+impl Round<f64> for f64 {
+    fn rnd(&self) -> f64 {
+        format!("{:.2}", self).parse::<f64>().unwrap()
+    }
+}
+
 #[macro_export]
 macro_rules! round {
     ($val: expr) => {
@@ -84,7 +107,16 @@ impl Transform<Sexp, Array2<f64>> for Shape {
         let verts = &symbol_pos + verts;
         verts.mapv_into(|v| format!("{:.2}", v).parse::<f64>().unwrap())
     }
-    fn transform_pad(symbol: &Sexp, flip: bool, _pad_angle: Option<f64>, pts: &Array2<f64>) -> Array2<f64> {
+    fn transform_pad(symbol: &Sexp, flip: bool, angle: Option<f64>, pts: &Array2<f64>) -> Array2<f64> {
+        //rotate the pad in the footprint
+        let pts = if let Some(angle) = angle {
+            let theta = angle.to_radians();
+            let rot = arr2(&[
+                [theta.cos(), -theta.sin()],
+                [theta.sin(), theta.cos()],
+            ]);
+            pts.dot(&rot)
+        } else { pts.clone() };
 
         let symbol_pos = utils::at(symbol).unwrap();
         let mut angle = crate::utils::angle(symbol).unwrap_or(0.0);
@@ -105,6 +137,7 @@ impl Transform<Sexp, Array2<f64>> for Shape {
 }
 impl Transform<Sexp, Array1<f64>> for Shape {
     fn transform(symbol: &Sexp, pts: &Array1<f64>) -> Array1<f64> {
+
         let symbol_at = symbol.query(el::AT).next().unwrap();
         let symbol_x: f64 = symbol_at.get(0).unwrap();
         let symbol_y: f64 = symbol_at.get(1).unwrap();
@@ -135,7 +168,17 @@ impl Transform<Sexp, Array1<f64>> for Shape {
             }
         })
     }
-    fn transform_pad(symbol: &Sexp, flip: bool, _pad_angle: Option<f64>, pts: &Array1<f64>) -> Array1<f64> {
+    fn transform_pad(symbol: &Sexp, flip: bool, angle: Option<f64>, pts: &Array1<f64>) -> Array1<f64> {
+        //rotate the pad in the footprint
+        let pts = if let Some(angle) = angle {
+            let theta = angle.to_radians();
+            let rot = arr2(&[
+                [theta.cos(), -theta.sin()],
+                [theta.sin(), theta.cos()],
+            ]);
+            pts.dot(&rot)
+        } else { pts.clone() };
+
         let symbol_at = symbol.query(el::AT).next().unwrap();
         let symbol_x: f64 = symbol_at.get(0).unwrap();
         let symbol_y: f64 = symbol_at.get(1).unwrap();

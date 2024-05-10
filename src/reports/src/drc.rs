@@ -77,7 +77,7 @@ pub struct DrcItem {
 pub struct DrcItems {
     pub description: String,
     pub pos: (f64, f64),
-    pub uuid: String,    
+    pub uuid: String,
 }
 
 impl fmt::Display for DrcItems {
@@ -93,7 +93,7 @@ impl fmt::Display for DrcItems {
 /// * `document` - A PCB filename.
 /// * `return`   - DrcResult with the errors.
 ///
-pub fn drc(document: String) -> Result<DrcResult, Error> {
+pub fn drc(document: &str) -> Result<DrcResult, Error> {
     let mut rng = rand::thread_rng();
     let num: u32 = rng.gen();
     let output = String::new() + temp_dir().to_str().unwrap() + "/" + &num.to_string() + ".json";
@@ -109,7 +109,7 @@ pub fn drc(document: String) -> Result<DrcResult, Error> {
             .arg("json")
             .arg("--output")
             .arg(output.clone())
-            .arg(&document)
+            .arg(document)
             .output()
             .expect("failed to execute process")
     };
@@ -168,7 +168,7 @@ pub fn drc(document: String) -> Result<DrcResult, Error> {
                 }
             },
             json::JsonValue::Array(_) => todo!(),
-        }     
+        }
     }
 
     fs::remove_file(output).unwrap();

@@ -1,0 +1,39 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "🧪 Run unit tests that match the expression",
+      "type": "shell",
+      "command": "pytest -k '${input:expression}'"
+    },
+    {
+      "label": "📦 build the project",
+      "type": "shell",
+      "command": "maturin develop"
+    },
+    {
+      "label": "✅ Run the unit test suite.",
+      "type": "shell",
+      "command": "cargo test --workspace"
+    },
+    {
+      "label": "📝 Create the project documentation",
+      "type": "shell",
+      "command": "make doc"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "expression",
+      "description": "Expression to filter tests with",
+      "default": "",
+      "type": "promptString"
+    },
+    {
+      "id": "cowmsg",
+      "description": "Message for cow to say",
+      "default": "Hello there!",
+      "type": "promptString"
+    }
+  ]
+}

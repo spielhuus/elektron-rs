@@ -9,7 +9,7 @@ pub use crate::{
     border, error::Error, themer::Themer, Arc, Circle, Effects, FillType, Line, PlotItem, Polyline,
     Rectangle, Stroke, Style, Text,
 };
-use crate::{Color, Outline, PlotterImpl, Theme};
+use crate::{Color, LineCap, Outline, PlotterImpl, Theme};
 
 use simulation::{Netlist, Point};
 
@@ -120,13 +120,13 @@ impl<'a> SchemaPlot<'a> {
         self.tree = Some(tree);
     }
 
-    pub fn open(&mut self, path: &str) -> Result<(), Error> {
-        debug!("open schema: {}", path);
+    pub fn open(&mut self, path: &Path) -> Result<(), Error> {
+        debug!("open schema: {}", path.to_str().unwrap());
         if let Some(dir) = Path::new(&path).parent() {
             self.path = dir.to_str().unwrap().to_string();
         }
-        let Ok(document) = SexpParser::load(path) else {
-            return Err(Error::Plotter(format!("could not load schema: {}", path)));
+        let Ok(document) = SexpParser::load(path.to_str().unwrap()) else {
+            return Err(Error(format!("could not load schema: {}", path.to_str().unwrap())));
         };
         let tree = SexpTree::from(document.iter())?;
         self.open_buffer(tree);
@@ -143,7 +143,7 @@ impl<'a> SchemaPlot<'a> {
             if let Some(tree) = &self.tree {
                 tree.clone()
             } else {
-                return Err(Error::Plotter("no root schema loaded".into()));
+                return Err(Error("no root schema loaded".into()));
             }
         } else {
             let path = Path::new(&self.path).join(self.schema_pages.get(page).unwrap());
@@ -179,6 +179,7 @@ impl<'a> SchemaPlot<'a> {
                     PlotItem::Arc(_, arc) => {
                         arc.start = arc.start.clone() - &offset;
                         arc.end = arc.end.clone() - &offset;
+                        arc.mid = arc.mid.clone() - &offset;
                         arc.center = arc.center.clone() - &offset;
                     }
                     PlotItem::Circle(_, circle) => circle.pos = circle.pos.clone() - &offset,
@@ -331,6 +332,7 @@ impl<'a> PlotElement<LabelElement<'a>> for SchemaPlot<'a> {
                         Stroke::new(),
                         &[Style::GlobalLabel, Style::Fill(FillType::Background)],
                     ),
+                    Some(LineCap::Round),
                     None,
                 ),
             ));
@@ -383,7 +385,7 @@ impl<'a> PlotElement<WireElement<'a>> for SchemaPlot<'a> {
             Line::new(
                 arr2(&[[xy1[0], xy1[1]], [xy2[0], xy2[1]]]),
                 self.theme.get_stroke(item.item.into(), &[Style::Wire]),
-                None,
+                Some(LineCap::Square),
                 None,
             ),
         ));
@@ -421,7 +423,7 @@ impl<'a> PlotElement<NoConnectElement<'a>> for SchemaPlot<'a> {
             Line::new(
                 lines1,
                 self.theme.get_stroke(Stroke::new(), &[Style::NoConnect]),
-                None,
+                Some(LineCap::Round),
                 None,
             ),
         ));
@@ -430,7 +432,7 @@ impl<'a> PlotElement<NoConnectElement<'a>> for SchemaPlot<'a> {
             Line::new(
                 lines2,
                 self.theme.get_stroke(Stroke::new(), &[Style::NoConnect]),
-                None,
+                Some(LineCap::Round),
                 None,
             ),
         ));
@@ -459,6 +461,7 @@ impl<'a> PlotElement<BusElement<'a>> for SchemaPlot<'a> {
             Polyline::new(
                 pts,
                 self.theme.get_stroke(Stroke::new(), &[Style::Bus]),
+                Some(LineCap::Square),
                 None,
             ),
         ));
@@ -479,6 +482,7 @@ impl<'a> PlotElement<BusEntryElement<'a>> for SchemaPlot<'a> {
             Polyline::new(
                 arr2(&[[at[0], at[1]], [at[0] + size[0], at[1] + size[1]]]),
                 self.theme.get_stroke(stroke, &[Style::BusEntry]),
+                Some(LineCap::Square),
                 None,
             ),
         ));
@@ -508,6 +512,7 @@ impl<'a> PlotElement<PolylineElement<'a>> for SchemaPlot<'a> {
             Polyline::new(
                 pts,
                 self.theme.get_stroke(stroke, &[Style::Bus]),
+                Some(LineCap::Round),
                 None,
             ),
         ));
@@ -679,6 +684,7 @@ impl<'a> PlotElement<SheetElement<'a>> for SchemaPlot<'a> {
                 Polyline::new(
                     verts + at.clone() + dist,
                     self.theme.get_stroke(Stroke::new(), &[Style::Bus]),
+                    Some(LineCap::Square),
                     None,
                 ),
             ));
@@ -800,6 +806,7 @@ impl<'a> PlotElement<SheetPinElement<'a>> for SchemaPlot<'a> {
             Polyline::new(
                 verts + at.clone(),
                 self.theme.get_stroke(Stroke::new(), &[Style::Bus]),
+                Some(LineCap::Square),
                 None,
             ),
         ));
@@ -931,6 +938,7 @@ impl<'a> PlotElement<SymbolElement<'a>> for SchemaPlot<'a> {
                                             Polyline::new(
                                                 Shape::transform(item.item, &pts),
                                                 self.theme.get_stroke(Stroke::new(), classes.as_slice()),
+                                                Some(LineCap::Round),
                                                 None,
                                             ),
                                         ));
@@ -1110,8 +1118,6 @@ impl PinElement<'_> {
 impl<'a> PlotElement<PinElement<'a>> for SchemaPlot<'a> {
     fn plot(&self, item: PinElement, plot_items: &mut Vec<PlotItem>) {
         //calculate the pin line
-        //TODO: there are also symbols like inverting and so on (see:
-        //sch_painter.cpp->848)
         let orientation = PinOrientation::from(item.symbol, item.item);
         let pin_length: f64 = item.item.value("length").unwrap();
         let pin_at: Array1<f64> = utils::at(item.item).unwrap();
@@ -1127,6 +1133,7 @@ impl<'a> PlotElement<PinElement<'a>> for SchemaPlot<'a> {
         let pin_graphic_style: PinGraphicalStyle =
             PinGraphicalStyle::from(pin_graphical_style);
         let stroke = Stroke::from(item.item);
+        //TODO: there are also symbols like inverting and so on (see: sch_painter.cpp->848)
         match pin_graphic_style {
             PinGraphicalStyle::Line => {
                 plot_items.push(PlotItem::Line(
@@ -1134,7 +1141,7 @@ impl<'a> PlotElement<PinElement<'a>> for SchemaPlot<'a> {
                     Line::new(
                         Shape::transform(item.symbol, &pin_line),
                         self.theme.get_stroke(stroke, &[Style::Pin]),
-                        None,
+                        Some(LineCap::Butt),
                         None,
                     ),
                 ));
@@ -1145,7 +1152,7 @@ impl<'a> PlotElement<PinElement<'a>> for SchemaPlot<'a> {
                     Line::new(
                         Shape::transform(item.symbol, &pin_line),
                         self.theme.get_stroke(stroke.clone(), &[Style::Pin]),
-                        None,
+                        Some(LineCap::Butt),
                         None,
                     ),
                 ));
@@ -1171,7 +1178,7 @@ impl<'a> PlotElement<PinElement<'a>> for SchemaPlot<'a> {
                     Line::new(
                         Shape::transform(item.symbol, &pin_line),
                         self.theme.get_stroke(stroke, &[Style::Pin]),
-                        None,
+                        Some(LineCap::Butt),
                         None,
                     ),
                 ));
@@ -1188,6 +1195,7 @@ impl<'a> PlotElement<PinElement<'a>> for SchemaPlot<'a> {
                         ),
                         self.theme
                             .get_stroke(Stroke::new(), &[Style::PinDecoration]),
+                        Some(LineCap::Butt),
                         None,
                     ),
                 ));

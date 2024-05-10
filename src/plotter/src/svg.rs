@@ -1,15 +1,18 @@
 //! Draw the model with svglib
-use crate::Color;
 use crate::{
-    error::Error, Arc, Circle, Draw, Drawer, Line, PlotItem, PlotterImpl, Polyline, Rectangle, Text,
+    error::Error, Arc, Circle, Color, Draw, Drawer, Line, PlotItem, PlotterImpl, Polyline,
+    Rectangle, Text,
 };
-use itertools::Itertools;
-use ndarray::Array2;
-use std::io::Write;
 
+use itertools::Itertools;
+use ndarray::{Array1, Array2};
+use std::io::Write;
+use log::trace;
+
+use sexp::math::Round;
 use svg::{
-    Node, Document,
-    node::element::{self, path::Data, Path, Group},
+    node::element::{self, path::Data, Group, Path},
+    Document, Node,
 };
 
 mod c {
@@ -31,6 +34,25 @@ pub struct SvgPlotter<'a> {
 impl<'a> SvgPlotter<'a> {
     pub fn new(out: &'a mut dyn Write) -> Self {
         SvgPlotter { out }
+    }
+
+    fn radius(p1: &Array1<f64>, p2: &Array1<f64>) -> f64 {
+        ((p2[0] - p1[0]).powi(2) + (p2[1] - p1[1]).powi(2)).sqrt()
+    }
+
+    // Function to calculate angle between center and point
+    fn angle(center: &Array1<f64>, point: &Array1<f64>) -> f64 {
+        (point[1] - center[1]).atan2(point[0] - center[0])
+    }
+
+    // calculate the svg sweep flac from star, middle and end points.
+    pub fn sweep_flag(start: &Array1<f64>, mid: &Array1<f64>, end: &Array1<f64>) -> String {
+        if (start[0] - mid[0]) * (end[1] - mid[1])
+            > (start[1] - mid[1]) * (end[0] - mid[0]) {
+            0
+        } else {
+            1
+        }.to_string()
     }
 }
 
@@ -134,7 +156,9 @@ impl<'a> Drawer<Text, Group> for SvgPlotter<'a> {
                     "transform",
                     format!(
                         "translate({},{}) rotate({})",
-                        text.pos[0], text.pos[1] + offset, angle
+                        text.pos[0],
+                        text.pos[1] + offset,
+                        angle
                     ),
                 )
                 .set("text-anchor", align)
@@ -144,7 +168,7 @@ impl<'a> Drawer<Text, Group> for SvgPlotter<'a> {
                     format!("{}pt", text.effects.font_size.first().unwrap()),
                 )
                 .set("fill", text.effects.font_color.to_string());
-                //.add(node::Text::new(line));
+            //.add(node::Text::new(line));
 
             if text.effects.justify.contains(&"top".to_string()) {
                 t = t.set("dominant-baseline", "hanging");
@@ -166,6 +190,7 @@ impl<'a> Drawer<Line, Group> for SvgPlotter<'a> {
         let data = Data::new()
             .move_to((line.pts[[0, 0]], line.pts[[0, 1]]))
             .line_to((line.pts[[1, 0]], line.pts[[1, 1]]));
+
         let mut path = Path::new()
             .set("stroke", line.stroke.linecolor.to_string())
             .set("stroke-width", line.stroke.linewidth)
@@ -174,9 +199,10 @@ impl<'a> Drawer<Line, Group> for SvgPlotter<'a> {
         if let Some(cls) = &line.class {
             path = path.set("class", cls.as_str());
         }
-        /*TODO if let Some(linecap) = &line.linecap {
-            style.push(format!("stroke-linecap:{};", linecap));
-        } */
+        if let Some(linecap) = &line.linecap {
+            trace!("set linecap: {}", linecap);
+            path = path.set("stroke-linecap", linecap.to_string());
+        }
         document.append(path);
     }
 }
@@ -214,7 +240,6 @@ impl<'a> Drawer<Polyline, Group> for SvgPlotter<'a> {
 
 impl<'a> Drawer<Rectangle, Group> for SvgPlotter<'a> {
     fn item(&self, rectangle: &Rectangle, document: &mut Group) {
-
         let mut x0 = rectangle.pts[[0, 0]];
         let mut y0 = rectangle.pts[[0, 1]];
         let mut x1 = rectangle.pts[[1, 0]];
@@ -277,39 +302,29 @@ impl<'a> Drawer<Circle, Group> for SvgPlotter<'a> {
 
 impl<'a> Drawer<Arc, Group> for SvgPlotter<'a> {
     fn item(&self, arc: &Arc, document: &mut Group) {
-        let radius = ((arc.start[0] - arc.center[0]).powi(2)
-            + (arc.start[1] - arc.center[1]).powi(2))
-        .sqrt();
-        let mut start_angle = ((arc.start[0] - arc.center[0]).atan2(arc.start[1] - arc.center[1])
-            * 180.0
-            / std::f64::consts::PI)
-            .abs();
-        let mut end_angle = ((arc.end[0] - arc.center[0]).atan2(arc.end[1] - arc.center[1])
-            * 180.0
-            / std::f64::consts::PI)
-            .abs();
+
+        let radius = Self::radius(&arc.center, &arc.start);
+        let mut start_angle = Self::angle(&arc.center, &arc.start);
+        let mut end_angle = Self::angle(&arc.center, &arc.end);
+        let sweep_flag = Self::sweep_flag(&arc.start, &arc.mid, &arc.end);
+
         if arc.angle != 0.0 {
             start_angle += arc.angle;
             end_angle += arc.angle;
         }
+
         let large_arc_flag = if end_angle - start_angle > 180.0 {
             "1"
         } else {
             "0"
         };
-        let sweep_flag = if (arc.start[0] - arc.mid[0]) * (arc.end[1] - arc.mid[1])
-            > (arc.start[1] - arc.mid[1]) * (arc.end[0] - arc.mid[0])
-        {
-            0
-        } else {
-            1
-        };
+
         if !matches!(arc.stroke.fillcolor, Color::None) {
             let mut c = Path::new()
                 .set(
                     "d",
                     format!(
-                        "M{} {} A{} {} 0.0 {} {} {} {} L {} {} Z",
+                        "M{:.2} {:.2} A{:.2} {:.2} 0.0 {} {} {:.2} {:.2}",
                         arc.start[0],
                         arc.start[1],
                         radius,
@@ -318,8 +333,6 @@ impl<'a> Drawer<Arc, Group> for SvgPlotter<'a> {
                         sweep_flag,
                         arc.end[0],
                         arc.end[1],
-                        arc.center[0],
-                        arc.center[1]
                     ),
                 )
                 .set("fill", arc.stroke.fillcolor.to_string());
@@ -334,7 +347,7 @@ impl<'a> Drawer<Arc, Group> for SvgPlotter<'a> {
             .set(
                 "d",
                 format!(
-                    "M{} {} A{} {} 0.0 {} {} {} {}",
+                    "M{:.2} {:.2} A{:.2} {:.2} 0.0 {} {} {:.2} {:.2}",
                     arc.start[0],
                     arc.start[1],
                     radius,
@@ -347,11 +360,41 @@ impl<'a> Drawer<Arc, Group> for SvgPlotter<'a> {
             )
             .set("fill", "none")
             .set("stroke", arc.stroke.linecolor.to_string())
-            .set("stroke-width", arc.stroke.linewidth);
+            .set("stroke-width", arc.stroke.linewidth.rnd());
 
         if let Some(cls) = &arc.class {
             c = c.set("class", cls.as_str());
         }
         document.append(c);
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use ndarray::arr1;
+    use::sexp::math::Round;
+
+    #[test]
+    fn radius() {
+        assert_eq!(
+            1.36,
+            super::SvgPlotter::radius(&arr1(&[84.76, 126.74]), &arr1(&[86.12, 126.74])).rnd()
+        );
+        assert_eq!(
+            1.36,
+            super::SvgPlotter::radius(&arr1(&[86.12, 126.74]), &arr1(&[87.48, 126.74])).rnd()
+        );
+    }
+
+    #[test]
+    fn angle() {
+        assert_eq!(
+            std::f64::consts::PI.rnd(),
+            super::SvgPlotter::angle(&arr1(&[86.12, 126.74]), &arr1(&[84.76, 126.74])).rnd()
+        );
+        assert_eq!(
+            0.0,
+            super::SvgPlotter::angle(&arr1(&[86.12, 126.74]), &arr1(&[87.48, 126.74])).rnd()
+        );
     }
 }

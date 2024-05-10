@@ -11,7 +11,7 @@
 //!
 use crate::Error;
 use sexp::{el, SexpProperty, SexpTree, SexpValueQuery};
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 use yaml_rust::{Yaml, YamlLoader};
 
 /// BOM Item
@@ -156,10 +156,11 @@ pub fn merge_item(item: &BomItem, part: Option<&BomItem>) -> BomItem {
 pub fn bom(
     document: &SexpTree,
     group: bool,
-    partlist: Option<String>,
+    partlist: Option<PathBuf>,
 ) -> Result<(Vec<BomItem>, Option<Vec<BomItem>>), Error> {
+
     let partlist = if let Some(partlist) = partlist {
-        Some(get_partlist(&partlist)?)
+        Some(get_partlist(partlist.to_str().unwrap())?)
     } else {
         None
     };

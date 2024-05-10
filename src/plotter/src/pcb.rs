@@ -1,4 +1,7 @@
 //! Plot the PCB
+use std::path::Path;
+
+use crate::LineCap;
 use crate::{
     border, error::Error, schema::Themer, Arc, Circle, Effects, Line, Outline, PlotItem,
     PlotterImpl, Polyline, Stroke, Style, Text, Theme,
@@ -8,6 +11,7 @@ use log::{debug, error, warn};
 use ndarray::{arr1, arr2, s, Array, Array1, Array2, ArrayView};
 
 use regex::Regex;
+use sexp::round;
 use sexp::{
     el,
     math::{Shape, Transform},
@@ -83,6 +87,7 @@ enum PadShape {
     Trapezoid,
     RoundRect,
     Custom,
+    Unknown,
 }
 
 ///create a new PadShape from String.
@@ -95,7 +100,7 @@ impl From<String> for PadShape {
             "trapezoid" => PadShape::Trapezoid,
             "roundrect" => PadShape::RoundRect,
             "custom" => PadShape::Custom,
-            _ => panic!("unknown pad shape: {}", pad_type),
+            _ => PadShape::Unknown,
         }
     }
 }
@@ -179,6 +184,10 @@ impl<'a> PcbPlot<'a> {
         self.name = name.to_string();
         self
     }
+    pub fn layers(mut self, layers: Vec<String>) -> Self {
+        self.layers = layers;
+        self
+    }
     /// create a new SchemaPlot with defalt values.
     pub fn new() -> Self {
         Self {
@@ -204,7 +213,9 @@ impl<'a> PcbPlot<'a> {
             {
                 if let sexp::SexpAtom::Node(node) = layer {
                     let name: String = node.get(0).expect("layer name expected");
-                    self.layers.push(name);
+                    if name != "B.Fab" && name != "F.Fab" {
+                        self.layers.push(name);
+                    }
                 }
             }
         }
@@ -259,31 +270,37 @@ impl<'a> PcbPlot<'a> {
             ]);
             Ok(boundery)
         } else {
-            Err(Error::Plotter(
+            Err(Error(
                 "no border found, maybe the PCB does not have Edge.Cuts".to_string(),
             ))
         }
     }
 
-    pub fn open(&mut self, path: &str) -> Result<(), Error> {
-        debug!("open pcb: {}", path);
+    pub fn open(&mut self, path: &Path) -> Result<Vec<String>, Error> {
+        debug!("open pcb: {}", path.to_str().unwrap());
         if let Some(dir) = std::path::Path::new(&path).parent() {
             self.path = dir.to_str().unwrap().to_string();
         }
-        let Ok(document) = SexpParser::load(path) else {
-            return Err(Error::Plotter(format!("could not load file: {}", path)));
+        let Ok(document) = SexpParser::load(path.to_str().unwrap()) else {
+            //TODO also use Path
+            return Err(Error(format!(
+                "could not load file: {}",
+                path.to_str().unwrap()
+            )));
         };
         let tree = SexpTree::from(document.iter())?;
         self.tree = Some(tree);
-        self.get_layers();
-        Ok(())
+        if self.layers.is_empty() {
+            self.get_layers();
+        }
+        Ok(self.layers.clone())
     }
 
     pub fn write(&self, plotter: &mut dyn PlotterImpl, layers: Vec<String>) -> Result<(), Error> {
         let tree = if let Some(tree) = &self.tree {
             tree.clone()
         } else {
-            return Err(Error::Plotter("no root schema loaded".into()));
+            return Err(Error("no root schema loaded".into()));
         };
 
         let paper_size: (f64, f64) =
@@ -294,19 +311,18 @@ impl<'a> PcbPlot<'a> {
         //TODO handle portraint and landscape
 
         let mut plot_items = Vec::<PlotItem>::new();
-        for layer in layers {
+        for layer in &layers {
             //check if layer exists
-            if !self.layers.contains(&layer) {
-                return Err(Error::Plotter(format!("layer {} not found", layer)));
+            if !self.layers.contains(layer) {
+                return Err(Error(format!("layer {} not found", layer)));
             }
-            plot_items.append(&mut self.parse_items(&tree, &layer)?);
+            plot_items.append(&mut self.parse_items(&tree, layer)?);
         }
 
         let size = if self.border {
             arr2(&[[0.0, 0.0], [paper_size.0, paper_size.1]])
         } else {
             //when the border is not plotted, the plotter will just use the default bounds
-
             let rect = self.get_border()?;
             let x = rect[[0, 0]];
             let y = rect[[0, 1]];
@@ -314,15 +330,18 @@ impl<'a> PcbPlot<'a> {
             for item in plot_items.iter_mut() {
                 match item {
                     PlotItem::Arc(_, arc) => {
-                        arc.start = arc.start.clone() - &offset;
-                        arc.end = arc.end.clone() - &offset;
-                        arc.center = arc.center.clone() - &offset;
+                        arc.start = round!(arc.start.clone() - &offset);
+                        arc.end = round!(arc.end.clone() - &offset);
+                        arc.mid = round!(arc.mid.clone() - &offset);
+                        arc.center = round!(arc.center.clone() - &offset);
                     }
-                    PlotItem::Circle(_, circle) => circle.pos = circle.pos.clone() - &offset,
-                    PlotItem::Line(_, line) => line.pts = line.pts.clone() - &offset,
-                    PlotItem::Rectangle(_, rect) => rect.pts = rect.pts.clone() - &offset,
-                    PlotItem::Polyline(_, poly) => poly.pts = poly.pts.clone() - &offset,
-                    PlotItem::Text(_, text) => text.pos = text.pos.clone() - &offset,
+                    PlotItem::Circle(_, circle) => {
+                        circle.pos = round!(circle.pos.clone() - &offset)
+                    }
+                    PlotItem::Line(_, line) => line.pts = round!(line.pts.clone() - &offset),
+                    PlotItem::Rectangle(_, rect) => rect.pts = round!(rect.pts.clone() - &offset),
+                    PlotItem::Polyline(_, poly) => poly.pts = round!(poly.pts.clone() - &offset),
+                    PlotItem::Text(_, text) => text.pos = round!(text.pos.clone() - &offset),
                 }
             }
             arr2(&[
@@ -421,9 +440,17 @@ macro_rules! class {
     };
 }
 
-
 trait PlotElement<T> {
     fn plot(&self, item: T, layer: &str, plot_items: &mut Vec<PlotItem>) -> Result<(), Error>;
+}
+trait PlotPad<T> {
+    fn plot_pad(
+        &self,
+        item: T,
+        element: &Sexp,
+        layer: &str,
+        plot_items: &mut Vec<PlotItem>,
+    ) -> Result<(), Error>;
 }
 
 struct GrLineElement<'a> {
@@ -489,7 +516,7 @@ impl<'a> PlotElement<GrPolyElement<'a>> for PcbPlot<'a> {
 
             plot_items.push(PlotItem::Polyline(
                 20,
-                Polyline::new(pts, stroke, class!(self.name, layer)),
+                Polyline::new(pts, stroke, Some(LineCap::Square), class!(self.name, layer)),
             ));
         }
         Ok(())
@@ -521,12 +548,7 @@ impl<'a> PlotElement<GrCircleElement<'a>> for PcbPlot<'a> {
             let radius = Circle::radius(&center, &end);
             plot_items.push(PlotItem::Circle(
                 1,
-                Circle::new(
-                    center,
-                    radius,
-                    stroke,
-                    class!(self.name, layer),
-                ),
+                Circle::new(center, radius, stroke, class!(self.name, layer)),
             ));
         }
         Ok(())
@@ -562,7 +584,7 @@ impl<'a> PlotElement<ZoneElement<'a>> for PcbPlot<'a> {
 
                 plot_items.push(PlotItem::Polyline(
                     20,
-                    Polyline::new(pts, stroke, class!(self.name, layer)),
+                    Polyline::new(pts, stroke, Some(LineCap::Round), class!(self.name, layer)),
                 ));
             }
         }
@@ -667,27 +689,20 @@ impl<'a> PlotElement<GrTextElement<'a>> for PcbPlot<'a> {
 
             plot_items.push(PlotItem::Text(
                 10,
-                Text::new(
-                    at,
-                    0.0,
-                    text,
-                    effects,
-                    class!(self.name, layer),
-                ),
+                Text::new(at, 0.0, text, effects, class!(self.name, layer)),
             ));
         }
         Ok(())
     }
 }
 
-struct FootprintElement<'a> {
-    item: &'a Sexp,
+#[inline]
+fn is_flipped(item: &Sexp) -> bool {
+    <Sexp as SexpValueQuery<String>>::value(item, el::LAYER).unwrap() == "B.Cu"
 }
 
-impl FootprintElement<'_> {
-    fn is_flipped(&self) -> bool {
-        <Sexp as SexpValueQuery<String>>::value(self.item, el::LAYER).unwrap() == "B.Cu"
-    }
+struct FootprintElement<'a> {
+    item: &'a Sexp,
 }
 
 impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
@@ -697,10 +712,9 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
         layer: &str,
         plot_items: &mut Vec<PlotItem>,
     ) -> Result<(), Error> {
-
         for element in item.item.nodes() {
             let name: &String = &element.name;
-            if name == "fp_arc" {
+            if name == el::FP_ARC {
                 let arc_start: Array1<f64> = element.value(el::GRAPH_START).unwrap();
                 let arc_mid: Array1<f64> = element.value("mid").unwrap();
                 let arc_end: Array1<f64> = element.value(el::GRAPH_END).unwrap();
@@ -741,7 +755,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                         Line::new(
                             Shape::transform_pad(
                                 item.item,
-                                item.is_flipped(),
+                                is_flipped(item.item),
                                 None,
                                 &arr2(&[
                                     [line_start[0], line_start[1]],
@@ -777,8 +791,9 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                     plot_items.push(PlotItem::Polyline(
                         20,
                         Polyline::new(
-                            Shape::transform_pad(item.item, item.is_flipped(), None, &pts),
+                            Shape::transform_pad(item.item, is_flipped(item.item), None, &pts),
                             stroke,
+                            Some(LineCap::Round),
                             class!(self.name, layer),
                         ),
                     ));
@@ -798,7 +813,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                     plot_items.push(PlotItem::Circle(
                         1,
                         Circle::new(
-                            Shape::transform_pad(item.item, item.is_flipped(), None, &center),
+                            Shape::transform_pad(item.item, is_flipped(item.item), None, &center),
                             radius,
                             stroke,
                             class!(self.name, layer),
@@ -817,7 +832,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                     plot_items.push(PlotItem::Text(
                         10,
                         Text::new(
-                            Shape::transform_pad(item.item, item.is_flipped(), None, &at),
+                            Shape::transform_pad(item.item, is_flipped(item.item), None, &at),
                             angle,
                             text,
                             effects,
@@ -842,6 +857,12 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                 if element.query(el::AT).next().is_none() {
                     continue;
                 }
+                //skip when the property is hidden
+                if let Some(element) = element.query(el::HIDE).next() {
+                    if <Sexp as SexpValueQuery<String>>::get(element, 0).unwrap() == "yes" {
+                        continue;
+                    }
+                }
                 let text: String = element.get(1).unwrap();
 
                 let at = sexp::utils::at(element).unwrap();
@@ -855,7 +876,7 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                     plot_items.push(PlotItem::Text(
                         10,
                         Text::new(
-                            Shape::transform_pad(item.item, item.is_flipped(), None, &at),
+                            Shape::transform_pad(item.item, is_flipped(item.item), None, &at),
                             angle,
                             text,
                             effects,
@@ -864,255 +885,53 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
                     ));
                 }
             } else if name == el::PAD {
-
-                let pad_type =
-                    PadType::from(<Sexp as SexpValueQuery<String>>::get(element, 1).unwrap());
                 let pad_shape =
                     PadShape::from(<Sexp as SexpValueQuery<String>>::get(element, 2).unwrap());
 
-                let at = sexp::utils::at(element).unwrap();
-                let angle = sexp::utils::angle(element);
-
                 let layers_node: &Sexp = element.query("layers").next().expect("expect layers");
                 let layers: Vec<String> = layers_node.values();
-                let pad_size: Array1<f64> = element.value(el::SIZE).unwrap();
-
                 for act_layer in layers {
                     if PcbPlot::is_layer_in(layer, &act_layer) {
                         match pad_shape {
                             PadShape::Circle => {
-                                if let PadType::ThruHole | PadType::NpThruHole = pad_type {
-                                    let sexp_drill = element.query(el::DRILL).next().unwrap();
-                                    let drill = DrillHole::from(sexp_drill);
-
-                                    let linewidth = pad_size[0] - drill.diameter;
-                                    let mut stroke = Stroke::new();
-                                    stroke.linewidth = linewidth;
-                                    if layer.starts_with("F.") {
-                                        stroke.fillcolor =
-                                            self.theme.layer_color(&[Style::PadThroughHole]);
-                                    } else {
-                                        stroke.linecolor =
-                                            self.theme.layer_color(&[Style::PadBack]);
-                                    }
-
-                                    plot_items.push(PlotItem::Circle(
-                                        10,
-                                        Circle::new(
-                                            Shape::transform_pad(
-                                                item.item,
-                                                item.is_flipped(),
-                                                angle,
-                                                &at,
-                                            ),
-                                            (pad_size[0] / 2.0) - linewidth / 2.0,
-                                            stroke,
-                                            class!(self.name, layer),
-                                        ),
-                                    ));
-                                } else if let PadType::Connect = pad_type {
-                                    let mut stroke = Stroke::new();
-                                    stroke.linewidth = 0.0;
-                                    stroke.fillcolor =
-                                        self.theme.layer_color(&[Style::from(act_layer)]);
-
-                                    plot_items.push(PlotItem::Circle(
-                                        10,
-                                        Circle::new(
-                                            Shape::transform_pad(
-                                                item.item,
-                                                item.is_flipped(),
-                                                angle,
-                                                &at,
-                                            ),
-                                            pad_size[0] / 2.0,
-                                            stroke,
-                                            class!(self.name, layer),
-                                        ),
-                                    ));
-                                } else {
-                                    warn!("unknown circle pad type {:?}", pad_type);
-                                }
+                                self.plot_pad(
+                                    PadCircle { item: item.item },
+                                    element,
+                                    &act_layer,
+                                    plot_items,
+                                )?;
                             }
                             PadShape::Oval => {
-                                let mut stroke = Stroke::new();
-                                stroke.linewidth = 0.1;
-                                if layer.starts_with("F.") {
-                                    stroke.fillcolor =
-                                        self.theme.layer_color(&[Style::PadThroughHole]);
-                                } else {
-                                    stroke.linecolor = self.theme.layer_color(&[Style::PadBack]);
-                                }
-
-                                let at = sexp::utils::at(element).unwrap();
-                                let size: Array1<f64> = element.value("size").unwrap();
-
-                                let deltaxy = size[1] - size[0];       /* distance between centers of the oval */
-                                let radius  = size[0] / 2.0;
-                                let half_height = deltaxy / 2.0;
-
-                                let points = arr2(&[
-                                    [[-half_height, radius], [-half_height, -radius]], // the line
-                                    [[-size[1] / 2.0, 0.0], [size[1] / 2.0, 0.0]],
-                                    [[half_height, radius], [half_height, -radius]], // the line
-                                ]);
-                                let mut fill_stroke = stroke.clone();
-                                fill_stroke.linecolor = fill_stroke.fillcolor.clone();
-                                plot_items.push(PlotItem::Rectangle(
-                                    1,
-                                    crate::Rectangle::new(
-                                        Shape::transform_pad(
-                                            item.item,
-                                            item.is_flipped(),
-                                            angle,
-                                            &(arr2(&[points[[0, 0]], points[[2, 1]]])+&at),
-                                        ),
-                                        None,
-                                        fill_stroke,
-                                        class!(self.name, layer),
-                                    ),
-                                ));
-                                plot_items.push(PlotItem::Line(
-                                    90,
-                                    Line::new(
-                                        Shape::transform_pad(item.item, item.is_flipped(), None, &(arr2(&[points[[0, 0]], points[[2, 0]]])+&at)),
-                                        stroke.clone(),
-                                        None,
-                                        class!(self.name, layer),
-                                    ),
-                                ));
-                                plot_items.push(PlotItem::Line(
-                                    90,
-                                    Line::new(
-                                        Shape::transform_pad(item.item, item.is_flipped(), None, &(arr2(&[points[[0, 1]], points[[2, 1]]])+&at)),
-                                        stroke.clone(),
-                                        None,
-                                        class!(self.name, layer),
-                                    ),
-                                ));
-                                plot_items.push(PlotItem::Arc(
-                                    100,
-                                    Arc::new(
-                                        Shape::transform_pad(item.item, item.is_flipped(), None, &(arr1(&points[[0, 0]])+&at)),
-                                        Shape::transform_pad(item.item, item.is_flipped(), None, &(arr1(&points[[1, 0]])+&at)),
-                                        Shape::transform_pad(item.item, item.is_flipped(), None, &(arr1(&points[[0, 1]])+&at)),
-                                        0.0,
-                                        None,
-                                        stroke.clone(),
-                                        class!(self.name, layer),
-                                    ),
-                                ));
-
-                                plot_items.push(PlotItem::Arc(
-                                    100,
-                                    Arc::new(
-                                        Shape::transform_pad(item.item, item.is_flipped(), None, &(arr1(&points[[2, 0]])+&at)),
-                                        Shape::transform_pad(item.item, item.is_flipped(), None, &(arr1(&points[[1, 1]])+&at)),
-                                        Shape::transform_pad(item.item, item.is_flipped(), None, &(arr1(&points[[2, 1]])+&at)),
-                                        0.0,
-                                        None,
-                                        stroke,
-                                        class!(self.name, layer),
-                                    ),
-                                ));
+                                self.plot_pad(
+                                    PadOval { item: item.item },
+                                    element,
+                                    &act_layer,
+                                    plot_items,
+                                )?;
                             }
                             PadShape::Rect => {
-                                let size: Array1<f64> = element.value("size").unwrap();
-
-                                let mut stroke = Stroke::new();
-                                stroke.linewidth = 0.1;
-                                if layer.starts_with("F.") {
-                                    stroke.linecolor = self.theme.layer_color(&[Style::PadFront]);
-                                } else {
-                                    stroke.linecolor = self.theme.layer_color(&[Style::PadBack]);
-                                }
-                                stroke.fillcolor = self.theme.layer_color(&[Style::PadThroughHole]);
-
-                                let pts: Array2<f64> =
-                                    arr2(&[[at[0], at[1]], [at[0] - size[0], at[1] - size[1]]]);
-                                let pts = pts + arr1(&[size[0] / 2.0, size[1] / 2.0]);
-                                plot_items.push(PlotItem::Rectangle(
-                                    1,
-                                    crate::Rectangle::new(
-                                        Shape::transform_pad(
-                                            item.item,
-                                            item.is_flipped(),
-                                            angle,
-                                            &pts,
-                                        ),
-                                        None,
-                                        stroke.clone(),
-                                        class!(self.name, layer),
-                                    ),
-                                ));
-                                if let PadType::ThruHole = pad_type {
-                                    let sexp_drill = element.query(el::DRILL).next().unwrap();
-                                    let drill = DrillHole::from(sexp_drill);
-                                    plot_items.push(PlotItem::Circle(
-                                        10,
-                                        Circle::new(
-                                            Shape::transform_pad(item.item,item.is_flipped(), angle, &at),
-                                            drill.width.unwrap_or(0.0),
-                                            stroke,
-                                            class!(self.name, layer),
-                                        ),
-                                    ));
-                                } else if !matches!(pad_type, PadType::Smd) {
-                                    warn!("unknown pad type for rect {:?}", pad_type);
-                                }
+                                self.plot_pad(
+                                    PadRect { item: item.item },
+                                    element,
+                                    &act_layer,
+                                    plot_items,
+                                )?;
                             }
                             PadShape::RoundRect => {
-                                let at = sexp::utils::at(element).unwrap();
-                                let size: Array1<f64> = element.value("size").unwrap();
-                                let rx: f64 = element.value("roundrect_rratio").unwrap();
-
-                                let mut stroke = Stroke::new();
-                                stroke.linewidth = 0.1;
-                                if layer.starts_with("F.") {
-                                    stroke.linecolor = self.theme.layer_color(&[Style::PadFront]);
-                                } else {
-                                    stroke.linecolor = self.theme.layer_color(&[Style::PadBack]);
-                                }
-                                stroke.fillcolor = self.theme.layer_color(&[Style::PadThroughHole]);
-
-                                let pts: Array2<f64> =
-                                    arr2(&[[at[0], at[1]], [at[0] + size[0], at[1] + size[1]]]);
-                                let pts = pts - arr1(&[size[0] / 2.0, size[1] / 2.0]); //TODO Reealy?
-                                plot_items.push(PlotItem::Rectangle(
-                                    1,
-                                    crate::Rectangle::new(
-                                        Shape::transform_pad(
-                                            item.item,
-                                            item.is_flipped(),
-                                            angle,
-                                            &pts,
-                                        ),
-                                        Some(size[0] * rx),
-                                        stroke.clone(),
-                                        class!(self.name, layer),
-                                    ),
-                                ));
-
-                                if let PadType::ThruHole = pad_type {
-                                    let sexp_drill = element.query(el::DRILL).next().unwrap();
-                                    let drill = DrillHole::from(sexp_drill);
-                                    plot_items.push(PlotItem::Circle(
-                                        10,
-                                        Circle::new(
-                                            Shape::transform_pad(
-                                                item.item,
-                                                item.is_flipped(),
-                                                angle,
-                                                &at,
-                                            ),
-                                            drill.diameter / 2.0,
-                                            stroke,
-                                            class!(self.name, layer),
-                                        ),
-                                    ));
-                                } else if !matches!(pad_type, PadType::Smd) {
-                                    warn!("unknown roundrect pad type {:?}", pad_type);
-                                }
+                                self.plot_pad(
+                                    PadRoundRect { item: item.item },
+                                    element,
+                                    &act_layer,
+                                    plot_items,
+                                )?;
+                            }
+                            PadShape::Custom => {
+                                self.plot_pad(
+                                    PadCustom { item: item.item },
+                                    element,
+                                    &act_layer,
+                                    plot_items,
+                                )?;
                             }
                             _ => {
                                 warn!("unknown pad shape {:?}", pad_shape);
@@ -1128,8 +947,389 @@ impl<'a> PlotElement<FootprintElement<'a>> for PcbPlot<'a> {
     }
 }
 
+struct PadCustom<'a> {
+    item: &'a Sexp,
+}
+
+impl<'a> PlotPad<PadCustom<'a>> for PcbPlot<'a> {
+    fn plot_pad(
+        &self,
+        item: PadCustom,
+        element: &Sexp,
+        layer: &str,
+        plot_items: &mut Vec<PlotItem>,
+    ) -> Result<(), Error> {
+        let primitives = element.query(el::PRIMITIVES).next().unwrap();
+        for c_item in primitives.nodes() {
+            match c_item.name.as_str() {
+                //el::SEGMENT => self.plot(SegmentElement { item }, layer, plot_items)?,
+                //el::GR_LINE => {
+                el::GR_POLY => {
+                    let mut pts: Array2<f64> = Array2::zeros((0, 2));
+                    //if PcbPlot::is_layer(item.item, layer) {
+                    for pt in c_item.query(el::PTS) {
+                        for xy in pt.query(el::XY) {
+                            pts.push_row(ArrayView::from(&[
+                                xy.get(0).unwrap(),
+                                xy.get(1).unwrap(),
+                            ]))
+                            .unwrap();
+                        }
+                    }
+                    let mut stroke = Stroke::new();
+                    trace!("custom pad on layer: {}", layer);
+                    let color = self.theme.layer_color(&[Style::from(layer.to_string())]);
+                    stroke.linecolor = color.clone();
+                    if let Some(linewidth) = <Sexp as SexpValueQuery<f64>>::value(c_item, "width") {
+                        stroke.linewidth = linewidth;
+                    }
+                    if let Some(fill) = <Sexp as SexpValueQuery<String>>::value(c_item, "fill") {
+                        if fill == "yes" {
+                            stroke.fillcolor = color;
+                        }
+                    }
+                    plot_items.push(PlotItem::Polyline(
+                        20,
+                        Polyline::new(
+                            Shape::transform_pad(item.item, is_flipped(item.item), None, &pts),
+                            stroke,
+                            Some(LineCap::Round),
+                            class!(self.name, layer),
+                        ),
+                    ));
+                }
+                _ => {
+                    if log_enabled!(Level::Error) && !SKIP_ELEMENTS.contains(&c_item.name.as_str())
+                    {
+                        error!("unparsed custom pad node: {}", c_item.name);
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+struct PadRoundRect<'a> {
+    item: &'a Sexp,
+}
+
+impl<'a> PlotPad<PadRoundRect<'a>> for PcbPlot<'a> {
+    fn plot_pad(
+        &self,
+        item: PadRoundRect,
+        element: &Sexp,
+        layer: &str,
+        plot_items: &mut Vec<PlotItem>,
+    ) -> Result<(), Error> {
+        let at = sexp::utils::at(element).unwrap();
+        let size: Array1<f64> = element.value("size").unwrap();
+        let pad_type = PadType::from(<Sexp as SexpValueQuery<String>>::get(element, 1).unwrap());
+        let rx: f64 = element.value("roundrect_rratio").unwrap();
+
+        let mut stroke = Stroke::new();
+        stroke.linewidth = 0.1;
+        if layer.starts_with("F.") {
+            stroke.linecolor = self.theme.layer_color(&[Style::PadFront]);
+        } else {
+            stroke.linecolor = self.theme.layer_color(&[Style::PadBack]);
+        }
+        stroke.fillcolor = self.theme.layer_color(&[Style::PadThroughHole]);
+
+        let pts: Array2<f64> = arr2(&[[at[0], at[1]], [at[0] + size[0], at[1] + size[1]]]);
+        let pts = pts - arr1(&[size[0] / 2.0, size[1] / 2.0]); //TODO Reealy?
+        plot_items.push(PlotItem::Rectangle(
+            1,
+            crate::Rectangle::new(
+                Shape::transform_pad(item.item, is_flipped(item.item), None, &pts),
+                Some(size[0] * rx),
+                stroke.clone(),
+                class!(self.name, layer),
+            ),
+        ));
+
+        if let PadType::ThruHole = pad_type {
+            let sexp_drill = element.query(el::DRILL).next().unwrap();
+            let drill = DrillHole::from(sexp_drill);
+            plot_items.push(PlotItem::Circle(
+                10,
+                Circle::new(
+                    Shape::transform_pad(item.item, is_flipped(item.item), None, &at),
+                    drill.diameter / 2.0,
+                    stroke,
+                    class!(self.name, layer),
+                ),
+            ));
+        } else if !matches!(pad_type, PadType::Smd) {
+            warn!("unknown roundrect pad type {:?}", pad_type);
+        }
+        Ok(())
+    }
+}
+
+struct PadRect<'a> {
+    item: &'a Sexp,
+}
+
+impl<'a> PlotPad<PadRect<'a>> for PcbPlot<'a> {
+    fn plot_pad(
+        &self,
+        item: PadRect,
+        element: &Sexp,
+        layer: &str,
+        plot_items: &mut Vec<PlotItem>,
+    ) -> Result<(), Error> {
+        let at = sexp::utils::at(element).unwrap();
+        let size: Array1<f64> = element.value("size").unwrap();
+        let pad_type = PadType::from(<Sexp as SexpValueQuery<String>>::get(element, 1).unwrap());
+
+        let mut stroke = Stroke::new();
+        stroke.linewidth = 0.1;
+        if layer.starts_with("F.") {
+            stroke.linecolor = self.theme.layer_color(&[Style::PadFront]);
+        } else {
+            stroke.linecolor = self.theme.layer_color(&[Style::PadBack]);
+        }
+        stroke.fillcolor = self.theme.layer_color(&[Style::PadThroughHole]);
+
+        let pts: Array2<f64> = arr2(&[[at[0], at[1]], [at[0] - size[0], at[1] - size[1]]]);
+        let pts = pts + arr1(&[size[0] / 2.0, size[1] / 2.0]);
+        plot_items.push(PlotItem::Rectangle(
+            1,
+            crate::Rectangle::new(
+                Shape::transform_pad(item.item, is_flipped(item.item), None, &pts),
+                None,
+                stroke.clone(),
+                class!(self.name, layer),
+            ),
+        ));
+        if let PadType::ThruHole = pad_type {
+            let sexp_drill = element.query(el::DRILL).next().unwrap();
+            let drill = DrillHole::from(sexp_drill);
+            plot_items.push(PlotItem::Circle(
+                10,
+                Circle::new(
+                    Shape::transform_pad(item.item, is_flipped(item.item), None, &at),
+                    drill.width.unwrap_or(0.0),
+                    stroke,
+                    class!(self.name, layer),
+                ),
+            ));
+        } else if !matches!(pad_type, PadType::Smd) {
+            warn!("unknown pad type for rect {:?}", pad_type);
+        }
+        Ok(())
+    }
+}
+
+struct PadCircle<'a> {
+    item: &'a Sexp,
+}
+
+impl<'a> PlotPad<PadCircle<'a>> for PcbPlot<'a> {
+    fn plot_pad(
+        &self,
+        item: PadCircle,
+        element: &Sexp,
+        layer: &str,
+        plot_items: &mut Vec<PlotItem>,
+    ) -> Result<(), Error> {
+        let pad_size: Array1<f64> = element.value(el::SIZE).unwrap();
+        let pad_type = PadType::from(<Sexp as SexpValueQuery<String>>::get(element, 1).unwrap());
+        let at = sexp::utils::at(element).unwrap();
+
+        if let PadType::ThruHole | PadType::NpThruHole = pad_type {
+            let sexp_drill = element.query(el::DRILL).next().unwrap();
+            let drill = DrillHole::from(sexp_drill);
+
+            let linewidth = pad_size[0] - drill.diameter;
+            let mut stroke = Stroke::new();
+            stroke.linewidth = linewidth;
+            if layer.starts_with("F.") {
+                stroke.fillcolor = self.theme.layer_color(&[Style::PadThroughHole]);
+            } else {
+                stroke.linecolor = self.theme.layer_color(&[Style::PadBack]);
+            }
+
+            plot_items.push(PlotItem::Circle(
+                10,
+                Circle::new(
+                    Shape::transform_pad(item.item, is_flipped(item.item), None, &at),
+                    (pad_size[0] / 2.0) - linewidth / 2.0,
+                    stroke,
+                    class!(self.name, layer),
+                ),
+            ));
+        } else if let PadType::Connect = pad_type {
+            let mut stroke = Stroke::new();
+            stroke.linewidth = 0.0;
+            stroke.fillcolor = self.theme.layer_color(&[Style::from(layer.to_string())]); //TODO was act_layer
+
+            plot_items.push(PlotItem::Circle(
+                10,
+                Circle::new(
+                    Shape::transform_pad(item.item, is_flipped(item.item), None, &at),
+                    pad_size[0] / 2.0,
+                    stroke,
+                    class!(self.name, layer),
+                ),
+            ));
+        } else {
+            warn!("unknown circle pad type {:?}", pad_type);
+        }
+        Ok(())
+    }
+}
+
+struct PadOval<'a> {
+    item: &'a Sexp,
+}
+
+impl<'a> PlotPad<PadOval<'a>> for PcbPlot<'a> {
+    fn plot_pad(
+        &self,
+        item: PadOval,
+        element: &Sexp,
+        layer: &str,
+        plot_items: &mut Vec<PlotItem>,
+    ) -> Result<(), Error> {
+        let at = sexp::utils::at(element).unwrap();
+        let mut size: Array1<f64> = element.value("size").unwrap();
+        if size[0] == size[1] {
+            //shape is a circle
+            return self.plot_pad(PadCircle { item: item.item }, element, layer, plot_items);
+        }
+
+        if size[0] > size[1] {
+            (size[0], size[1]) = (size[1], size[0]);
+        }
+
+        let angle = sexp::utils::angle(element);
+        let mut stroke = Stroke::new();
+        stroke.linewidth = 0.1;
+        if layer.starts_with("F.") {
+            stroke.fillcolor = self.theme.layer_color(&[Style::PadThroughHole]);
+        } else {
+            stroke.linecolor = self.theme.layer_color(&[Style::PadBack]);
+        }
+
+        let deltaxy = size[1] - size[0]; /* distance between centers of the oval */
+        let radius = size[0] / 2.0;
+        let half_height = deltaxy / 2.0;
+
+        let points = arr2(&[
+            [[-half_height, radius], [-half_height, -radius]], // the line
+            [[-size[1] / 2.0, 0.0], [size[1] / 2.0, 0.0]],
+            [[half_height, radius], [half_height, -radius]], // the line
+        ]);
+
+        let mut fill_stroke = stroke.clone();
+        fill_stroke.linecolor = fill_stroke.fillcolor.clone();
+        plot_items.push(PlotItem::Rectangle(
+            1,
+            crate::Rectangle::new(
+                Shape::transform_pad(
+                    item.item,
+                    is_flipped(item.item),
+                    angle,
+                    &(arr2(&[points[[0, 0]], points[[2, 1]]]) + &at),
+                ),
+                None,
+                fill_stroke,
+                class!(self.name, layer),
+            ),
+        ));
+        plot_items.push(PlotItem::Line(
+            90,
+            Line::new(
+                Shape::transform_pad(
+                    item.item,
+                    is_flipped(item.item),
+                    angle,
+                    &(arr2(&[points[[0, 0]], points[[2, 0]]]) + &at),
+                ),
+                stroke.clone(),
+                None,
+                class!(self.name, layer),
+            ),
+        ));
+        plot_items.push(PlotItem::Line(
+            90,
+            Line::new(
+                Shape::transform_pad(
+                    item.item,
+                    is_flipped(item.item),
+                    angle,
+                    &(arr2(&[points[[0, 1]], points[[2, 1]]]) + &at),
+                ),
+                stroke.clone(),
+                None,
+                class!(self.name, layer),
+            ),
+        ));
+        plot_items.push(PlotItem::Arc(
+            100,
+            Arc::new(
+                Shape::transform_pad(
+                    item.item,
+                    is_flipped(item.item),
+                    angle,
+                    &(arr1(&points[[0, 0]]) + &at),
+                ),
+                Shape::transform_pad(
+                    item.item,
+                    is_flipped(item.item),
+                    angle,
+                    &(arr1(&points[[1, 0]]) + &at),
+                ),
+                Shape::transform_pad(
+                    item.item,
+                    is_flipped(item.item),
+                    angle,
+                    &(arr1(&points[[0, 1]]) + &at),
+                ),
+                0.0,
+                None,
+                stroke.clone(),
+                class!(self.name, layer),
+            ),
+        ));
+
+        plot_items.push(PlotItem::Arc(
+            100,
+            Arc::new(
+                Shape::transform_pad(
+                    item.item,
+                    is_flipped(item.item),
+                    angle,
+                    &(arr1(&points[[2, 1]]) + &at),
+                ),
+                Shape::transform_pad(
+                    item.item,
+                    is_flipped(item.item),
+                    angle,
+                    &(arr1(&points[[1, 1]]) + &at),
+                ),
+                Shape::transform_pad(
+                    item.item,
+                    is_flipped(item.item),
+                    angle,
+                    &(arr1(&points[[2, 0]]) + &at),
+                ),
+                0.0,
+                None,
+                stroke,
+                class!(self.name, layer),
+            ),
+        ));
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod test {
+    use std::path::Path;
+
     use ndarray::arr1;
     use sexp::{SexpParser, SexpTree};
 
@@ -1179,7 +1379,7 @@ mod test {
     #[test]
     fn test_get_border() {
         let mut pcb = super::PcbPlot::default();
-        pcb.open("tests/cp3.kicad_pcb").unwrap();
+        pcb.open(Path::new("tests/cp3.kicad_pcb")).unwrap();
         let border = pcb.get_border().unwrap();
         assert_eq!(border, ndarray::arr2(&[[50.8, 50.8], [91.1, 158.98]]));
     }

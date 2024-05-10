@@ -15,7 +15,7 @@ board.gerber(output)"#,
             Some(&list),
             None,
         ) {
-            return Err(Error::IoError(format!("python error: {}", err)));
+            return Err(Error(format!("python error: {}", err)));
         }
         Ok(())
     })

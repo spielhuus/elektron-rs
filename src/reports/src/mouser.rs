@@ -9,7 +9,7 @@
 //! let schema = Schema::load("files/summe/summe.kicad_sch").unwrap();
 //! let result = bom(&schema, true, Some(String::from("files/partlist.yaml"))).unwrap();
 //! mouser("target/mouser-bom.xls", &result.0).unwrap();
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
 use crate::{bom::BomItem, Error};
 use xlsxwriter::{Workbook, Worksheet};
@@ -87,8 +87,8 @@ fn add_row(row: u32, item: &BomItem, sheet: &mut Worksheet) {
 ///
 /// * `file`     - Output filename.
 /// * `bom`      - The BOM list.
-pub fn mouser(file: &str, bom: &Vec<BomItem>) -> Result<(), Error> {
-    let workbook = Workbook::new(file).unwrap();
+pub fn mouser(file: &Path, bom: &Vec<BomItem>) -> Result<(), Error> {
+    let workbook = Workbook::new(file.to_str().unwrap()).unwrap();
     let mut sheet = workbook.add_worksheet(None).unwrap();
     let mut width_map: HashMap<u16, usize> = HashMap::new();
     create_headers(&mut sheet, &mut width_map);

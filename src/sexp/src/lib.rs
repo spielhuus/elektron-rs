@@ -96,6 +96,7 @@ pub mod el {
     pub const GR_LINE: &str = "gr_line";
     pub const GR_POLY: &str = "gr_poly";
     pub const GR_TEXT: &str = "gr_text";
+    pub const HIDE: &str = "hide";
     pub const JUNCTION: &str = "junction";
     pub const JUSTIFY: &str = "justify";
     pub const JUSTIFY_LEFT: &str = "left";
@@ -114,6 +115,7 @@ pub mod el {
     pub const PIN_NAMES: &str = "pin_names";
     pub const PIN_NUMBER: &str = "number";
     pub const POLYLINE: &str = "polyline";
+    pub const PRIMITIVES: &str = "primitives";
     pub const PROPERTY: &str = "property";
     pub const PROPERTY_REFERENCE: &str = "Reference";
     pub const PROPERTY_VALUE: &str = "Value";

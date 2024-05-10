@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt, fs::File, io::Read, sync::Mutex};
+use std::{collections::HashMap, fmt, fs::File, io::Read, path::Path, sync::Mutex};
 
 use fontdue::{
     layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle},
@@ -9,19 +9,15 @@ use clap::ValueEnum;
 use log::{debug, info, warn};
 use ndarray::{arr1, arr2, Array1, Array2};
 
-//pub mod cairo_plotter;
 pub mod error;
 pub mod gerber;
 pub mod pcb;
 pub mod schema;
 pub mod svg;
 pub mod themer;
-//pub mod math;
 
 pub use error::Error;
 use rust_fontconfig::{FcFontCache, FcPattern};
-
-use crate::pcb::LAYERS;
 
 use self::themer::Themer;
 use sexp::{el, PaperSize, Sexp, SexpValueQuery, SexpValuesQuery};
@@ -29,7 +25,6 @@ use sexp::{el, PaperSize, Sexp, SexpValueQuery, SexpValuesQuery};
 use lazy_static::lazy_static;
 
 const BORDER_RASTER: i32 = 40;
-
 const BORDER_HEADER_3: f64 = 7.5;
 const DEFAULT_FONT: &str = "osifont";
 
@@ -38,159 +33,246 @@ const DEFAULT_FONT: &str = "osifont";
 // -----------------------------------------------------------------------------------------------------------
 
 ///extract the filename from a path and remove the extension
-fn name_from_path(path: &str) -> String {
-    path.split('/')
-        .last()
-        .unwrap()
-        .split('.')
-        .next()
-        .unwrap()
-        .to_string()
+fn name_from_path(path: &Path) -> String {
+    path.file_stem().unwrap().to_str().unwrap().to_string()
 }
 
-/// plot the document
-///
-/// The filetype is selected by the output file extension. When no output filename is given the
-/// image will be displayed in the console.
-///
-/// # Arguments
-///
-/// * `input`    - A Schema filename.
-/// * `output`   - The filename of the target image.
-pub fn plot(
-    input: &str,
-    output: &str,
-    border: bool,
-    theme: Theme,
-    scale: f64,
-    pages: Option<Vec<usize>>,
-    layers: Option<Vec<String>>,
-) -> Result<(), Error> {
-    if input.ends_with(".kicad_sch") {
-        info!(
-            "Write schema: input:{}, output:{:?}, border: {} theme: {:?}",
-            input, output, border, theme
-        );
-        //load the sexp file.
-        //if let Some(output) = output {
-        if output.ends_with(".svg") {
-            let mut plotter = schema::SchemaPlot::new()
-                .border(border)
-                .theme(theme)
-                .scale(scale)
-                .name(input);
+enum FileExtension {
+    Schema,
+    Pcb,
+    Png,
+    Pdf,
+    Svg,
+    Unknown,
+}
 
-            if let Some(pages) = pages {
-                plotter = plotter.pages(pages);
+impl FileExtension {
+    fn from(path: &Path) -> Result<Self, Error> {
+        if let Some(ext) = path.extension() {
+            match ext.to_str().unwrap() {
+                "kicad_sch" => Ok(FileExtension::Schema),
+                "kicad_pcb" => Ok(FileExtension::Pcb),
+                "png" => Ok(FileExtension::Png),
+                "pdf" => Ok(FileExtension::Pdf),
+                "svg" => Ok(FileExtension::Svg),
+                _ => Ok(FileExtension::Unknown),
             }
-
-            plotter.open(input)?;
-            for page in plotter.iter() {
-                let mut file = if *page.0 == 1 {
-                    debug!("write first page to {}", output);
-                    File::create(output)?
-                } else {
-                    debug!("write page {} to {}", page.1, format!("{}.svg", page.1));
-                    File::create(format!("{}.svg", page.1))?
-                };
-                let mut svg_plotter = svg::SvgPlotter::new(&mut file);
-                plotter.write(page.0, &mut svg_plotter)?;
-            }
-
-        /*TODO  } else if ext == constant::EXT_PNG {
-            let plotter = CairoPlotter::new(
-                input,
-                ImageType::Png,
-                Some(Themer::new(Theme::Kicad2020)), //TODO
-            );
-            let mut buffer = File::create(output).unwrap();
-            plotter
-                .plot(&tree, &mut buffer, true, 1.0, None, false)
-                .unwrap();
-        } else if ext == constant::EXT_PDF {
-            let plotter = CairoPlotter::new(
-                input,
-                ImageType::Pdf,
-                Some(Themer::new(Theme::Kicad2020)),
-            );
-            let mut buffer = File::create(output).unwrap();
-            plotter
-                .plot(&tree, &mut buffer, true, 1.0, None, false)
-                .unwrap(); */
         } else {
-            return Err(Error::Plotter(format!(
-                "{} Image type not supported for schema plot: '{}'",
-                "Error:", output
-            )));
+            Err(Error(format!(
+                "File '{}' has no extension",
+                path.to_str().unwrap()
+            )))
         }
-        //} else {
-        //    println!("no output file");
-        //}
-    } else if input.ends_with(".kicad_pcb") {
-        debug!(
-            "Write PCB: input:{}, output:{:?}, border: {} theme: {:?}",
-            input, output, border, theme
-        );
-        let layers = if let Some(layers) = layers {
-            layers
-        } else {
-            LAYERS.iter().map(|s| s.to_string()).collect()
-        };
-        if output.ends_with(".svg") {
-            let mut plotter = pcb::PcbPlot::new()
-                .border(border)
-                .theme(theme)
-                .scale(scale)
-                .name(&name_from_path(input));
-
-            plotter.open(input)?;
-            debug!("write first page to {}", output);
-            let mut file = File::create(output)?;
-            let mut svg_plotter = svg::SvgPlotter::new(&mut file);
-            plotter.write(&mut svg_plotter, layers)?;
-
-        /*TODO  } else if ext == constant::EXT_PNG {
-            let plotter = CairoPlotter::new(
-                input,
-                ImageType::Png,
-                Some(Themer::new(Theme::Kicad2020)), //TODO
-            );
-            let mut buffer = File::create(output).unwrap();
-            plotter
-                .plot(&tree, &mut buffer, true, 1.0, None, false)
-                .unwrap();
-        } else if ext == constant::EXT_PDF {
-            let plotter = CairoPlotter::new(
-                input,
-                ImageType::Pdf,
-                Some(Themer::new(Theme::Kicad2020)),
-            );
-            let mut buffer = File::create(output).unwrap();
-            plotter
-                .plot(&tree, &mut buffer, true, 1.0, None, false)
-                .unwrap(); */
-        } else {
-            return Err(Error::Plotter(format!(
-                "{} Image type not supported for file: '{}'",
-                "Error:", output
-            )));
-        }
-
-        //pcb::plot_pcb(
-        //    input.to_string(),
-        //    output.to_string(),
-        //    None, /* TODO */
-        //    None,
-        //)?; //TODO set layers
-    } else {
-        return Err(Error::FileNotFound(format!(
-            "{} Input file format not supported: {}",
-            "Error:", input
-        )));
     }
-    Ok(())
 }
 
+pub struct Schema<'a> {
+    my_input: &'a Path,
+    my_border: bool,
+    my_theme: Theme,
+    my_scale: f64,
+    my_pages: Option<Vec<usize>>,
+    my_split: bool,
+}
+
+impl<'a> Schema<'a> {
+    pub fn new(input: &'a Path) -> Self {
+        Self {
+            my_input: input,
+            my_border: false,
+            my_theme: Theme::Kicad2020,
+            my_scale: 1.0,
+            my_pages: None,
+            my_split: false,
+        }
+    }
+    pub fn input(mut self, input: &'a Path) -> Self {
+        self.my_input = input;
+        self
+    }
+    pub fn border(mut self, border: bool) -> Self {
+        self.my_border = border;
+        self
+    }
+    pub fn theme(mut self, theme: Theme) -> Self {
+        self.my_theme = theme;
+        self
+    }
+    pub fn scale(mut self, scale: f64) -> Self {
+        self.my_scale = scale;
+        self
+    }
+    pub fn pages(mut self, pages: Option<Vec<usize>>) -> Self {
+        self.my_pages = pages;
+        self
+    }
+    pub fn split(mut self, split: bool) -> Self {
+        self.my_split = split;
+        self
+    }
+    pub fn plot(self, output: &Path) -> Result<(), Error> {
+        info!(
+            "Write schema: input:{:?}, output:{:?}, border: {} theme: {:?}",
+            self.my_input, output, self.my_border, self.my_theme
+        );
+        match FileExtension::from(output)? {
+            FileExtension::Svg => {
+                let mut plotter = schema::SchemaPlot::new()
+                    .border(self.my_border)
+                    .theme(self.my_theme)
+                    .scale(self.my_scale)
+                    .name(self.my_input.to_str().unwrap());
+
+                if let Some(pages) = self.my_pages {
+                    plotter = plotter.pages(pages);
+                }
+
+                plotter.open(self.my_input)?;
+                for page in plotter.iter() {
+                    let mut file = if *page.0 == 1 {
+                        debug!("write first page to {}", output.to_str().unwrap());
+                        File::create(output)?
+                    } else {
+                        debug!("write page {} to {}", page.1, format!("{}.svg", page.1));
+                        File::create(format!("{}.svg", page.1))?
+                    };
+                    let mut svg_plotter = svg::SvgPlotter::new(&mut file);
+                    plotter.write(page.0, &mut svg_plotter)?;
+                }
+
+                /*TODO  } else if ext == constant::EXT_PNG {
+                    let plotter = CairoPlotter::new(
+                        input,
+                        ImageType::Png,
+                        Some(Themer::new(Theme::Kicad2020)), //TODO
+                    );
+                    let mut buffer = File::create(output).unwrap();
+                    plotter
+                        .plot(&tree, &mut buffer, true, 1.0, None, false)
+                        .unwrap();
+                } else if ext == constant::EXT_PDF {
+                    let plotter = CairoPlotter::new(
+                        input,
+                        ImageType::Pdf,
+                        Some(Themer::new(Theme::Kicad2020)),
+                    );
+                    let mut buffer = File::create(output).unwrap();
+                    plotter
+                        .plot(&tree, &mut buffer, true, 1.0, None, false)
+                        .unwrap(); */
+            }
+            _ => {
+                return Err(Error(format!(
+                    "{} Image type not supported for: '{}'",
+                    "Error:",
+                    output.to_str().unwrap()
+                )));
+            }
+        }
+        Ok(())
+    }
+}
+
+pub struct Pcb<'a> {
+    my_input: &'a Path,
+    my_border: bool,
+    my_theme: Theme,
+    my_scale: f64,
+    my_layers: Option<Vec<String>>,
+    my_split: bool,
+}
+
+impl<'a> Pcb<'a> {
+    pub fn new(input: &'a Path) -> Self {
+        Self {
+            my_input: input,
+            my_border: false,
+            my_theme: Theme::Kicad2020,
+            my_scale: 1.0,
+            my_layers: None,
+            my_split: false,
+        }
+    }
+    pub fn input(mut self, input: &'a Path) -> Self {
+        self.my_input = input;
+        self
+    }
+    pub fn border(mut self, border: bool) -> Self {
+        self.my_border = border;
+        self
+    }
+    pub fn theme(mut self, theme: Theme) -> Self {
+        self.my_theme = theme;
+        self
+    }
+    pub fn scale(mut self, scale: f64) -> Self {
+        self.my_scale = scale;
+        self
+    }
+    pub fn layers(mut self, layers: Option<Vec<String>>) -> Self {
+        self.my_layers = layers;
+        self
+    }
+    pub fn split(mut self, split: bool) -> Self {
+        self.my_split = split;
+        self
+    }
+    pub fn plot(mut self, output: &Path) -> Result<Vec<String>, Error> {
+        debug!(
+            "Write pcb: input:{:?}, output:{:?}, border: {}, theme: {:?}, layers: {:?}, split: {}",
+            self.my_input, output, self.my_border, self.my_theme, self.my_layers, self.my_split
+        );
+        match FileExtension::from(output)? {
+            FileExtension::Svg => {
+                let mut plotter = pcb::PcbPlot::new()
+                    .border(self.my_border)
+                    .theme(self.my_theme)
+                    .scale(self.my_scale)
+                    .name(&name_from_path(self.my_input));
+
+                if let Some(layers) = &self.my_layers {
+                    plotter = plotter.layers(layers.clone());
+                }
+
+                self.my_layers = Some(plotter.open(self.my_input)?);
+
+                if self.my_split {
+                    let path = output.parent().unwrap();
+                    let filename = output.file_stem().unwrap();
+                    let ext = output.extension().unwrap();
+
+                    for layer in self.my_layers.as_ref().unwrap() {
+                        let output = path.join(format!(
+                            "{}_{}.{}",
+                            filename.to_str().unwrap(),
+                            layer.replace('.', "_"),
+                            ext.to_str().unwrap()
+                        ));
+
+                        debug!("write pcb layer {} to {}", layer, output.to_str().unwrap());
+
+                        let mut file = File::create(output)?;
+                        let mut svg_plotter = svg::SvgPlotter::new(&mut file);
+                        plotter.write(&mut svg_plotter, vec![layer.to_string()])?;
+                    }
+                } else {
+                    debug!("write pcb to {}", output.to_str().unwrap());
+                    let mut file = File::create(output)?;
+                    let mut svg_plotter = svg::SvgPlotter::new(&mut file);
+                    plotter.write(&mut svg_plotter, self.my_layers.clone().unwrap())?;
+                }
+            }
+            _ => {
+                return Err(Error(format!(
+                    "{} Image type not supported for: '{}'",
+                    "Error:",
+                    output.to_str().unwrap()
+                )));
+            }
+        }
+        Ok(self.my_layers.unwrap())
+    }
+}
 // -----------------------------------------------------------------------------------------------------------
 // ---                                           plotter model                                             ---
 // -----------------------------------------------------------------------------------------------------------
@@ -693,14 +775,14 @@ impl fmt::Display for Style {
             Style::FSilkS => write!(f, "F_SilkS"),
             Style::BMask => write!(f, "B_Mask"),
             Style::FMask => write!(f, "F_Mask"),
-            Style::DwgsUser => write!(f, "Dwgs_User"),
+            Style::DwgsUser => write!(f, "dwgs_user"),
             Style::CmtsUser => write!(f, "Cmts_User"),
-            Style::Eco1User => write!(f, "Eco1_User"),
-            Style::Eco2User => write!(f, "Eco2_User"),
+            Style::Eco1User => write!(f, "eco1_user"),
+            Style::Eco2User => write!(f, "eco2_user"),
             Style::EdgeCuts => write!(f, "Edge_Cuts"),
             Style::Margin => write!(f, "Margin"),
-            Style::BCrtYd => write!(f, "B_Crtyd"),
-            Style::FCrtYd => write!(f, "F_Crtyd"),
+            Style::BCrtYd => write!(f, "B_CrtYd"),
+            Style::FCrtYd => write!(f, "F_CrtYd"),
             Style::BFab => write!(f, "B_Fab"),
             Style::FFab => write!(f, "F_Fab"),
             Style::User1 => write!(f, "User_1"),
@@ -902,15 +984,17 @@ impl Line {
     }
 }
 
+#[derive(Debug)]
 pub struct Polyline {
     pub pts: Array2<f64>,
     pub stroke: Stroke,
+    pub linecap: Option<LineCap>,
     pub class: Option<String>,
 }
 
 impl Polyline {
-    pub fn new(pts: Array2<f64>, stroke: Stroke, class: Option<String>) -> Polyline {
-        Polyline { pts, stroke, class }
+    pub fn new(pts: Array2<f64>, stroke: Stroke, linecap: Option<LineCap>, class: Option<String>) -> Polyline {
+        Polyline { pts, stroke, linecap, class }
     }
 }
 
@@ -1543,6 +1627,7 @@ mod tests {
             arr2(&[[100.0, 100.0], [150.0, 150.0], [75.0, 75.0]]),
             Stroke::new(),
             None,
+            None,
         );
         struct TestOutline;
         impl Outline for TestOutline {}
@@ -1551,26 +1636,6 @@ mod tests {
         let bounds = outline.bounds(&[PlotItem::Polyline(0, line)]);
         assert_eq!(arr2(&[[75.0, 75.0], [150.0, 150.0]]), bounds);
     }
-    //TODO
-    //#[test]
-    //fn test_bounds_arc() {
-    //    let arc = Arc::new(
-    //        arr1(&[100.0, 100.0]),
-    //        arr1(&[99.0, 99.0]),
-    //        arr1(&[101.0, 101.0]),
-    //        0.25,
-    //        0.0,
-    //        360.0,
-    //        Stroke::new(),
-    //    );
-    //    struct TestOutline;
-    //    impl Outline for TestOutline {}
-    //
-    //    let outline = TestOutline;
-    //    let bounds = outline.bounds(&[PlotItem::Arc(0, arc)]);
-    //
-    //    assert_eq!(arr2(&[[99.0, 99.0], [101.0, 101.0]]), bounds);
-    //}
     #[test]
     fn test_bounds_text() {
         let themer = Themer::new(Theme::Kicad2020);
@@ -1624,19 +1689,5 @@ mod tests {
             0.1,
             Circle::radius(&arr1(&[103.378, 85.09]), &arr1(&[103.478, 85.09]))
         );
-    }
-
-    #[test]
-    fn test_debugging() {
-        super::plot(
-            "/home/etienne/github/elektrophon/src/cp3/main/main.kicad_pcb",
-            "pcb.svg",
-            true,
-            Theme::Nord,
-            1.0,
-            None,
-            Some(vec![String::from("B.SilkS")]),
-        )
-        .unwrap()
     }
 }

@@ -1,5 +1,4 @@
 //! these methods are exposed over the python APi.
-
 extern crate colored;
 extern crate comfy_table;
 extern crate draw;
@@ -25,7 +24,7 @@ use pyo3::prelude::*;
 use std::{
     fs::File,
     io::{BufWriter, Write},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use comfy_table::{
@@ -62,8 +61,7 @@ mod constant {
 }
 
 ///helper function to check if a directory exists and create it if it doesn't.
-pub fn check_directory(filename: &str) -> Result<(), Error> {
-    let path = std::path::Path::new(filename);
+pub fn check_directory(path: &Path) -> Result<(), Error> {
     let parent = path.parent();
     if let Some(parent) = parent {
         if parent.to_str().unwrap() != "" && !parent.exists() {
@@ -80,322 +78,10 @@ fn load_sexp(input: &str) -> Result<SexpTree, Error> {
     Ok(tree)
 }
 
-/// Create the BOM for a Schema.
-///
-/// # Arguments
-///
-/// * `input`    - A Schema filename.
-/// * `group`    - group equal items.
-/// * `partlist` - A YAML file with the parts description (Optional).
-/// * `return`   - Tuple with a `Vec<BomItem>` and the items not found
-///                in the partlist, when provided.
-pub fn bom(
-    input: &str,
-    output: Option<String>,
-    group: bool,
-    partlist: Option<String>,
-) -> Result<(), Error> {
-    info!("Write BOM: input:{}, output:{:?}", input, output);
-    let tree = load_sexp(input)?;
-    let results = bom::bom(&tree, group, partlist)?;
-
-    if let Some(output) = output {
-        if let Some(ext_pos) = output.find('.') {
-            let ext = output.split_at(ext_pos).1;
-            if ext == constant::EXT_JSON {
-                let mut data = json::JsonValue::new_array();
-                for item in &results.0 {
-                    data.push(json::object! {
-                        amount: item.amount,
-                        reference: item.references.clone(),
-                        value: item.value.clone(),
-                        footprint: item.footprint.clone(),
-                        datasheet: item.datasheet.clone(),
-                        description: item.description.clone()
-                    })
-                    .unwrap();
-                }
-                if let Err(err) = check_directory(&output) {
-                    return Err(Error::FileIo(format!(
-                        "{} can not create output directory: '{}'",
-                        "Error:".red(),
-                        err.to_string().bold()
-                    )));
-                };
-                let Ok(mut out) = File::create(output.clone()) else {
-                    return Err(Error::FileIo(format!(
-                        "{} can not create output file: '{}'",
-                        "Error:".red(),
-                        output.bold()
-                    )));
-                };
-                if let Err(err) = data.write(&mut out) {
-                    return Err(Error::FileIo(format!(
-                        "{} can not write output file: '{}'",
-                        "Error:".red(),
-                        err.to_string().bold()
-                    )));
-                };
-                if let Err(err) = out.flush() {
-                    return Err(Error::FileIo(format!(
-                        "{} can not flush output file: '{}'",
-                        "Error:".red(),
-                        err.to_string().bold()
-                    )));
-                }
-            } else if ext == constant::EXT_EXCEL {
-                if let Err(err) = mouser::mouser(&output, &results.0) {
-                    return Err(Error::FileIo(format!(
-                        "{} can not create excel file: '{}'",
-                        "Error:".red(),
-                        err.to_string().bold()
-                    )));
-                }
-            } else {
-                return Err(Error::FileIo(format!(
-                    "{} Output file type not supported for extension: '{}'",
-                    "Error:".red(),
-                    ext.bold()
-                )));
-            }
-        } else {
-            return Err(Error::FileIo(format!(
-                "{} Output file has no extension: '{}'",
-                "Error:".red(),
-                output.bold()
-            )));
-        }
-    } else {
-        let mut table = Table::new();
-        table
-            .load_preset(comfy_table::presets::UTF8_FULL)
-            .apply_modifier(comfy_table::modifiers::UTF8_ROUND_CORNERS)
-            .set_content_arrangement(ContentArrangement::Dynamic)
-            // .set_width(40)
-            .set_header(vec![
-                "#",
-                "Ref",
-                "Value",
-                "Footprint",
-                "Datasheet",
-                "Description",
-            ]);
-
-        results.0.iter().for_each(|item| {
-            table.add_row(vec![
-                Cell::new(item.amount),
-                Cell::new(item.references.join(" ")),
-                Cell::new(item.value.clone()),
-                Cell::new(item.footprint.clone()),
-                Cell::new(item.datasheet.clone()),
-                Cell::new(item.description.clone()),
-            ]);
-        });
-
-        println!("{table}");
-    }
-    Ok(())
-}
-
-/// output the spice netlist.
-///
-/// # Arguments
-///
-/// * `input`    - A Schema filename.
-/// * `path`     - Path to the spice library
-/// * `output`   - output file name, when no filename is given the result will be printed to the console.
-pub fn spice(input: &str, path: Vec<String>, output: Option<String>) -> Result<(), Error> {
-    let tree = load_sexp(input)?;
-    let netlist = Netlist::from(&tree);
-    if let Ok(netlist) = netlist {
-        let mut circuit = Circuit::new(input.to_string(), path);
-        netlist.circuit(&mut circuit).unwrap();
-        circuit.save(output).unwrap();
-    } else {
-        println!(
-            "{} Can not create spice netlist from schema: {}",
-            "Error:".red(),
-            input
-        );
-    }
-    Ok(())
-}
-fn absolute_path(path: &str) -> String {
+fn absolute_path(path: &Path) -> String {
     let mut absolute_path = std::env::current_dir().unwrap();
     absolute_path.push(path);
     absolute_path.to_str().unwrap().to_string()
-}
-
-/// Convert a notebook page
-///
-/// # Arguments
-///
-/// * `input`    - notebook markdown file.
-/// * `output`   - destination markdown file.
-/// * `return`   - possible error.
-fn convert(input: &str, output: &str) -> Result<(), Error> {
-    info!("Write notebook: input:{}, output:{:?}", input, output);
-
-    check_directory(output).unwrap();
-
-    //prepare env for notebook output
-    std::env::set_var("ELEKTRON_NOTEBOOK", "true");
-
-    //write to a tempf file, otherwise hugo reloads
-    let tmpfile = NamedTempFile::new()?;
-    let tmppath = tmpfile.into_temp_path();
-
-    let out: Box<dyn Write> = Box::new(BufWriter::new(File::create(&tmppath).unwrap()));
-
-    if let Err(err) = notebook::convert(
-        &absolute_path(input),
-        out,
-        Path::new(&input)
-            .parent()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_string(),
-        Path::new(&output)
-            .parent()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_string(),
-    ) {
-        error!("{}", err.to_string());
-    }
-
-    if let Err(err) = std::fs::copy(tmppath, output) {
-        Err(Error::FileIo(format!(
-            "Can not write destination markdown file {} ({})",
-            output, err
-        )))
-    } else {
-        Ok(())
-    }
-}
-
-/// Run the ERC checks for a Schema.
-///
-/// # Arguments
-///
-/// * `input` - A Schema filename.
-/// * `group`    - group equal items.
-/// * `partlist` - A YAML file with the parts description.
-/// * `return`   - Tuple with a 'Vec<BomItem>' and the items not found
-///                in the partlist, when provided.
-pub fn erc(input: &str, output: Option<String>) -> Result<(), Error> {
-    info!("Write ERC: input:{}, output:{:?}", input, output);
-    let Ok(results) = erc::erc(input) else {
-        return Err(Error::FileIo(format!(
-            "{} can not load drc information from eschema: {})",
-            "Error".red(),
-            input,
-        )));
-    };
-    if let Some(output) = output {
-        let mut data = json::JsonValue::new_array();
-        for item in &results {
-            data.push(json::object! {
-                id: String::from("NoReference"),
-                reference: item.reference.to_string(),
-                position: item.at.to_string(),
-            })
-            .unwrap();
-        }
-        check_directory(&output)?;
-        let mut out = File::create(output)?;
-        data.write(&mut out)?;
-        out.flush()?;
-    } else {
-        let mut table = Table::new();
-        table
-            .load_preset(UTF8_FULL)
-            .apply_modifier(UTF8_ROUND_CORNERS)
-            .set_content_arrangement(ContentArrangement::Dynamic)
-            .set_header(vec!["ID", "Reference", "Position"]);
-
-        results.iter().for_each(|item| {
-            table.add_row(vec![
-                Cell::new(item.id.clone()),
-                Cell::new(item.reference.clone()),
-                Cell::new(item.at.to_string()),
-            ]);
-        });
-
-        println!("{table}");
-    }
-    Ok(())
-}
-
-/// Run the DRC checks for a Schema.
-///
-/// # Arguments
-///
-/// * `input` - A Schema filename.
-/// * `partlist` - A YAML file with the parts description.
-/// * `return`   - Tuple with a `Vec<BomItem>` and the items not found
-///                in the partlist, when provided.
-pub fn drc(input: &str, output: Option<String>) -> Result<(), Error> {
-    info!("Write DRC: input:{}, output:{:?}", input, output);
-    let results = match drc::drc(input.to_string()) {
-        Ok(result) => result,
-        Err(error) => {
-            return Err(Error::FileIo(format!(
-                "{} can not load drc information from pcb: {} ({}))",
-                "Error".red(),
-                input,
-                error
-            )));
-        }
-    };
-    if let Some(output) = output {
-        let mut data = json::JsonValue::new_array();
-        for item in &results.errors {
-            let mut pos = json::array![];
-            for item in &item.items {
-                pos.push(json::object! {
-                    description: item.description.clone(),
-                    pos: format!("{}x{}", item.pos.0, item.pos.1),
-                    uuid: item.uuid.clone(),
-                }).unwrap();
-            }
-            data.push(json::object! {
-                type: item.drc_type.clone(),
-                severity: item.severity.clone(),
-                description: item.description.clone(),
-                items: pos,
-            })
-            .unwrap();
-        }
-        check_directory(&output)?;
-        let mut out = File::create(output)?;
-        data.write(&mut out)?;
-        out.flush()?;
-
-    } else {
-
-        println!("DRC: {:?}", results);
-        let mut table = Table::new();
-        table
-            .load_preset(UTF8_FULL)
-            .apply_modifier(UTF8_ROUND_CORNERS)
-            .set_content_arrangement(ContentArrangement::Dynamic)
-            .set_header(vec!["Type", "Severity", "Description", "Position"]);
-
-        results.errors.iter().for_each(|item| {
-            table.add_row(vec![
-                Cell::new(item.error_type.to_string()),
-                Cell::new(item.severity.clone()),
-                Cell::new(item.description.to_string()),
-                Cell::new(item.items.iter().map(|item| item.to_string()).collect::<Vec<String>>().join("\n")),
-            ]);
-        });
-
-        println!("{table}");
-    }
-    Ok(())
 }
 
 /// Search a Kicad symbol.
@@ -404,7 +90,7 @@ pub fn drc(input: &str, output: Option<String>) -> Result<(), Error> {
 ///
 /// * `term`     - The symbol name.
 /// * `path`     - List of library paths.
-pub fn search(term: &str, path: Vec<String>) -> Result<(), Error> {
+pub fn search(term: &str, path: Vec<PathBuf>) -> Result<(), Error> {
     let mut results: Vec<(f32, String, String, String)> = Vec::new();
     for p in path {
         for entry in std::fs::read_dir(p).unwrap() {
@@ -508,55 +194,55 @@ enum Commands {
     Bom {
         /// input kicad schema file.
         #[arg(short, long)]
-        input: String,
+        input: PathBuf,
         /// output file, this can be a json or excel file.
         #[arg(short, long)]
-        output: Option<String>,
+        output: Option<PathBuf>,
         /// group the items.
         #[arg(short, long)]
         group: bool,
         /// partlist yaml file, fields of the parts will be added or replaced with the partlist
         /// content.
         #[arg(short, long)]
-        partlist: Option<String>,
+        partlist: Option<PathBuf>,
     },
     /// convet a notebook
     Convert {
         /// input file
         #[arg(short, long)]
-        input: String,
+        input: PathBuf,
         /// ouptut file
         #[arg(short, long)]
-        output: String,
+        output: PathBuf,
     },
     /// run the drc checks on a kicad pcb.
     Drc {
         /// input file
         #[arg(short, long)]
-        input: String,
+        input: PathBuf,
         /// ouptut file
         #[arg(short, long)]
-        output: Option<String>,
+        output: Option<PathBuf>,
     },
     /// run the erc checks on a kicad schematic.
     Erc {
         /// input file
         #[arg(short, long)]
-        input: String,
+        input: PathBuf,
         /// ouptut file
         #[arg(short, long)]
-        output: Option<String>,
+        output: Option<PathBuf>,
     },
     /// plot a schematic or pcb from kicad file.
     Plot {
         /// input file.
         #[arg(short, long)]
-        input: String,
+        input: std::path::PathBuf,
         /// output file.
         #[arg(short, long)]
-        output: String,
+        output: std::path::PathBuf,
         /// plot the border
-        #[arg(short, long)]
+        #[arg(long)]
         border: bool,
         /// color theme
         #[arg(short, long, value_enum, default_value_t=Theme::Kicad2020)]
@@ -568,14 +254,17 @@ enum Commands {
         #[arg(short, long)]
         pages: Option<Vec<usize>>,
         /// select the PCB layers to plot
-        #[arg(short, long)]
+        #[arg(long)]
         layers: Option<Vec<String>>,
+        /// Output the PCB layers to seperate files.
+        #[arg(long)]
+        split: bool,
     },
     /// search for a symbol in the kicad library.
     Search {
         /// path where the spice models are located.
         #[arg(short, long)]
-        path: Vec<String>,
+        path: Vec<PathBuf>,
         /// search term
         term: String,
 
@@ -584,14 +273,37 @@ enum Commands {
     Spice {
         /// input file.
         #[arg(short, long)]
-        input: String,
+        input: PathBuf,
         /// output file.
         #[arg(short, long)]
-        output: Option<String>,
+        output: Option<PathBuf>,
         /// path where the spice models are located.
         #[arg(short, long)]
-        path: Vec<String>,
+        path: Vec<PathBuf>,
     },
+}
+
+enum FileExtension {
+    Schema,
+    Pcb,
+    Unknown,
+}
+
+impl FileExtension {
+    fn from(path: &Path) -> Result<Self, Error> {
+        if let Some(ext) = path.extension() {
+            match ext.to_str().unwrap() {
+                "kicad_sch" => Ok(FileExtension::Schema),
+                "kicad_pcb" => Ok(FileExtension::Pcb),
+                _ => Ok(FileExtension::Unknown),
+            }
+        } else {
+            Err(Error::Plotter(format!(
+                "File '{}' has no extension",
+                path.to_str().unwrap()
+            )))
+        }
+    }
 }
 
 /// Search a Kicad symbol.
@@ -609,25 +321,304 @@ pub fn main() -> PyResult<()> {
 
     if let Err(error) = match cli.command {
         Some(Commands::Bom { input, output, group, partlist }) => {
-            bom(&input, output.clone(), group, partlist)
+            let tree = load_sexp(input.to_str().unwrap())?;
+            let results = bom::bom(&tree, group, partlist).unwrap();
+
+            if let Some(output) = output {
+                let ext = output.extension();
+                match ext {
+                    None => {
+                        return Err(Error::FileIo(format!(
+                            "{} Output file has no extension: '{}'",
+                            "Error:".red(),
+                            output.to_str().unwrap().bold()
+                        )).into());
+                    },
+                    Some(ext) => {
+                        let ext = ext.to_str().unwrap();
+                        if ext == constant::EXT_JSON {
+                            let mut data = json::JsonValue::new_array();
+                            for item in &results.0 {
+                                data.push(json::object! {
+                                    amount: item.amount,
+                                    reference: item.references.clone(),
+                                    value: item.value.clone(),
+                                    footprint: item.footprint.clone(),
+                                    datasheet: item.datasheet.clone(),
+                                    description: item.description.clone()
+                                })
+                                .unwrap();
+                            }
+                            if let Err(err) = check_directory(&output) {
+                                return Err(Error::FileIo(format!(
+                                    "{} can not create output directory: '{}'",
+                                    "Error:".red(),
+                                    err.to_string().bold()
+                                )).into());
+                            };
+                            let Ok(mut out) = File::create(output.clone()) else {
+                                return Err(Error::FileIo(format!(
+                                    "{} can not create output file: '{}'",
+                                    "Error:".red(),
+                                    output.to_str().unwrap().bold()
+                                )).into());
+                            };
+                            if let Err(err) = data.write(&mut out) {
+                                return Err(Error::FileIo(format!(
+                                    "{} can not write output file: '{}'",
+                                    "Error:".red(),
+                                    err.to_string().bold()
+                                )).into());
+                            };
+                            if let Err(err) = out.flush() {
+                                return Err(Error::FileIo(format!(
+                                    "{} can not flush output file: '{}'",
+                                    "Error:".red(),
+                                    err.to_string().bold()
+                                )).into());
+                            }
+                        } else if ext == constant::EXT_EXCEL {
+                            if let Err(err) = mouser::mouser(&output, &results.0) {
+                                return Err(Error::FileIo(format!(
+                                    "{} can not create excel file: '{}'",
+                                    "Error:".red(),
+                                    err.to_string().bold()
+                                )).into());
+                            }
+                        } else {
+                            return Err(Error::FileIo(format!(
+                                "{} Output file type not supported for extension: '{}'",
+                                "Error:".red(),
+                                ext.bold()
+                            )).into());
+                        }
+                    }
+                }
+            } else {
+                let mut table = Table::new();
+                table
+                    .load_preset(comfy_table::presets::UTF8_FULL)
+                    .apply_modifier(comfy_table::modifiers::UTF8_ROUND_CORNERS)
+                    .set_content_arrangement(ContentArrangement::Dynamic)
+                    // .set_width(40)
+                    .set_header(vec![
+                        "#",
+                        "Ref",
+                        "Value",
+                        "Footprint",
+                        "Datasheet",
+                        "Description",
+                    ]);
+
+                results.0.iter().for_each(|item| {
+                    table.add_row(vec![
+                        Cell::new(item.amount),
+                        Cell::new(item.references.join(" ")),
+                        Cell::new(item.value.clone()),
+                        Cell::new(item.footprint.clone()),
+                        Cell::new(item.datasheet.clone()),
+                        Cell::new(item.description.clone()),
+                    ]);
+                });
+
+                println!("{table}");
+            }
+            Ok(())
         },
         Some(Commands::Drc { input, output }) => {
-            drc(&input, output)
+            info!("Write DRC: input:{}, output:{:?}", input.to_str().unwrap(), output);
+            let results = match drc::drc(input.to_str().unwrap()) {
+                Ok(result) => result,
+                Err(error) => {
+                    return Err(Error::FileIo(format!(
+                        "{} can not load drc information from pcb: {} ({}))",
+                        "Error".red(),
+                        input.to_str().unwrap(),
+                        error
+                    )).into());
+                }
+            };
+            if let Some(output) = output {
+                let mut data = json::JsonValue::new_array();
+                for item in &results.errors {
+                    let mut pos = json::array![];
+                    for item in &item.items {
+                        pos.push(json::object! {
+                            description: item.description.clone(),
+                            pos: format!("{}x{}", item.pos.0, item.pos.1),
+                            uuid: item.uuid.clone(),
+                        }).unwrap();
+                    }
+                    data.push(json::object! {
+                        type: item.drc_type.clone(),
+                        severity: item.severity.clone(),
+                        description: item.description.clone(),
+                        items: pos,
+                    })
+                    .unwrap();
+                }
+                check_directory(&output)?;
+                let mut out = File::create(output)?;
+                data.write(&mut out)?;
+                out.flush()?;
+
+            } else {
+
+                println!("DRC: {:?}", results);
+                let mut table = Table::new();
+                table
+                    .load_preset(UTF8_FULL)
+                    .apply_modifier(UTF8_ROUND_CORNERS)
+                    .set_content_arrangement(ContentArrangement::Dynamic)
+                    .set_header(vec!["Type", "Severity", "Description", "Position"]);
+
+                results.errors.iter().for_each(|item| {
+                    table.add_row(vec![
+                        Cell::new(item.error_type.to_string()),
+                        Cell::new(item.severity.clone()),
+                        Cell::new(item.description.to_string()),
+                        Cell::new(item.items.iter().map(|item| item.to_string()).collect::<Vec<String>>().join("\n")),
+                    ]);
+                });
+
+                println!("{table}");
+            }
+            Ok(())
         },
         Some(Commands::Erc { input, output }) => {
-            erc(&input, output)
+            info!("Write ERC: input:{}, output:{:?}", input.to_str().unwrap(), output);
+            let Ok(results) = erc::erc(&input) else {
+                return Err(Error::FileIo(format!(
+                    "{} can not load drc information from eschema: {})",
+                    "Error".red(),
+                    input.to_str().unwrap(),
+                )).into());
+            };
+            if let Some(output) = output {
+                let mut data = json::JsonValue::new_array();
+                for item in &results {
+                    data.push(json::object! {
+                        id: String::from("NoReference"),
+                        reference: item.reference.to_string(),
+                        position: item.at.to_string(),
+                    })
+                    .unwrap();
+                }
+                check_directory(&output)?;
+                let mut out = File::create(output)?;
+                data.write(&mut out)?;
+                out.flush()?;
+            } else {
+                let mut table = Table::new();
+                table
+                    .load_preset(UTF8_FULL)
+                    .apply_modifier(UTF8_ROUND_CORNERS)
+                    .set_content_arrangement(ContentArrangement::Dynamic)
+                    .set_header(vec!["ID", "Reference", "Position"]);
+
+                results.iter().for_each(|item| {
+                    table.add_row(vec![
+                        Cell::new(item.id.clone()),
+                        Cell::new(item.reference.clone()),
+                        Cell::new(item.at.to_string()),
+                    ]);
+                });
+
+                println!("{table}");
+            }
+            Ok(())
         },
-        Some(Commands::Plot { input, output, border, theme, scale, pages, layers}) => {
-            Ok(plotter::plot(&input, &output, border, theme, scale, pages, layers)?)
+        Some(Commands::Plot { input, output, border, theme, scale, pages, layers, split}) => {
+            match FileExtension::from(&input) {
+                Ok(FileExtension::Schema) => {
+                    Ok(plotter::Schema::new(&input)
+                        .border(border)
+                        .theme(theme)
+                        .scale(scale)
+                        .pages(pages)
+                        .split(split)
+                        .plot(&output)?)
+                },
+                Ok(FileExtension::Pcb) => {
+                    let _ = plotter::Pcb::new(&input)
+                        .border(border)
+                        .theme(theme)
+                        .scale(scale)
+                        .layers(layers)
+                        .split(split)
+                        .plot(&output)?;
+                    Ok(())
+                },
+                _ => {
+                    Err(Error::Plotter(format!("Input file '{}' has unknown type.", input.to_str().unwrap())))
+                }
+            }
         },
         Some(Commands::Convert { input, output }) => {
-            convert(&input, &output)
+            info!("Write notebook: input:{}, output:{:?}", input.to_str().unwrap(), output);
+
+            check_directory(&output).unwrap();
+
+            //prepare env for notebook output
+            std::env::set_var("ELEKTRON_NOTEBOOK", "true");
+
+            //write to a tempf file, otherwise hugo reloads
+            let tmpfile = NamedTempFile::new()?;
+            let tmppath = tmpfile.into_temp_path();
+
+            let out: Box<dyn Write> = Box::new(BufWriter::new(File::create(&tmppath).unwrap()));
+
+            if let Err(err) = notebook::convert(
+                &absolute_path(&input),
+                out,
+                Path::new(&input)
+                    .parent()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_string(),
+                Path::new(&output)
+                    .parent()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_string(),
+            ) {
+                error!("{}", err.to_string());
+            }
+
+            if let Err(err) = std::fs::copy(tmppath, &output) {
+                Err(Error::FileIo(format!(
+                    "Can not write destination markdown file {} ({})",
+                    output.to_str().unwrap(), err
+                )))
+            } else {
+                Ok(())
+            }
         },
         Some(Commands::Search { path, term }) => {
             search(&term, path)
         },
         Some(Commands::Spice { input, output, path }) => {
-            spice(&input, path, output)
+            let tree = load_sexp(input.to_str().unwrap())?;
+            let netlist = Netlist::from(&tree);
+            if let Ok(netlist) = netlist {
+                let path =
+                    path.iter().map(|p| p.to_str().unwrap().to_string()).collect::<Vec<String>>();
+
+                let mut circuit = Circuit::new(input.to_str().unwrap().to_string(), path);
+                netlist.circuit(&mut circuit).unwrap();
+                let output = output.map(|o|
+                    o.to_str().unwrap().to_string());
+                circuit.save(output).unwrap();
+            } else {
+                println!(
+                    "{} Can not create spice netlist from schema: {}",
+                    "Error:".red(),
+                    input.to_str().unwrap()
+                );
+            }
+            Ok(())
         },
         None => { Err(Error::NoCommand) },
     } {

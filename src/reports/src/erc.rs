@@ -7,7 +7,7 @@
 //!
 //! let schema = Schema::load("files/summe/summe.kicad_sch").unwrap();
 //! let results = erc(&schema).unwrap();
-use std::{collections::HashMap, fmt};
+use std::{collections::HashMap, fmt, path::Path};
 
 use itertools::Itertools;
 use ndarray::{arr1, Array1};
@@ -71,11 +71,11 @@ impl ErcItem {
 ///
 /// * `input`    - Filename of the shema.
 /// * `return`   - Vec<ErcItem> with the errors.
-pub fn erc(input: &str) -> Result<Vec<ErcItem>, Error> {
+pub fn erc(input: &Path) -> Result<Vec<ErcItem>, Error> {
     let mut results = Vec::new();
-    let doc = match SexpParser::load(input) {
+    let doc = match SexpParser::load(input.to_str().unwrap()) {
         Ok(doc) => doc,
-        Err(err) => return Err(Error::IoError(input.to_string(), err.to_string())),
+        Err(err) => return Err(Error::IoError(input.to_str().unwrap().to_string(), err.to_string())),
     };
     let document = match SexpTree::from(doc.iter()) {
         Ok(doc) => doc,
