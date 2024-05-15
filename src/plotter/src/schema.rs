@@ -885,7 +885,7 @@ impl<'a> PlotElement<SymbolElement<'a>> for SchemaPlot<'a> {
                         justify.push(j);
                     }
                 }
-                effects.justify = justify.clone();
+                effects.justify = justify;
                 let prop_angle = if (i_angle - p_angle).abs() >= 360.0 {
                     (i_angle - p_angle).abs() - 360.0
                 } else {

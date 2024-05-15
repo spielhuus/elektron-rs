@@ -1,50 +1,50 @@
 <svg height="63.09333332500006mm" viewBox="0 0 43.480000000000004 31.54666666250003" width="86.96000000000001mm" xmlns="http://www.w3.org/2000/svg">
 <g id="not_set" scale="2">
-<rect fill="none" height="2.039999999999992" stroke="rgb(132,0,0)" stroke-width="0.254" width="5.079999999999998" x="9.810000000000002" y="16.700000000000017"/>
-<rect fill="none" height="2.0400000000000063" stroke="rgb(132,0,0)" stroke-width="0.254" width="5.079999999999998" x="21.24000000000001" y="6.540000000000006"/>
+<rect fill="none" height="2.04" stroke="rgb(132,0,0)" stroke-width="0.254" width="5.08" x="9.81" y="16.7"/>
+<rect fill="none" height="2.04" stroke="rgb(132,0,0)" stroke-width="0.254" width="5.08" x="21.24" y="6.54"/>
 <text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(12.350000000000009,12.700000000000017) rotate(0)">
 R1
 </text>
 <text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(12.350000000000009,14.700000000000017) rotate(0)">
 10k
 </text>
-<path d="M8.54,17.72 L9.81,17.72" stroke="rgb(132,0,0)" stroke-width="0.35"/>
-<path d="M16.16,17.72 L14.89,17.72" stroke="rgb(132,0,0)" stroke-width="0.35"/>
+<path d="M8.54,17.72 L9.81,17.72" stroke="rgb(132,0,0)" stroke-linecap="butt" stroke-width="0.35"/>
+<path d="M16.16,17.72 L14.89,17.72" stroke="rgb(132,0,0)" stroke-linecap="butt" stroke-width="0.35"/>
 <text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(23.78,11.180000000000007) rotate(0)">
 U1
 </text>
 <text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(23.78,13.180000000000007) rotate(0)">
 TL072
 </text>
-<path d="M31.4,20.26 L28.86,20.26" stroke="rgb(132,0,0)" stroke-width="0.35"/>
+<path d="M31.4,20.26 L28.86,20.26" stroke="rgb(132,0,0)" stroke-linecap="butt" stroke-width="0.35"/>
 <text dominant-baseline="middle" fill="rgb(169,0,0)" font-family="osifont" font-size="0.75pt" text-anchor="middle" transform="translate(30.13000000000001,19.660000000000025) rotate(0)">
 1
 </text>
-<path d="M16.16,17.72 L18.7,17.72" stroke="rgb(132,0,0)" stroke-width="0.35"/>
+<path d="M16.16,17.72 L18.7,17.72" stroke="rgb(132,0,0)" stroke-linecap="butt" stroke-width="0.35"/>
 <text dominant-baseline="middle" fill="rgb(169,0,0)" font-family="osifont" font-size="0.75pt" text-anchor="middle" transform="translate(17.430000000000007,17.12000000000002) rotate(0)">
 2
 </text>
-<path d="M16.16,22.8 L18.7,22.8" stroke="rgb(132,0,0)" stroke-width="0.35"/>
+<path d="M16.16,22.8 L18.7,22.8" stroke="rgb(132,0,0)" stroke-linecap="butt" stroke-width="0.35"/>
 <text dominant-baseline="middle" fill="rgb(169,0,0)" font-family="osifont" font-size="0.75pt" text-anchor="middle" transform="translate(17.430000000000007,22.200000000000017) rotate(0)">
 3
 </text>
-<path d="M31.4,20.26 L31.4,7.56" stroke="rgb(0,150,0)" stroke-width="0.25"/>
-<path d="M31.4,7.56 L27.59,7.56" stroke="rgb(0,150,0)" stroke-width="0.25"/>
-<path d="M19.97,7.56 L16.16,7.56" stroke="rgb(0,150,0)" stroke-width="0.25"/>
+<path d="M31.4,20.26 L31.4,7.56" stroke="rgb(0,150,0)" stroke-linecap="square" stroke-width="0.25"/>
+<path d="M31.4,7.56 L27.59,7.56" stroke="rgb(0,150,0)" stroke-linecap="square" stroke-width="0.25"/>
+<path d="M19.97,7.56 L16.16,7.56" stroke="rgb(0,150,0)" stroke-linecap="square" stroke-width="0.25"/>
 <text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(23.78,2.5400000000000063) rotate(0)">
 R2
 </text>
 <text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(23.78,4.540000000000006) rotate(0)">
 10k
 </text>
-<path d="M27.59,7.56 L26.32,7.56" stroke="rgb(132,0,0)" stroke-width="0.35"/>
-<path d="M19.97,7.56 L21.24,7.56" stroke="rgb(132,0,0)" stroke-width="0.35"/>
-<path d="M16.16,7.56 L16.16,17.72" stroke="rgb(0,150,0)" stroke-width="0.25"/>
+<path d="M27.59,7.56 L26.32,7.56" stroke="rgb(132,0,0)" stroke-linecap="butt" stroke-width="0.35"/>
+<path d="M19.97,7.56 L21.24,7.56" stroke="rgb(132,0,0)" stroke-linecap="butt" stroke-width="0.35"/>
+<path d="M16.16,7.56 L16.16,17.72" stroke="rgb(0,150,0)" stroke-linecap="square" stroke-width="0.25"/>
 <text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="1.25pt" text-anchor="middle" transform="translate(16.16000000000001,27.340000000000018) rotate(0)">
 Gnd
 </text>
-<path d="M16.16,22.8 L16.16,22.8" stroke="rgb(132,0,0)" stroke-width="0.35"/>
-<path d="M31.4,20.26 L33.94,20.26" stroke="rgb(0,150,0)" stroke-width="0.25"/>
+<path d="M16.16,22.8 L16.16,22.8" stroke="rgb(132,0,0)" stroke-linecap="butt" stroke-width="0.35"/>
+<path d="M31.4,20.26 L33.94,20.26" stroke="rgb(0,150,0)" stroke-linecap="square" stroke-width="0.25"/>
 <text dominant-baseline="middle" fill="rgb(132,0,132)" font-family="osifont" font-size="1.25pt" text-anchor="end" transform="translate(7.540000000000006,17.920000000000016) rotate(0)">
 INPUT
 </text>
@@ -53,8 +53,8 @@ OUTPUT
 </text>
 <path d="M18.7,25.34 L28.86,20.26 L18.7,15.18 L18.7,25.34" fill="rgb(255,255,194)" stroke="rgb(132,0,0)" stroke-width="0.3"/>
 <path d="M16.16,22.8 L16.16,24.07 L17.43,24.07 L16.16,25.34 L14.89,24.07 L16.16,24.07" fill="none" stroke="rgb(132,0,0)" stroke-width="0.3"/>
-<circle cx="16.16000000000001" cy="17.720000000000013" fill="rgb(132,0,0)" r="0.4" stroke="rgb(132,0,0)" stroke-width="0.25"/>
-<circle cx="31.400000000000006" cy="20.26000000000002" fill="rgb(132,0,0)" r="0.4" stroke="rgb(132,0,0)" stroke-width="0.25"/>
+<circle cx="16.16" cy="17.72" fill="rgb(132,0,0)" r="0.4" stroke="rgb(132,0,0)" stroke-width="0.25"/>
+<circle cx="31.4" cy="20.26" fill="rgb(132,0,0)" r="0.4" stroke="rgb(132,0,0)" stroke-width="0.25"/>
 <text dominant-baseline="middle" fill="rgb(0,100,100)" font-family="osifont" font-size="0.8pt" text-anchor="start" transform="translate(19.330000000000013,17.720000000000013) rotate(0)">
 -
 </text>

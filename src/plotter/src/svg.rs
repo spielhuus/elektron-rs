@@ -188,8 +188,8 @@ impl<'a> Drawer<Text, Group> for SvgPlotter<'a> {
 impl<'a> Drawer<Line, Group> for SvgPlotter<'a> {
     fn item(&self, line: &Line, document: &mut Group) {
         let data = Data::new()
-            .move_to((line.pts[[0, 0]], line.pts[[0, 1]]))
-            .line_to((line.pts[[1, 0]], line.pts[[1, 1]]));
+            .move_to((line.pts[[0, 0]].rnd(), line.pts[[0, 1]].rnd()))
+            .line_to((line.pts[[1, 0]].rnd(), line.pts[[1, 1]].rnd()));
 
         let mut path = Path::new()
             .set("stroke", line.stroke.linecolor.to_string())
@@ -213,10 +213,10 @@ impl<'a> Drawer<Polyline, Group> for SvgPlotter<'a> {
         let mut first: bool = true;
         for pos in line.pts.rows() {
             if first {
-                data = data.move_to((pos[0], pos[1]));
+                data = data.move_to((pos[0].rnd(), pos[1].rnd()));
                 first = false;
             } else {
-                data = data.line_to((pos[0], pos[1]));
+                data = data.line_to((pos[0].rnd(), pos[1].rnd()));
             }
         }
         // data = data.close();
@@ -259,10 +259,10 @@ impl<'a> Drawer<Rectangle, Group> for SvgPlotter<'a> {
         };
 
         let mut rect = element::Rectangle::new()
-            .set("x", x0)
-            .set("y", y0)
-            .set("width", x1 - x0)
-            .set("height", y1 - y0)
+            .set("x", x0.rnd())
+            .set("y", y0.rnd())
+            .set("width", (x1 - x0).rnd())
+            .set("height", (y1 - y0).rnd())
             .set("fill", fill)
             .set("stroke", rectangle.stroke.linecolor.to_string())
             .set("stroke-width", rectangle.stroke.linewidth);
@@ -282,9 +282,9 @@ impl<'a> Drawer<Rectangle, Group> for SvgPlotter<'a> {
 impl<'a> Drawer<Circle, Group> for SvgPlotter<'a> {
     fn item(&self, circle: &Circle, document: &mut Group) {
         let mut c = element::Circle::new()
-            .set("cx", circle.pos[0])
-            .set("cy", circle.pos[1])
-            .set("r", circle.radius)
+            .set("cx", circle.pos[0].rnd())
+            .set("cy", circle.pos[1].rnd())
+            .set("r", circle.radius.rnd())
             .set("stroke", circle.stroke.linecolor.to_string())
             .set("stroke-width", circle.stroke.linewidth);
 
