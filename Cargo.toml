@@ -10,7 +10,7 @@ members = [
     "src/reports",
     "src/plotter",
     "src/draw",
-    "src/notebook",
+    # "src/notebook",
     "src/sexp",
     "src/sexp_macro",
     "src/ngspice",
@@ -24,11 +24,12 @@ license = "MIT OR Apache-2.0"
 [workspace.dependencies]
 thiserror = "1"
 lazy_static = "1"
+nalgebra = "0.32"
 regex = "1"
 ndarray = "0"
 log = "0.4"
 pyo3 = { version = "0.21" } #, features = ["gil-refs"] }
-itertools = "0.12"
+itertools = "0.13"
 rand = "0.8"
 yaml-rust = "0.4"
 xlsxwriter = "0.6"
@@ -45,13 +46,19 @@ plotters = "0.3"
 plotters-svg = "0.3"
 anyhow = "1.0"
 hound = "3.5"
-tectonic = { version="0.15", features = ["external-harfbuzz"] }
+#tectonic = { version="0.15", features = ["external-harfbuzz"] }
 uuid = { version = "1.7", features = ["v4", "fast-rng", "macro-diagnostics"] }
 fontdue = "0.8"
 rust-fontconfig = "0.1"
 pangocairo = "0.19"
 simplecss = "0.2"
 clap = { version = "4.5", features = ["derive"] }
+
+pathfinder_geometry = { git = "https://github.com/servo/pathfinder" }
+pathfinder_content = { git = "https://github.com/servo/pathfinder" }
+pathfinder_color = { git = "https://github.com/servo/pathfinder" }
+pathfinder_renderer = { git = "https://github.com/servo/pathfinder" }
+pathfinder_export = { git = "https://github.com/servo/pathfinder" }
 
 [lib]
 name = "elektron"
@@ -69,7 +76,7 @@ simulation = { path = "src/simulation" }
 reports = { path = "src/reports" }
 plotter = { path = "src/plotter" }
 draw = { path = "src/draw"}
-notebook = { path = "src/notebook" }
+#notebook = { path = "src/notebook" }
 ngspice = { path = "src/ngspice" }
 
 log = "0.4"

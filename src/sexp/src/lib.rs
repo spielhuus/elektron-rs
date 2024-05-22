@@ -52,12 +52,20 @@
 //! with a raw String (`r"some text"`) or when it is created from a variable with a
 //! bang (`!{variable}`, `!{func(param)}`).
 
+pub type Pt =  Array1<f32>;
+pub type Pts =  Array2<f32>;
+pub type Rect =  Array2<f32>;
+
 /// Parse and access sexp files.
 use std::{fs, io::Write, str::CharIndices};
 
-use ndarray::{arr1, Array1};
+use ndarray::{arr1, Array1, Array2};
 
+pub mod schema;
 pub mod math;
+
+use pathfinder_geometry::vector::Vector2F;
+pub use schema::{Schema, Wire, Junction, NoConnect, Symbol, Polyline, Rectangle, Pin};
 
 ///Kicad schema file version
 pub const KICAD_SCHEMA_VERSION: &str = "20211123";
@@ -623,6 +631,32 @@ impl SexpValuesQuery<Array1<f64>> for Sexp {
     }
 }
 
+///get sexp values as ndarray f32.
+impl SexpValuesQuery<Array1<f32>> for Sexp {
+    ///Return a single value from a node.
+    fn values(&self) -> Array1<f32> {
+        let vals: Vec<String> = self
+            .nodes
+            .iter()
+            .filter_map(|n| {
+                if let SexpAtom::Value(value) = n {
+                    Some(value.clone())
+                } else if let SexpAtom::Text(value) = n {
+                    Some(value.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        Array1::from(
+            vals.iter()
+                .map(|v| v.parse::<f32>().unwrap())
+                .collect::<Vec<f32>>(),
+        )
+    }
+}
+
 ///Get a single sexp value.
 ///
 ///Get a sexp value by name or index.
@@ -723,7 +757,47 @@ impl SexpValueQuery<f64> for Sexp {
     }
 }
 
+impl SexpValueQuery<f32> for Sexp {
+    fn value(&self, q: &str) -> Option<f32> {
+        let node = self.query(q).next();
+        if let Some(node) = node {
+            if let Some(value) = <Sexp as SexpValuesQuery<Vec<String>>>::values(node).first() {
+                return Some(value.parse::<f32>().unwrap());
+            }
+        }
+        None
+    }
+    fn get(&self, index: usize) -> Option<f32> {
+        if let Some(value) = <Sexp as SexpValuesQuery<Vec<String>>>::values(self).get(index) {
+            return Some(value.parse::<f32>().unwrap());
+        }
+        None
+    }
+}
+
+impl SexpValueQuery<Array1<f32>> for Sexp {
+    fn value(&self, q: &str) -> Option<Array1<f32>> {
+        if let Some(node) = self.query(q).next() {
+            let arr: Array1<f32> = Array1::from(
+                <Sexp as SexpValuesQuery<Vec<String>>>::values(node)
+                    .iter()
+                    .map(|v| v.parse::<f32>().unwrap())
+                    .collect::<Vec<f32>>(),
+            );
+            return Some(arr);
+        }
+        None
+    }
+    fn get(&self, index: usize) -> Option<Array1<f32>> {
+        if let Some(value) = <Sexp as SexpValuesQuery<Vec<String>>>::values(self).get(index) {
+            return Some(arr1(&[value.parse::<f32>().unwrap()]));
+        }
+        None
+    }
+}
+
 impl SexpValueQuery<Array1<f64>> for Sexp {
+    //TODO #[deprecated(since="0.1.0", note="please use `f32` instead")]
     fn value(&self, q: &str) -> Option<Array1<f64>> {
         if let Some(node) = self.query(q).next() {
             let arr: Array1<f64> = Array1::from(

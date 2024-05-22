@@ -13,6 +13,7 @@ sexp_macro = { path = "../sexp_macro" }
 simulation = { path = "../simulation" }
 
 log.workspace = true
+nalgebra.workspace = true
 lazy_static.workspace = true
 regex.workspace = true
 ndarray.workspace = true
@@ -32,3 +33,11 @@ cairo-rs.workspace = true
 png.workspace = true
 svg.workspace = true
 pdf.workspace = true
+
+
+
+pathfinder_geometry.workspace = true
+pathfinder_content.workspace = true
+pathfinder_color.workspace = true
+pathfinder_renderer.workspace = true
+pathfinder_export.workspace = true

@@ -4,6 +4,8 @@ use log::{trace, debug, error, warn, log_enabled, Level};
 use ndarray::{arr1, arr2, Array1, Array2, ArrayView};
 
 use lazy_static::lazy_static;
+use pathfinder_content::outline::Contour;
+use pathfinder_renderer::scene::Scene;
 
 pub use crate::{
     border, error::Error, themer::Themer, Arc, Circle, Effects, FillType, Line, PlotItem, Polyline,
@@ -27,6 +29,8 @@ const PIN_NUMER_OFFSET: f64 = 0.6;
 // -----------------------------------------------------------------------------------------------------------
 
 pub struct SchemaPlot<'a> {
+    scene: Scene,
+    schema: sexp::Schema<'a>,
     schema_pages: HashMap<usize, String>,
     pages: Option<Vec<usize>>,
     theme: Themer<'a>,
@@ -39,13 +43,6 @@ pub struct SchemaPlot<'a> {
 }
 
 impl Outline for SchemaPlot<'_> {}
-
-//default trait implementations for SchemaPlot
-impl Default for SchemaPlot<'_> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 /// collect the plot model from the sexp tree
 impl<'a> SchemaPlot<'a> {
@@ -80,8 +77,10 @@ impl<'a> SchemaPlot<'a> {
         self
     }
     /// create a new SchemaPlot with defalt values.
-    pub fn new() -> Self {
+    pub fn new(schema: sexp::Schema<'a>) -> Self {
         Self {
+            scene: Scene::new(),
+            schema,
             schema_pages: HashMap::new(),
             pages: None,
             theme: Themer::new(Theme::Kicad2020),
@@ -93,6 +92,41 @@ impl<'a> SchemaPlot<'a> {
             tree: None,
         }
     }
+
+    pub fn do_plot(&self) {
+        //for element in &self.schema_
+        //    match element {
+        //        sexp::schema::Element::Symbol(symbol) => todo!(),
+        //        sexp::schema::Element::Wire(wire) => self.wire(wire),
+        //        sexp::schema::Element::NoConnect(_) => todo!(),
+        //    }
+        //}
+    }
+
+    fn wire(&self, wire: &sexp::Wire) {
+        let mut contour = Contour::new();
+        contour.push_endpoint(wire.start());
+        contour.push_endpoint(wire.end());
+        //TODO colors ???
+        //self.scene.add_contour(contour, self.theme.get_stroke(wire.into(), &[Style::Wire]));
+
+
+        //let pts = item.item.query(el::PTS).next().unwrap();
+        //let xy = pts.query(el::XY).collect::<Vec<&Sexp>>();
+        //let xy1: Array1<f64> = xy.first().unwrap().values();
+        //let xy2: Array1<f64> = xy.get(1).unwrap().values();
+        //plot_items.push(PlotItem::Line(
+        //    10,
+        //    Line::new(
+        //        arr2(&[[xy1[0], xy1[1]], [xy2[0], xy2[1]]]),
+        //        self.theme.get_stroke(item.item.into(), &[Style::Wire]),
+        //        Some(LineCap::Square),
+        //        None,
+        //    ),
+        //));
+
+    }
+
 
     pub fn open_buffer(&mut self, tree: SexpTree) {
         //collect all the sheets
@@ -223,43 +257,43 @@ impl<'a> SchemaPlot<'a> {
             }
         }
 
-        for item in document.root().unwrap().nodes() {
-            match item.name.as_str() {
-                el::ARC => self.plot(ArcElement{ item }, &mut plot_items),
-                el::BUS => self.plot(BusElement{ item }, &mut plot_items),
-                el::BUS_ENTRY => self.plot(BusEntryElement{ item }, &mut plot_items),
-                el::CIRCLE => self.plot(CircleElement{ item }, &mut plot_items),
-                el::LABEL => self.plot(LabelElement{ item, global: false }, &mut plot_items),
-                el::GLOBAL_LABEL => self.plot(LabelElement{ item, global: true }, &mut plot_items),
-                el::JUNCTION => self.plot(JunctionElement{ item }, &mut plot_items),
-                el::NO_CONNECT => self.plot(NoConnectElement{ item }, &mut plot_items),
-                el::POLYLINE => self.plot(PolylineElement { item }, &mut plot_items),
-                el::RECTANGLE => self.plot(RectangleElement { item }, &mut plot_items),
-                el::SHEET => self.plot(SheetElement { item }, &mut plot_items),
-                el::SHEET_PIN => self.plot(SheetPinElement { item }, &mut plot_items),
-                el::SYMBOL => self.plot(SymbolElement { item, document, netlist: &netlist }, &mut plot_items),
-                el::WIRE => self.plot(WireElement{ item }, &mut plot_items),
-                el::TEXT => self.plot(TextElement{ item }, &mut plot_items),
-                el::TEXT_BOX => self.plot(TextBoxElement{ item }, &mut plot_items),
-                _ => {
-                    if log_enabled!(Level::Error) {
-                        let items = [
-                            "generator_version",
-                            "version",
-                            "generator",
-                            "uuid",
-                            "paper",
-                            "lib_symbols",
-                            "sheet_instances",
-                            el::TITLE_BLOCK,
-                        ];
-                        if !items.contains(&item.name.as_str()) {
-                            error!("unparsed node: {}", item.name);
-                        }
-                    }
-                },
-            }
-        }
+        //for item in document.root().unwrap().nodes() {
+        //    match item.name.as_str() {
+        //        el::ARC => self.plot(ArcElement{ item }, &mut plot_items),
+        //        el::BUS => self.plot(BusElement{ item }, &mut plot_items),
+        //        el::BUS_ENTRY => self.plot(BusEntryElement{ item }, &mut plot_items),
+        //        el::CIRCLE => self.plot(CircleElement{ item }, &mut plot_items),
+        //        el::LABEL => self.plot(LabelElement{ item, global: false }, &mut plot_items),
+        //        el::GLOBAL_LABEL => self.plot(LabelElement{ item, global: true }, &mut plot_items),
+        //        el::JUNCTION => self.plot(JunctionElement{ item }, &mut plot_items),
+        //        el::NO_CONNECT => self.plot(NoConnectElement{ item }, &mut plot_items),
+        //        el::POLYLINE => self.plot(PolylineElement { item }, &mut plot_items),
+        //        el::RECTANGLE => self.plot(RectangleElement { item }, &mut plot_items),
+        //        el::SHEET => self.plot(SheetElement { item }, &mut plot_items),
+        //        el::SHEET_PIN => self.plot(SheetPinElement { item }, &mut plot_items),
+        //        el::SYMBOL => self.plot(SymbolElement { item, document, netlist: &netlist }, &mut plot_items),
+        //        el::WIRE => self.plot(WireElement{ item }, &mut plot_items),
+        //        el::TEXT => self.plot(TextElement{ item }, &mut plot_items),
+        //        el::TEXT_BOX => self.plot(TextBoxElement{ item }, &mut plot_items),
+        //        _ => {
+        //            if log_enabled!(Level::Error) {
+        //                let items = [
+        //                    "generator_version",
+        //                    "version",
+        //                    "generator",
+        //                    "uuid",
+        //                    "paper",
+        //                    "lib_symbols",
+        //                    "sheet_instances",
+        //                    el::TITLE_BLOCK,
+        //                ];
+        //                if !items.contains(&item.name.as_str()) {
+        //                    error!("unparsed node: {}", item.name);
+        //                }
+        //            }
+        //        },
+        //    }
+        //}
         plot_items
     }
 }

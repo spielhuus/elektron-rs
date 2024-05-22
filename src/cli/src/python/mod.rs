@@ -453,27 +453,27 @@ impl PyDraw {
         }
 
         if let Some(filename) = filename {
-            let mut buffer = File::create(filename).unwrap();
-
-            let mut plotter = SchemaPlot::new()
-                .border(border)
-                .theme(theme)
-                .scale(scale)
-                .netlist(netlist)
-                .name(id.as_str());
-
-            if let Some(pages) = &pages {
-                plotter = plotter.pages(pages.clone());
-            }
-
-            plotter.open_buffer(self.draw.schema.clone());
-            for page in plotter.iter() {
-
-                //TODO check page with pages.
-
-                let mut svg_plotter = SvgPlotter::new(&mut buffer);
-                plotter.write(page.0, &mut svg_plotter).unwrap();
-            }
+            //TODO let mut buffer = File::create(filename).unwrap();
+            //
+            //let mut plotter = SchemaPlot::new()
+            //    .border(border)
+            //    .theme(theme)
+            //    .scale(scale)
+            //    .netlist(netlist)
+            //    .name(id.as_str());
+            //
+            //if let Some(pages) = &pages {
+            //    plotter = plotter.pages(pages.clone());
+            //}
+            //
+            //plotter.open_buffer(self.draw.schema.clone());
+            //for page in plotter.iter() {
+            //
+            //    //TODO check page with pages.
+            //
+            //    let mut svg_plotter = SvgPlotter::new(&mut buffer);
+            //    plotter.write(page.0, &mut svg_plotter).unwrap();
+            //}
             return Ok(None);
         } else {
             debug!("Plotting to notebook: theme: {:?}, border: {}, scale: {}, netlist: {}", theme, border, scale, netlist);
@@ -484,40 +484,42 @@ impl PyDraw {
             };
 
             if nb {
-                let mut buffer = Vec::new();
-                let mut plotter = SchemaPlot::new()
-                    .border(border)
-                    .theme(theme)
-                    .scale(scale)
-                    .netlist(netlist);
+                //TODO let mut buffer = Vec::new();
+                //let mut plotter = SchemaPlot::new()
+                //    .border(border)
+                //    .theme(theme)
+                //    .scale(scale)
+                //    .netlist(netlist);
+                //
+                //plotter.open_buffer(self.draw.schema.clone());
+                //for page in plotter.iter() {
+                //
+                //    //TODO check page with pages.
+                //
+                //    let mut svg_plotter = SvgPlotter::new(&mut buffer);
+                //    plotter.write(page.0, &mut svg_plotter).unwrap();
+                //}
+                //
+                //return Ok(Some(vec![buffer]));
 
-                plotter.open_buffer(self.draw.schema.clone());
-                for page in plotter.iter() {
-
-                    //TODO check page with pages.
-
-                    let mut svg_plotter = SvgPlotter::new(&mut buffer);
-                    plotter.write(page.0, &mut svg_plotter).unwrap();
-                }
-
-                return Ok(Some(vec![buffer]));
-
-                /* } else {
-                let mut rng = rand::thread_rng();
-                let num: u32 = rng.gen();
-                let filename = String::new()
-                    + temp_dir().to_str().unwrap()
-                    + "/"
-                    + &num.to_string()
-                    + ".png";
-                let mut buffer = File::create(&filename)?;
-                Plotter::png(
-                    PlotOptions::new(&self.draw.schema, &mut buffer)
-                        .border(border)
-                        .theme(theme),
-                )?;
-                print_from_file(&filename, &Config::default()).expect("Image printing failed.");
-                Ok(Some(vec![])) */
+                return Ok(None)
+              } else {
+                todo!();
+                //let mut rng = rand::thread_rng();
+                //let num: u32 = rng.gen();
+                //let filename = String::new()
+                //    + temp_dir().to_str().unwrap()
+                //    + "/"
+                //    + &num.to_string()
+                //    + ".png";
+                //let mut buffer = File::create(&filename)?;
+                //Plotter::png(
+                //    PlotOptions::new(&self.draw.schema, &mut buffer)
+                //        .border(border)
+                //        .theme(theme),
+                //)?;
+                //print_from_file(&filename, &Config::default()).expect("Image printing failed.");
+                //Ok(Some(vec![]))
             }
         }
         todo!();

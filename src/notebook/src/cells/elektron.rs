@@ -479,102 +479,102 @@ fn schema(out: &mut dyn std::io::Write,
     };
     writeln!(out, "schema:").unwrap();
     for input in input {
-        let input_file = Path::new(Path::new(source).parent().unwrap())
-            .join(input)
-            .join(format!("{}.kicad_sch", input));
-        let output_file = out_dir
-            .join(format!("{}_schema.svg", input))
-            .to_str()
-            .unwrap()
-            .to_string();
-
-        debug!(
-            "write schema '{}' to '{}'",
-            input,
-            out_dir
-                .join(format!("{}_schema.svg", input))
-                .to_str()
-                .unwrap()
-                .to_string()
-        );
-
-        check_directory(&output_file).map_err(|err| {
-            NotebookError::new(
-                source.to_string(),
-                String::from("ElektronCell"),
-                String::from("IOError"),
-                err.to_string(),
-                cell.0,
-                cell.0,
-                None,
-            )
-        })?;
-
-        let mut plotter = SchemaPlot::new()
-            .border(super::flag!(args, "border", false))
-            .theme(param_or!(args, "theme", "").into())
-            .scale(str::parse::<f64>(param_or!(args, "scale", "1.0")).unwrap())
-            .name(input);
-
-        plotter.open(&input_file).map_err(|err| {
-            NotebookError::new(
-                source.to_string(),
-                String::from("ElektronCell"),
-                String::from("IOError"),
-                err.to_string(),
-                cell.0,
-                cell.0,
-                None,
-            )
-        })?;
-        for page in plotter.iter() {
-            let mut file = if *page.0 == 1 {
-                debug!("write first page to {}", output_file);
-                writeln!(out, "  {}: {}", input, output_file).unwrap();
-                File::create(output_file.clone()).map_err(|err| {
-                    NotebookError::new(
-                        source.to_string(),
-                        String::from("ElektronCell"),
-                        String::from("IOError"),
-                        err.to_string(),
-                        cell.0,
-                        cell.0,
-                        None,
-                    )
-                })?
-            } else {
-                let output_file = out_dir
-                    .join(format!("{}_schema.svg", page.1))
-                    .to_str()
-                    .unwrap()
-                    .to_string();
-                debug!("write page {} to {}", page.1, format!("{}.svg", page.1));
-                writeln!(out, "  {}: {}", page.1, output_file).unwrap();
-                File::create(output_file).map_err(|err| {
-                    NotebookError::new(
-                        source.to_string(),
-                        String::from("ElektronCell"),
-                        String::from("IOError"),
-                        err.to_string(),
-                        cell.0,
-                        cell.0,
-                        None,
-                    )
-                })?
-            };
-            let mut svg_plotter = SvgPlotter::new(&mut file);
-            plotter.write(page.0, &mut svg_plotter).map_err(|err| {
-                NotebookError::new(
-                    source.to_string(),
-                    String::from("ElektronCell"),
-                    String::from("IOError"),
-                    err.to_string(),
-                    cell.0,
-                    cell.0,
-                    None,
-                )
-            })?;
-        }
+        //TODO let input_file = Path::new(Path::new(source).parent().unwrap())
+        //    .join(input)
+        //    .join(format!("{}.kicad_sch", input));
+        //let output_file = out_dir
+        //    .join(format!("{}_schema.svg", input))
+        //    .to_str()
+        //    .unwrap()
+        //    .to_string();
+        //
+        //debug!(
+        //    "write schema '{}' to '{}'",
+        //    input,
+        //    out_dir
+        //        .join(format!("{}_schema.svg", input))
+        //        .to_str()
+        //        .unwrap()
+        //        .to_string()
+        //);
+        //
+        //check_directory(&output_file).map_err(|err| {
+        //    NotebookError::new(
+        //        source.to_string(),
+        //        String::from("ElektronCell"),
+        //        String::from("IOError"),
+        //        err.to_string(),
+        //        cell.0,
+        //        cell.0,
+        //        None,
+        //    )
+        //})?;
+        //
+        //let mut plotter = SchemaPlot::new()
+        //    .border(super::flag!(args, "border", false))
+        //    .theme(param_or!(args, "theme", "").into())
+        //    .scale(str::parse::<f64>(param_or!(args, "scale", "1.0")).unwrap())
+        //    .name(input);
+        //
+        //plotter.open(&input_file).map_err(|err| {
+        //    NotebookError::new(
+        //        source.to_string(),
+        //        String::from("ElektronCell"),
+        //        String::from("IOError"),
+        //        err.to_string(),
+        //        cell.0,
+        //        cell.0,
+        //        None,
+        //    )
+        //})?;
+        //for page in plotter.iter() {
+        //    let mut file = if *page.0 == 1 {
+        //        debug!("write first page to {}", output_file);
+        //        writeln!(out, "  {}: {}", input, output_file).unwrap();
+        //        File::create(output_file.clone()).map_err(|err| {
+        //            NotebookError::new(
+        //                source.to_string(),
+        //                String::from("ElektronCell"),
+        //                String::from("IOError"),
+        //                err.to_string(),
+        //                cell.0,
+        //                cell.0,
+        //                None,
+        //            )
+        //        })?
+        //    } else {
+        //        let output_file = out_dir
+        //            .join(format!("{}_schema.svg", page.1))
+        //            .to_str()
+        //            .unwrap()
+        //            .to_string();
+        //        debug!("write page {} to {}", page.1, format!("{}.svg", page.1));
+        //        writeln!(out, "  {}: {}", page.1, output_file).unwrap();
+        //        File::create(output_file).map_err(|err| {
+        //            NotebookError::new(
+        //                source.to_string(),
+        //                String::from("ElektronCell"),
+        //                String::from("IOError"),
+        //                err.to_string(),
+        //                cell.0,
+        //                cell.0,
+        //                None,
+        //            )
+        //        })?
+        //    };
+        //    let mut svg_plotter = SvgPlotter::new(&mut file);
+        //    plotter.write(page.0, &mut svg_plotter).map_err(|err| {
+        //        NotebookError::new(
+        //            source.to_string(),
+        //            String::from("ElektronCell"),
+        //            String::from("IOError"),
+        //            err.to_string(),
+        //            cell.0,
+        //            cell.0,
+        //            None,
+        //        )
+        //    })?;
+        //}
     }
     Ok(())
 }

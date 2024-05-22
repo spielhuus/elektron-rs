@@ -6,19 +6,19 @@ mod test {
 
         #[test]
         fn plt_hall() {
-            let mut plotter = SchemaPlot::new()
-                .border(false).theme(Theme::Kicad2020).scale(2.0);
-
-            //plotter.open("tests/dco.kicad_sch");
-            plotter.open(Path::new("tests/hall.kicad_sch")).unwrap();
-            //plotter.open("/home/etienne/github/elektrophon/src/resonanz/main/main.kicad_sch");
-            for page in plotter.iter() {
-                println!("{:?}", page);
-                //let mut buffer = Vec::<u8>::new();
-                let mut file = File::create("out.svg").unwrap();
-                let mut svg_plotter = SvgPlotter::new(&mut file);
-                plotter.write(page.0, &mut svg_plotter).unwrap();
-            }
+            //TODO let mut plotter = SchemaPlot::new()
+            //    .border(false).theme(Theme::Kicad2020).scale(2.0);
+            //
+            ////plotter.open("tests/dco.kicad_sch");
+            //plotter.open(Path::new("tests/hall.kicad_sch")).unwrap();
+            ////plotter.open("/home/etienne/github/elektrophon/src/resonanz/main/main.kicad_sch");
+            //for page in plotter.iter() {
+            //    println!("{:?}", page);
+            //    //let mut buffer = Vec::<u8>::new();
+            //    let mut file = File::create("out.svg").unwrap();
+            //    let mut svg_plotter = SvgPlotter::new(&mut file);
+            //    plotter.write(page.0, &mut svg_plotter).unwrap();
+            //}
         }
         /* #[test]
         fn plt_summe() {

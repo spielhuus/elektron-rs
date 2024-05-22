@@ -15,9 +15,18 @@ pub mod pcb;
 pub mod schema;
 pub mod svg;
 pub mod themer;
+pub mod theme;
+mod plotter;
+mod svg_plotter;
+// mod pathfinder_plotter;
+mod kicad_schema;
+mod transform;
 
 pub use error::Error;
+use pathfinder_geometry::transform2d::Transform2F;
 use rust_fontconfig::{FcFontCache, FcPattern};
+
+use crate::transform::Transform;
 
 use self::themer::Themer;
 use sexp::{el, PaperSize, Sexp, SexpValueQuery, SexpValuesQuery};
@@ -117,28 +126,39 @@ impl<'a> Schema<'a> {
         );
         match FileExtension::from(output)? {
             FileExtension::Svg => {
-                let mut plotter = schema::SchemaPlot::new()
-                    .border(self.my_border)
-                    .theme(self.my_theme)
-                    .scale(self.my_scale)
-                    .name(self.my_input.to_str().unwrap());
+                let doc = sexp::SexpParser::load(self.my_input.to_str().unwrap()).unwrap();
+                let sexp = sexp::SexpTree::from(doc.iter()).unwrap();
+                let schema = sexp::Schema::new(sexp.root().unwrap());
+                let plotter = crate::svg_plotter::SvgPlotter::new(Transform::default());
+                let theme = crate::theme::Theme::from(crate::theme::Themes::Kicad2020);
+                let mut schema_plotter = crate::kicad_schema::SchemaPlotter::new(schema, plotter, theme);
+                schema_plotter.plot();
+                let mut file = File::create(output).unwrap();
+                schema_plotter.write(&mut file);
 
-                if let Some(pages) = self.my_pages {
-                    plotter = plotter.pages(pages);
-                }
-
-                plotter.open(self.my_input)?;
-                for page in plotter.iter() {
-                    let mut file = if *page.0 == 1 {
-                        debug!("write first page to {}", output.to_str().unwrap());
-                        File::create(output)?
-                    } else {
-                        debug!("write page {} to {}", page.1, format!("{}.svg", page.1));
-                        File::create(format!("{}.svg", page.1))?
-                    };
-                    let mut svg_plotter = svg::SvgPlotter::new(&mut file);
-                    plotter.write(page.0, &mut svg_plotter)?;
-                }
+                //let schema = sexp::Schema::new();
+                //let mut plotter = schema::SchemaPlot::new()
+                //    .border(self.my_border)
+                //    .theme(self.my_theme)
+                //    .scale(self.my_scale)
+                //    .name(self.my_input.to_str().unwrap());
+                //
+                //if let Some(pages) = self.my_pages {
+                //    plotter = plotter.pages(pages);
+                //}
+                //
+                //plotter.open(self.my_input)?;
+                //for page in plotter.iter() {
+                //    let mut file = if *page.0 == 1 {
+                //        debug!("write first page to {}", output.to_str().unwrap());
+                //        File::create(output)?
+                //    } else {
+                //        debug!("write page {} to {}", page.1, format!("{}.svg", page.1));
+                //        File::create(format!("{}.svg", page.1))?
+                //    };
+                //    let mut svg_plotter = svg::SvgPlotter::new(&mut file);
+                //    plotter.write(page.0, &mut svg_plotter)?;
+                //}
 
                 /*TODO  } else if ext == constant::EXT_PNG {
                     let plotter = CairoPlotter::new(

@@ -28,4 +28,4 @@ build-backend = "maturin"
 features = ["pyo3/extension-module"]
 python-source = "src"
 module-name = "elektron"
-profile = "release"
+#profile = "release"

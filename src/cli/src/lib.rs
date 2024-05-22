@@ -5,7 +5,7 @@ extern crate draw;
 extern crate itertools;
 extern crate ndarray;
 extern crate ngspice;
-extern crate notebook;
+// extern crate notebook;
 extern crate plotter;
 extern crate pyo3;
 extern crate rand;
@@ -568,25 +568,25 @@ pub fn main() -> PyResult<()> {
 
             let out: Box<dyn Write> = Box::new(BufWriter::new(File::create(&tmppath).unwrap()));
 
-            if let Err(err) = notebook::convert(
-                &absolute_path(&input),
-                out,
-                Path::new(&input)
-                    .parent()
-                    .unwrap()
-                    .to_str()
-                    .unwrap()
-                    .to_string(),
-                Path::new(&output)
-                    .parent()
-                    .unwrap()
-                    .to_str()
-                    .unwrap()
-                    .to_string(),
-            ) {
-                error!("{}", err.to_string());
-            }
-
+            //TODO if let Err(err) = notebook::convert(
+            //    &absolute_path(&input),
+            //    out,
+            //    Path::new(&input)
+            //        .parent()
+            //        .unwrap()
+            //        .to_str()
+            //        .unwrap()
+            //        .to_string(),
+            //    Path::new(&output)
+            //        .parent()
+            //        .unwrap()
+            //        .to_str()
+            //        .unwrap()
+            //        .to_string(),
+            //) {
+            //    error!("{}", err.to_string());
+            //}
+            //
             if let Err(err) = std::fs::copy(tmppath, &output) {
                 Err(Error::FileIo(format!(
                     "Can not write destination markdown file {} ({})",
