@@ -1,8 +1,6 @@
 use std::io::Write;
 
 use ndarray::{arr1, arr2};
-use pathfinder_content::segment::Segment;
-use pathfinder_geometry::line_segment::LineSegment2F;
 use pathfinder_geometry::transform2d::Transform2F;
 use pathfinder_geometry::{rect::RectF, vector::Vector2F};
 
@@ -55,24 +53,21 @@ fn draw_wire<P: Plotter>(plotter: &mut P, wire: &sexp::Wire, theme: &Theme) {
     plotter.save();
     plotter.move_to(wire.start());
     plotter.line_to(wire.end());
-    plotter.transform(Transform2F::from_translation(Vector2F::new(0.0, 0.0)));
-
-    plotter.polyline(arr2(&[wire.start(), wire.end()]));
     plotter.stroke(theme.stroke(None, &theme::Style::Wire));
     plotter.restore();
 }
 
 fn draw_no_connect<P: Plotter>(plotter: &mut P, nc: &sexp::NoConnect, theme: &Theme) {
-    plotter.save();
-    plotter.transform(Transform2F::from_translation(nc.at()));
-    plotter.move_to(Vector2F::new(-1.0, -1.0));
-    plotter.line_to(Vector2F::new(1.0, 1.0));
-    plotter.stroke(theme.stroke(None, &theme::Style::Todo));
-
-    plotter.move_to(Vector2F::new(-1.0, 1.0));
-    plotter.line_to(Vector2F::new(1.0, -1.0));
-    plotter.stroke(theme.stroke(None, &theme::Style::Todo));
-    plotter.restore();
+    //plotter.save();
+    //plotter.transform(Transform2F::from_translation(nc.at()));
+    //plotter.move_to(Vector2F::new(-1.0, -1.0));
+    //plotter.line_to(Vector2F::new(1.0, 1.0));
+    //plotter.stroke(theme.stroke(None, &theme::Style::Todo));
+    //
+    //plotter.move_to(Vector2F::new(-1.0, 1.0));
+    //plotter.line_to(Vector2F::new(1.0, -1.0));
+    //plotter.stroke(theme.stroke(None, &theme::Style::Todo));
+    //plotter.restore();
 }
 
 fn draw_symbol<P: Plotter>(plotter: &mut P, symbol: &sexp::Symbol, theme: &Theme) {
